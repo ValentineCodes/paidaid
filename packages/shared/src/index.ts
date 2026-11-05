@@ -1,7 +1,14 @@
 export const PROTOCOL_NAME = "PaidAid";
 
-/** Network this version of the client is configured to use. */
-export type NearNetworkId = "testnet";
+import type { NearNetworkId } from "./network";
+
+export type { NearNetworkId } from "./network";
+export {
+  DEFAULT_LOCALNET_CONTRACT_ID,
+  LOCALNET_RPC_URL,
+  defaultRpcUrlForNetwork,
+  parseNearNetworkId,
+} from "./network";
 
 export type NearConfig = {
   networkId: NearNetworkId;
@@ -15,3 +22,11 @@ export const CORE_METHODS = {
   getMessage: "get_message",
   getTotalMessages: "get_total_messages",
 } as const;
+
+export type {
+  GetMessageArgs,
+  SetMessageArgs,
+  TransactionFeedback,
+  TransactionSubmissionState,
+} from "./core-contract";
+export { transactionExplorerUrl } from "./core-contract";

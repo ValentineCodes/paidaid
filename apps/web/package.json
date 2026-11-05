@@ -11,14 +11,13 @@
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
+    "@near-js/transactions": "2.5.1",
     "@near-wallet-selector/core": "10.1.4",
-    "@near-wallet-selector/meteor-wallet": "10.1.4",
     "@near-wallet-selector/modal-ui": "^10.1.4",
-    "@near-wallet-selector/my-near-wallet": "10.1.4",
+    "@near-wallet-selector/intear-wallet": "10.1.4",
     "@near-wallet-selector/react-hook": "^10.1.4",
     "@paidaid/near": "workspace:*",
     "@paidaid/shared": "workspace:*",
-    "near-api-js": "6.5.1",
     "next": "16.4.5",
     "react": "19.3.0",
     "react-dom": "19.3.0"

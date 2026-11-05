@@ -1,9 +1,9 @@
-import { setupMeteorWallet } from "@near-wallet-selector/meteor-wallet";
-import { setupMyNearWallet } from "@near-wallet-selector/my-near-wallet";
 import type { WalletSelectorParams } from "@near-wallet-selector/core";
-import { WALLET_NETWORK_ID } from "./constants";
-
-export { WALLET_NETWORK_ID };
+import {
+  buildWalletNetworkConfig,
+  readPublicNearNetworkId,
+  walletModules,
+} from "./network-config";
 
 export type WalletSelectorConfigOptions = {
   contractId?: string;
@@ -19,21 +19,25 @@ export function readWalletContractId(
   return contractId || undefined;
 }
 
+export function readWalletNetworkId(
+  env: Record<string, string | undefined>,
+): ReturnType<typeof readPublicNearNetworkId> {
+  return readPublicNearNetworkId(env);
+}
+
+/** @deprecated Use async setup in wallet-selector-layer. */
 export function buildWalletSelectorConfig(
   options: WalletSelectorConfigOptions = {},
 ): WalletSelectorParams {
-  const config: WalletSelectorParams = {
-    network: WALLET_NETWORK_ID,
-    // Meteor needs near-api-js v6 (pinned in this package.json). MyNearWallet uses @near-js.
-    modules: [setupMeteorWallet(), setupMyNearWallet()],
+  void options.contractId;
+
+  const env = {
+    NEXT_PUBLIC_NEAR_NETWORK_ID: process.env.NEXT_PUBLIC_NEAR_NETWORK_ID,
+    NEXT_PUBLIC_NEAR_RPC_URL: process.env.NEXT_PUBLIC_NEAR_RPC_URL,
   };
 
-  if (options.contractId) {
-    config.createAccessKeyFor = {
-      contractId: options.contractId,
-      methodNames: [],
-    };
-  }
-
-  return config;
+  return {
+    ...buildWalletNetworkConfig(env),
+    modules: walletModules(),
+  };
 }

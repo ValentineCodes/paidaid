@@ -17,18 +17,32 @@
     "contract:test": "cargo test --manifest-path contracts/Cargo.toml",
     "contract:check": "cargo check --target wasm32-unknown-unknown --manifest-path contracts/Cargo.toml",
     "contract:build": "cargo build --release --target wasm32-unknown-unknown --manifest-path contracts/Cargo.toml",
+    "sandbox:reset": "node scripts/sandbox/reset.mjs",
+    "sandbox:start": "node scripts/sandbox/start.mjs",
+    "sandbox:stop": "node scripts/sandbox/stop.mjs",
+    "sandbox:deploy": "node scripts/sandbox/deploy.mjs",
     "check": "pnpm format:check && pnpm typecheck && pnpm lint && pnpm contract:clippy && pnpm test && pnpm contract:check"
   },
   "devDependencies": {
+    "@near-js/accounts": "2.2.5",
+    "@near-js/crypto": "2.2.5",
+    "@near-js/providers": "2.2.5",
+    "@near-js/signers": "2.2.5",
+    "@near-js/tokens": "2.5.1",
+    "near-sandbox": "0.3.5",
     "prettier": "^3.6.2"
   },
   "pnpm": {
-    "packageExtensions": {
-      "@meteorwallet/sdk@1.0.24": {
-        "dependencies": {
-          "near-api-js": "6.5.1"
-        }
-      }
+    "overrides": {
+      "@near-js/accounts": "2.5.1",
+      "@near-js/crypto": "2.5.1",
+      "@near-js/keystores": "2.5.1",
+      "@near-js/keystores-browser": "2.5.1",
+      "@near-js/providers": "2.5.1",
+      "@near-js/signers": "2.5.1",
+      "@near-js/transactions": "2.5.1",
+      "@near-js/types": "2.5.1",
+      "@near-js/utils": "2.5.1"
     }
   }
 }

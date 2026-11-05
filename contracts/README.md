@@ -40,8 +40,11 @@ cargo test
 cargo clippy --all-targets -- -D warnings
 ```
 
-## Deploy
+## Deploy (localnet)
 
-Step-by-step testnet deploy, CLI install, example calls, and troubleshooting: **[docs/deployment.md](../docs/deployment.md)**.
+```bash
+pnpm sandbox:start
+pnpm contract:build && pnpm sandbox:deploy
+```
 
-After deploy, set `NEAR_CONTRACT_ID` in `apps/web/.env.local` to the contract account so the TypeScript client can call view methods.
+See **[docs/localnet.md](../docs/localnet.md)**. After deploy, `NEAR_CONTRACT_ID` / `NEXT_PUBLIC_NEAR_CONTRACT_ID` should be `paidaid.sandbox` (default in `apps/web/.env.development`).

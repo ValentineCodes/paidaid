@@ -8,8 +8,7 @@ const nextConfig: NextConfig = {
     "@paidaid/near",
     "@near-wallet-selector/react-hook",
     "@near-wallet-selector/modal-ui",
-    "@near-wallet-selector/meteor-wallet",
-    "@near-wallet-selector/my-near-wallet",
+    "@near-wallet-selector/intear-wallet",
   ],
   partialPrefetching: true,
   turbopack: {

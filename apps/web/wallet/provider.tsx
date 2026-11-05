@@ -1,8 +1,9 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useState, type ReactNode } from "react";
+import { useLayoutEffect, useState, type ReactNode } from "react";
 import { SiteHeaderStatic } from "../components/site-header-static";
+import { WalletMountContext } from "./mount-context";
 
 const WalletSelectorLayer = dynamic(
   () =>
@@ -19,18 +20,20 @@ type WalletProviderProps = {
 export function WalletProvider({ children }: WalletProviderProps) {
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setMounted(true);
   }, []);
 
-  if (!mounted) {
-    return (
-      <>
-        <SiteHeaderStatic />
-        {children}
-      </>
-    );
-  }
-
-  return <WalletSelectorLayer>{children}</WalletSelectorLayer>;
+  return (
+    <WalletMountContext.Provider value={mounted}>
+      {!mounted ? (
+        <>
+          <SiteHeaderStatic />
+          {children}
+        </>
+      ) : (
+        <WalletSelectorLayer>{children}</WalletSelectorLayer>
+      )}
+    </WalletMountContext.Provider>
+  );
 }

@@ -104,7 +104,7 @@ function connectButtonLabel(
     case "connecting":
       return "Connecting…";
     default:
-      return "Connect Wallet";
+      return "Connect Intear";
   }
 }
 

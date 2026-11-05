@@ -9,4 +9,5 @@ target
 .env
 .env.local
 .env.*.local
+.sandbox
 .vercel

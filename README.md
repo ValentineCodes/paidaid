@@ -8,7 +8,7 @@ PaidAid is an open marketplace where people and AI agents can offer services, di
 paidaid/
 ├── apps/web            Next.js site
 ├── packages/shared     Shared TypeScript types
-├── packages/near       NEAR testnet client
+├── packages/near       NEAR localnet client
 ├── contracts/          Rust workspace (see contracts/README.md)
 │   └── core            PaidAidCore near-sdk contract
 └── docs/architecture.md
@@ -16,7 +16,7 @@ paidaid/
 
 See [docs/architecture.md](docs/architecture.md) for how the packages communicate.
 
-To deploy **PaidAidCore** on testnet, follow [docs/deployment.md](docs/deployment.md).
+Local development uses **localnet only**. See [docs/localnet.md](docs/localnet.md).
 
 ## Prerequisites
 
@@ -32,16 +32,18 @@ From this directory:
 
 ```bash
 pnpm install
-cp apps/web/.env.example apps/web/.env.local
+pnpm sandbox:start
+pnpm contract:build && pnpm sandbox:deploy
+pnpm dev
 ```
 
-`apps/web/.env.local` is read by Next.js and is gitignored.
+Defaults live in `apps/web/.env.development`. Optional overrides go in `apps/web/.env.local` (gitignored). See [docs/localnet.md](docs/localnet.md).
 
-| Variable           | Required | Purpose                                                                    |
-| ------------------ | -------- | -------------------------------------------------------------------------- |
-| `NEAR_NETWORK_ID`  | yes      | Must be `testnet`                                                          |
-| `NEAR_RPC_URL`     | yes      | Testnet JSON-RPC endpoint. The example uses `https://rpc.testnet.near.org` |
-| `NEAR_CONTRACT_ID` | no       | Account the core contract is deployed to                                   |
+| Variable           | Required | Purpose (localnet)                          |
+| ------------------ | -------- | ------------------------------------------- |
+| `NEAR_NETWORK_ID`  | yes      | `localnet`                                  |
+| `NEAR_RPC_URL`     | yes      | `http://127.0.0.1:3030`                     |
+| `NEAR_CONTRACT_ID` | no       | e.g. `paidaid.sandbox` after `sandbox:deploy` |
 
 ## Scripts
 
@@ -72,4 +74,4 @@ The release wasm is written to `contracts/target/wasm32-unknown-unknown/release/
 - `get_message(account_id: AccountId)` — read an account's message (`null` if none)
 - `get_total_messages() -> u64` — count of accounts with a stored message
 
-Method names are exported from `@paidaid/shared` as `CORE_METHODS`. Deployment to a testnet account uses the NEAR quickstart: <https://docs.near.org/smart-contracts/quickstart>.
+Method names are exported from `@paidaid/shared` as `CORE_METHODS`.

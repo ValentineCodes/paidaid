@@ -3,6 +3,11 @@
 import { useWalletSelector } from "@near-wallet-selector/react-hook";
 import { useCallback, useEffect, useState } from "react";
 import { WALLET_NETWORK_ID } from "./constants";
+import {
+  assertIntearWalletModule,
+  signInWithIntearWallet,
+} from "./connect-intear";
+import { readWalletContractId } from "./config";
 import { formatWalletConnectionError } from "./errors";
 
 export type WalletConnectionStatus =
@@ -23,8 +28,7 @@ export type PaidAidWalletState = {
 };
 
 export function usePaidAidWallet(): PaidAidWalletState {
-  const { walletSelector, signedAccountId, signIn, signOut } =
-    useWalletSelector();
+  const { walletSelector, signedAccountId, signOut } = useWalletSelector();
 
   const [initialized, setInitialized] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
@@ -36,10 +40,12 @@ export function usePaidAidWallet(): PaidAidWalletState {
     let cancelled = false;
 
     walletSelector
-      ?.then(() => {
-        if (!cancelled) {
-          setInitialized(true);
+      ?.then((selector) => {
+        if (cancelled) {
+          return;
         }
+        assertIntearWalletModule(selector);
+        setInitialized(true);
       })
       .catch((error: unknown) => {
         if (!cancelled) {
@@ -64,13 +70,21 @@ export function usePaidAidWallet(): PaidAidWalletState {
     setActionError(null);
     setIsConnecting(true);
     try {
-      await Promise.resolve(signIn());
+      const selector = await walletSelector;
+      if (!selector) {
+        throw new Error("Wallet is still loading. Try again in a moment.");
+      }
+      const contractId = readWalletContractId({
+        NEXT_PUBLIC_NEAR_CONTRACT_ID:
+          process.env.NEXT_PUBLIC_NEAR_CONTRACT_ID,
+      });
+      await signInWithIntearWallet(selector, contractId);
     } catch (error) {
       setActionError(formatWalletConnectionError(error));
     } finally {
       setIsConnecting(false);
     }
-  }, [signIn]);
+  }, [walletSelector]);
 
   const disconnect = useCallback(async () => {
     setActionError(null);

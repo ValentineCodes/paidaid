@@ -1,5 +1,6 @@
 import { CORE_METHODS, PROTOCOL_NAME } from "@paidaid/shared";
 import { readNearConfig } from "@paidaid/near";
+import Link from "next/link";
 
 export default function Home() {
   const configuration = readConfiguration();
@@ -19,6 +20,13 @@ export default function Home() {
           the TypeScript client, and the Rust contract workspace.
         </p>
       </div>
+
+      <Link
+        href="/contract"
+        className="w-fit rounded-lg bg-stone-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-stone-800 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-stone-200"
+      >
+        Open contract interaction
+      </Link>
 
       {configuration.ok ? (
         <dl className="grid gap-4 sm:grid-cols-2">

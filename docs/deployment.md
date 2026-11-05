@@ -1,5 +1,7 @@
 # Deploy PaidAidCore to NEAR testnet
 
+> **Note:** The PaidAid **web app** is **localnet-only** today. Use [localnet.md](localnet.md) for day-to-day development. This document is kept as a reference for public testnet deployment.
+
 This guide walks through building **PaidAidCore** (`contracts/core`), deploying it to **testnet only**, and calling its methods from the CLI. You run every on-chain step yourself; nothing here auto-deploys or asks for seed phrases.
 
 Official references:
