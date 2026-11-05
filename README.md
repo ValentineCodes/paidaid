@@ -16,6 +16,8 @@ paidaid/
 
 See [docs/architecture.md](docs/architecture.md) for how the packages communicate.
 
+To deploy **PaidAidCore** on testnet, follow [docs/deployment.md](docs/deployment.md).
+
 ## Prerequisites
 
 - Node.js 22.22.2 or newer

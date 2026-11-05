@@ -61,6 +61,8 @@ near-sdk 5.30 calls NEAR host functions only when the crate is compiled with `--
 contracts/target/wasm32-unknown-unknown/release/paidaid_core.wasm
 ```
 
+Deploying that artifact to testnet (CLI install, faucet account, example calls, explorers) is documented in [deployment.md](deployment.md).
+
 ## How a view call will flow
 
 Once a contract account exists, a caller uses the shared method name and the near client:

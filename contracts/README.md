@@ -42,6 +42,6 @@ cargo clippy --all-targets -- -D warnings
 
 ## Deploy
 
-Create a NEAR testnet account and deploy the wasm with [NEAR CLI](https://docs.near.org/tools/near-cli) or `cargo-near`. The official quickstart covers account creation and deployment: <https://docs.near.org/smart-contracts/quickstart>.
+Step-by-step testnet deploy, CLI install, example calls, and troubleshooting: **[docs/deployment.md](../docs/deployment.md)**.
 
 After deploy, set `NEAR_CONTRACT_ID` in `apps/web/.env.local` to the contract account so the TypeScript client can call view methods.
