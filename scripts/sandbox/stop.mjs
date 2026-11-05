@@ -10,7 +10,12 @@ try {
   process.kill(state.managerPid, "SIGTERM");
   console.log(`Sent SIGTERM to sandbox manager (pid ${state.managerPid}).`);
 } catch (error) {
-  if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+  if (
+    error &&
+    typeof error === "object" &&
+    "code" in error &&
+    error.code === "ENOENT"
+  ) {
     console.log("No sandbox state file; nothing to stop.");
     process.exit(0);
   }

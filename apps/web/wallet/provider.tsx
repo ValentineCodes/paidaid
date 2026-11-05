@@ -21,6 +21,8 @@ export function WalletProvider({ children }: WalletProviderProps) {
   const [mounted, setMounted] = useState(false);
 
   useLayoutEffect(() => {
+    // Client-only wallet shell; avoids SSR evaluating wallet-selector code.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mount gate
     setMounted(true);
   }, []);
 

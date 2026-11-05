@@ -30,7 +30,8 @@
     "@near-js/signers": "2.2.5",
     "@near-js/tokens": "2.5.1",
     "near-sandbox": "0.3.5",
-    "prettier": "^3.6.2"
+    "prettier": "^3.6.2",
+    "tsx": "4.19.4"
   },
   "pnpm": {
     "overrides": {

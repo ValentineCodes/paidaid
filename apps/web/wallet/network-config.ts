@@ -1,8 +1,5 @@
 import type { Network, WalletSelectorParams } from "@near-wallet-selector/core";
-import {
-  defaultRpcUrlForNetwork,
-  parseNearNetworkId,
-} from "@paidaid/shared";
+import { defaultRpcUrlForNetwork, parseNearNetworkId } from "@paidaid/shared";
 import { localnetWalletModules } from "./wallet-modules-localnet";
 
 const LOCALNET_PLACEHOLDER_URL = "http://localhost";
@@ -17,8 +14,7 @@ export function resolveWalletNetwork(
   env: Record<string, string | undefined>,
 ): Network {
   const nodeUrl =
-    env.NEXT_PUBLIC_NEAR_RPC_URL?.trim() ||
-    defaultRpcUrlForNetwork("localnet");
+    env.NEXT_PUBLIC_NEAR_RPC_URL?.trim() || defaultRpcUrlForNetwork("localnet");
 
   // Wallet Selector only resolves presets for "mainnet" | "testnet" (getNetworkPreset).
   // RPC is the sandbox URL; Intear uses networkId "localnet" in its connect flow.

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { formatWalletConnectionError } from "./errors";
-import { readWalletContractId } from "./config";
+import { formatWalletConnectionError } from "./errors.ts";
+import { readWalletContractId } from "./config.ts";
 
 test("formatWalletConnectionError maps cancellation", () => {
   assert.equal(

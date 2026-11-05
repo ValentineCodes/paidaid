@@ -12,12 +12,12 @@ Official references:
 
 ## What you are deploying
 
-| Item | Value |
-| ---- | ----- |
-| Contract logic | `PaidAidCore` in `contracts/core/src/lib.rs` |
-| Wasm artifact | `contracts/target/wasm32-unknown-unknown/release/paidaid_core.wasm` |
-| Network | **testnet** only (accounts end with `.testnet`) |
-| Init method | None — deploy **without** an init call (state uses `Default` on first use, same pattern as the near-sdk status-message example) |
+| Item           | Value                                                                                                                           |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Contract logic | `PaidAidCore` in `contracts/core/src/lib.rs`                                                                                    |
+| Wasm artifact  | `contracts/target/wasm32-unknown-unknown/release/paidaid_core.wasm`                                                             |
+| Network        | **testnet** only (accounts end with `.testnet`)                                                                                 |
+| Init method    | None — deploy **without** an init call (state uses `Default` on first use, same pattern as the near-sdk status-message example) |
 
 Set shell variables once (replace placeholders with your account names):
 
@@ -82,10 +82,10 @@ npx near-cli-rs@latest --version
 
 The CLI stores network connections and key references in a config file (not in this repo):
 
-| OS | Typical path |
-| -- | ------------ |
+| OS    | Typical path                                         |
+| ----- | ---------------------------------------------------- |
 | macOS | `~/Library/Application Support/near-cli/config.toml` |
-| Linux | `~/.config/near-cli/config.toml` |
+| Linux | `~/.config/near-cli/config.toml`                     |
 
 Effects:
 
@@ -156,11 +156,11 @@ near account view-account-summary "$SIGNER_ID" network-config testnet
 
 ## 3. Obtain testnet NEAR
 
-| Situation | What to do |
-| --------- | ------------ |
-| New account via `--useFaucet` | Faucet NEAR is included automatically |
-| Low balance later | Use a [testnet faucet](https://docs.near.org/getting-started/create-account) linked from NEAR docs, or send testnet NEAR from another `.testnet` account |
-| Mainnet | **Do not use mainnet** for this guide — no real NEAR required |
+| Situation                     | What to do                                                                                                                                               |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| New account via `--useFaucet` | Faucet NEAR is included automatically                                                                                                                    |
+| Low balance later             | Use a [testnet faucet](https://docs.near.org/getting-started/create-account) linked from NEAR docs, or send testnet NEAR from another `.testnet` account |
+| Mainnet                       | **Do not use mainnet** for this guide — no real NEAR required                                                                                            |
 
 Deploy and storage consume NEAR (gas + contract storage stake). If deployment fails with insufficient balance, fund the **signer** account and retry.
 
@@ -322,9 +322,9 @@ After `set_message`, total messages should be `1` and `get_message` should retur
 
 Use **testnet** explorers (replace `CONTRACT_ID`):
 
-| Explorer | Account URL pattern |
-| -------- | ------------------- |
-| [NEAR Blocks (testnet)](https://testnet.nearblocks.io) | `https://testnet.nearblocks.io/address/<CONTRACT_ID>` |
+| Explorer                                                     | Account URL pattern                                        |
+| ------------------------------------------------------------ | ---------------------------------------------------------- |
+| [NEAR Blocks (testnet)](https://testnet.nearblocks.io)       | `https://testnet.nearblocks.io/address/<CONTRACT_ID>`      |
 | [Near Explorer (testnet)](https://explorer.testnet.near.org) | `https://explorer.testnet.near.org/accounts/<CONTRACT_ID>` |
 
 What to check:
@@ -346,19 +346,19 @@ near contract inspect "$CONTRACT_ID" network-config testnet
 
 ## Troubleshooting
 
-| Error / symptom | Likely cause | What to try |
-| --------------- | ------------ | ----------- |
-| `near: command not found` | CLI not installed or not on `PATH` | Re-run the installer; open a new shell; or use `npx near-cli-rs@latest` |
-| `Failed to find ... wasm` | Build not run or wrong path | `pnpm contract:build` and set `WASM` to the path under `contracts/target/...` |
-| `Account ... does not exist` | Typo or account not created on testnet | `near account view-account-summary ... testnet`; recreate with `--useFaucet` |
-| `doesn't have enough balance` | Not enough testnet NEAR | Fund signer via faucet; wait for prior txs to settle |
-| `Network ...` / wrong chain | `mainnet` vs `testnet` mismatch | Always pass `--networkId testnet` or `network-config testnet` |
-| `Method ... not found` | Wrong account (no deploy) or old wasm | Redeploy to `$CONTRACT_ID`; run `near contract inspect` |
-| `Can not sign` / key errors | Key not in keychain | Recreate account with `save-to-keychain` or use `near login` — never commit keys |
-| View call fails after local tests | Confusing view vs call | Use `near view` / `as-read-only` for `get_*`; use `near call` / `as-transaction` for `set_message` |
-| Invalid JSON args | Wrong field names | Use `{"message": "..."}` and `{"account_id": "name.testnet"}` exactly |
-| `ProhibitedInView` (in Rust tests) | N/A on chain | In unit tests, flush `LookupMap` before view calls — see `contracts/core/src/lib.rs` |
-| CLI syntax differs from this doc | Version drift | `near --version` and `near deploy --help`, `near contract --help` |
+| Error / symptom                    | Likely cause                           | What to try                                                                                        |
+| ---------------------------------- | -------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `near: command not found`          | CLI not installed or not on `PATH`     | Re-run the installer; open a new shell; or use `npx near-cli-rs@latest`                            |
+| `Failed to find ... wasm`          | Build not run or wrong path            | `pnpm contract:build` and set `WASM` to the path under `contracts/target/...`                      |
+| `Account ... does not exist`       | Typo or account not created on testnet | `near account view-account-summary ... testnet`; recreate with `--useFaucet`                       |
+| `doesn't have enough balance`      | Not enough testnet NEAR                | Fund signer via faucet; wait for prior txs to settle                                               |
+| `Network ...` / wrong chain        | `mainnet` vs `testnet` mismatch        | Always pass `--networkId testnet` or `network-config testnet`                                      |
+| `Method ... not found`             | Wrong account (no deploy) or old wasm  | Redeploy to `$CONTRACT_ID`; run `near contract inspect`                                            |
+| `Can not sign` / key errors        | Key not in keychain                    | Recreate account with `save-to-keychain` or use `near login` — never commit keys                   |
+| View call fails after local tests  | Confusing view vs call                 | Use `near view` / `as-read-only` for `get_*`; use `near call` / `as-transaction` for `set_message` |
+| Invalid JSON args                  | Wrong field names                      | Use `{"message": "..."}` and `{"account_id": "name.testnet"}` exactly                              |
+| `ProhibitedInView` (in Rust tests) | N/A on chain                           | In unit tests, flush `LookupMap` before view calls — see `contracts/core/src/lib.rs`               |
+| CLI syntax differs from this doc   | Version drift                          | `near --version` and `near deploy --help`, `near contract --help`                                  |
 
 ### Security reminders
 

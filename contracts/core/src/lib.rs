@@ -93,10 +93,7 @@ mod tests {
     fn get_message_missing_account_returns_none() {
         testing_env!(call_context("alice.testnet", true));
         let contract = PaidAidCore::default();
-        assert_eq!(
-            contract.get_message("bob.testnet".parse().unwrap()),
-            None
-        );
+        assert_eq!(contract.get_message("bob.testnet".parse().unwrap()), None);
     }
 
     #[test]

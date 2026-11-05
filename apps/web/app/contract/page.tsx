@@ -11,8 +11,7 @@ export default function ContractPage() {
           Contract interaction
         </h1>
         <p className="text-stone-600 dark:text-stone-400">
-          Call{" "}
-          <code className="font-mono text-sm">set_message</code>,{" "}
+          Call <code className="font-mono text-sm">set_message</code>,{" "}
           <code className="font-mono text-sm">get_message</code>, and{" "}
           <code className="font-mono text-sm">get_total_messages</code> on
           localnet.

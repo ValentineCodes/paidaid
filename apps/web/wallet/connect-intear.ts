@@ -1,4 +1,7 @@
-import type { InjectedWallet, WalletSelector } from "@near-wallet-selector/core";
+import type {
+  InjectedWallet,
+  WalletSelector,
+} from "@near-wallet-selector/core";
 
 const INTEAR_WALLET_ID = "intear-wallet";
 

@@ -36,9 +36,7 @@ export default function ContractInteractionForm() {
   const walletReady = useContext(WalletMountContext);
   const selectorReady = useContext(WalletSelectorReadyContext);
   if (!walletReady || !selectorReady) {
-    return (
-      <p className="text-sm text-stone-500">Loading wallet connection…</p>
-    );
+    return <p className="text-sm text-stone-500">Loading wallet connection…</p>;
   }
   return <ContractInteractionFormInner />;
 }
@@ -54,9 +52,7 @@ function ContractInteractionFormInner() {
       return {
         config: null,
         error:
-          error instanceof Error
-            ? error.message
-            : "Invalid NEAR configuration",
+          error instanceof Error ? error.message : "Invalid NEAR configuration",
       };
     }
   }, []);
@@ -87,8 +83,13 @@ function ContractInteractionFormInner() {
   const [balanceState, setBalanceState] = useState<LoadState>("idle");
 
   const walletConnected = walletStatus === "connected" && Boolean(accountId);
+  const balanceYoctoForAccount =
+    walletConnected && accountId ? balanceYocto : null;
+  const balanceStateForAccount =
+    walletConnected && accountId ? balanceState : "idle";
   const balanceTooLow =
-    balanceYocto !== null && balanceYocto < MIN_SUBMIT_BALANCE_YOCTO;
+    balanceYoctoForAccount !== null &&
+    balanceYoctoForAccount < MIN_SUBMIT_BALANCE_YOCTO;
   const submitPending = submitState === "loading";
 
   const refreshBalance = useCallback(async () => {
@@ -108,10 +109,9 @@ function ContractInteractionFormInner() {
 
   useEffect(() => {
     if (!walletConnected || !accountId) {
-      setBalanceYocto(null);
-      setBalanceState("idle");
       return;
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads balance from RPC after connect
     void refreshBalance();
   }, [accountId, refreshBalance, walletConnected]);
 
@@ -234,9 +234,10 @@ function ContractInteractionFormInner() {
         {!walletConnected ? (
           <div className="flex flex-wrap items-center gap-3">
             <p className="text-sm text-stone-600 dark:text-stone-400">
-              Connect with <strong className="font-medium">Intear Wallet</strong>{" "}
-              to sign <code className="font-mono text-xs">set_message</code>.
-              Add localnet in Intear (RPC{" "}
+              Connect with{" "}
+              <strong className="font-medium">Intear Wallet</strong> to sign{" "}
+              <code className="font-mono text-xs">set_message</code>. Add
+              localnet in Intear (RPC{" "}
               <span className="font-mono text-xs">127.0.0.1:3030</span>, network
               id <span className="font-mono text-xs">localnet</span>).
             </p>
@@ -256,11 +257,12 @@ function ContractInteractionFormInner() {
                 {accountId}
               </span>
             </p>
-            {balanceState === "success" && balanceYocto !== null ? (
+            {balanceStateForAccount === "success" &&
+            balanceYoctoForAccount !== null ? (
               <p>
                 Balance:{" "}
                 <span className="font-mono text-stone-900 dark:text-stone-100">
-                  {formatYoctoNearBalance(balanceYocto)}
+                  {formatYoctoNearBalance(balanceYoctoForAccount)}
                 </span>
               </p>
             ) : null}
@@ -327,9 +329,7 @@ function ContractInteractionFormInner() {
             onClick={() => void loadMyMessage()}
             className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm font-medium disabled:opacity-50 dark:border-stone-600"
           >
-            {myMessageState === "loading"
-              ? "Loading…"
-              : "Get my saved message"}
+            {myMessageState === "loading" ? "Loading…" : "Get my saved message"}
           </button>
           <button
             type="button"
@@ -407,8 +407,7 @@ function ContractInteractionFormInner() {
       </section>
 
       <p className="text-xs text-stone-500">
-        Contract:{" "}
-        <span className="font-mono">{nearConfig.contractId}</span> on{" "}
+        Contract: <span className="font-mono">{nearConfig.contractId}</span> on{" "}
         {nearConfig.networkId}
       </p>
     </div>

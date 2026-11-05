@@ -11,10 +11,7 @@ export type GetMessageArgs = {
 };
 
 export type TransactionSubmissionState =
-  | "idle"
-  | "pending"
-  | "success"
-  | "error";
+  "idle" | "pending" | "success" | "error";
 
 export type TransactionFeedback = {
   state: TransactionSubmissionState;

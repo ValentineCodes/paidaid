@@ -1,77 +1,151 @@
 # PaidAid
 
-PaidAid is an open marketplace where people and AI agents can offer services, discover work, and get paid on NEAR. This repository is v0: the website, the TypeScript client, and the Rust contract workspace.
+PaidAid is an open marketplace where people and AI agents can offer services, discover work, and get paid on NEAR. **v0** ships a Next.js site, TypeScript NEAR client packages, and **PaidAidCore** — a minimal Rust contract used to validate the full stack (RPC views, wallet signing, local deployment).
 
-## Layout
+## Project overview
 
-```text
-paidaid/
-├── apps/web            Next.js site
-├── packages/shared     Shared TypeScript types
-├── packages/near       NEAR localnet client
-├── contracts/          Rust workspace (see contracts/README.md)
-│   └── core            PaidAidCore near-sdk contract
-└── docs/architecture.md
-```
+| Area         | Location           | Role                                                                    |
+| ------------ | ------------------ | ----------------------------------------------------------------------- |
+| Web app      | `apps/web`         | Next.js 16 UI, wallet (Intear), `/contract` interaction                 |
+| Client       | `packages/near`    | RPC view calls via `near-api-js` v7                                     |
+| Shared types | `packages/shared`  | `NearConfig`, method names, network helpers                             |
+| Contract     | `contracts/core`   | `PaidAidCore` wasm (`set_message`, `get_message`, `get_total_messages`) |
+| Local chain  | `scripts/sandbox/` | `near-sandbox` start/stop/deploy                                        |
 
-See [docs/architecture.md](docs/architecture.md) for how the packages communicate.
+**Network scope (v0):** the app targets **localnet only** (`NEAR_NETWORK_ID=localnet`, sandbox RPC on port **3030**). Public testnet is not wired into the web app; see [docs/deployment.md](docs/deployment.md) only as a future/CLI reference.
 
-Local development uses **localnet only**. See [docs/localnet.md](docs/localnet.md).
+See [docs/architecture.md](docs/architecture.md) and [docs/v0-completion.md](docs/v0-completion.md) for audit status and v1 gaps.
 
 ## Prerequisites
 
-- Node.js 22.22.2 or newer
-- pnpm 9.15.9 (`corepack enable`, then `corepack prepare pnpm@9.15.9 --activate`)
-- Rustup
+- **Node.js** 22.22.2 or newer
+- **pnpm** 9.15.9 (`corepack enable && corepack prepare pnpm@9.15.9 --activate`)
+- **Rust** via rustup (toolchain pinned in `rust-toolchain.toml`: 1.97.1, `wasm32-unknown-unknown`)
+- **[Intear Wallet](https://wallet.intear.tech)** for signing on localnet (browser)
 
-The first contract command installs the pinned toolchain from `rust-toolchain.toml`: Rust 1.97.1, rustfmt, clippy, and the `wasm32-unknown-unknown` target. `near-sdk` 5.30 requires Rust 1.95 or newer.
-
-## Setup
-
-From this directory:
+## Installation
 
 ```bash
+git clone <repo-url> paidaid
+cd paidaid
 pnpm install
+```
+
+Copy env overrides if needed:
+
+```bash
+cp apps/web/.env.example apps/web/.env.local
+```
+
+Defaults for `pnpm dev` are in `apps/web/.env.development` (localnet + `paidaid.sandbox`).
+
+## Local development
+
+**Terminal 1 — sandbox (keep running):**
+
+```bash
 pnpm sandbox:start
-pnpm contract:build && pnpm sandbox:deploy
+```
+
+**Terminal 2 — build, deploy, run web:**
+
+```bash
+pnpm contract:build
+pnpm sandbox:deploy
 pnpm dev
 ```
 
-Defaults live in `apps/web/.env.development`. Optional overrides go in `apps/web/.env.local` (gitignored). See [docs/localnet.md](docs/localnet.md).
+Open [http://localhost:3000](http://localhost:3000). Use **Contract** → **Connect Intear**.
 
-| Variable           | Required | Purpose (localnet)                          |
-| ------------------ | -------- | ------------------------------------------- |
-| `NEAR_NETWORK_ID`  | yes      | `localnet`                                  |
-| `NEAR_RPC_URL`     | yes      | `http://127.0.0.1:3030`                     |
-| `NEAR_CONTRACT_ID` | no       | e.g. `paidaid.sandbox` after `sandbox:deploy` |
+Full walkthrough: [docs/localnet.md](docs/localnet.md).
 
-## Scripts
+### Common commands
 
-Run these from the repository root.
+| Command              | Purpose                                             |
+| -------------------- | --------------------------------------------------- |
+| `pnpm dev`           | Next.js dev server                                  |
+| `pnpm build`         | Production build (all packages that define `build`) |
+| `pnpm check`         | Format, typecheck, lint, clippy, tests, wasm check  |
+| `pnpm sandbox:stop`  | Stop sandbox                                        |
+| `pnpm sandbox:reset` | Delete `.sandbox/` state                            |
 
-| Command                | What it does                                                |
-| ---------------------- | ----------------------------------------------------------- |
-| `pnpm dev`             | Starts the Next.js dev server                               |
-| `pnpm build`           | Builds the website                                          |
-| `pnpm lint`            | Lints the website with ESLint                               |
-| `pnpm typecheck`       | Typechecks the website and TypeScript packages              |
-| `pnpm test`            | Runs package tests and `cargo test`                         |
-| `pnpm format`          | Formats TypeScript with Prettier and Rust with rustfmt      |
-| `pnpm format:check`    | Checks formatting                                           |
-| `pnpm contract:test`   | Runs the core contract unit tests                           |
-| `pnpm contract:clippy` | Lints the contract with warnings denied                     |
-| `pnpm contract:check`  | Typechecks the contract for `wasm32-unknown-unknown`        |
-| `pnpm contract:build`  | Builds the release wasm                                     |
-| `pnpm check`           | Runs format, types, lint, tests, clippy, and the wasm check |
+## Rust contract
 
-The release wasm is written to `contracts/target/wasm32-unknown-unknown/release/paidaid_core.wasm`. Wasm builds pass `--cfg near` through `.cargo/config.toml`, which near-sdk 5.30 requires for on-chain host functions.
+```bash
+pnpm contract:build    # release wasm
+pnpm contract:test     # unit tests
+pnpm contract:clippy   # lint (warnings denied)
+pnpm contract:check    # wasm32 typecheck
+```
 
-## Contract (PaidAidCore)
+Wasm output:
 
-`contracts/core` implements **PaidAidCore**, a minimal message contract for workflow validation. Build and deploy details are in [contracts/README.md](contracts/README.md).
+```text
+contracts/target/wasm32-unknown-unknown/release/paidaid_core.wasm
+```
 
-- `set_message(message: String)` — save a message for the signer account
-- `get_message(account_id: AccountId)` — read an account's message (`null` if none)
-- `get_total_messages() -> u64` — count of accounts with a stored message
+Deploy to the local sandbox:
 
-Method names are exported from `@paidaid/shared` as `CORE_METHODS`.
+```bash
+pnpm sandbox:deploy    # requires sandbox:start
+```
+
+## Testnet deployment (not used by the v0 app)
+
+The web app does **not** connect to public testnet. For CLI-only testnet deploy of the same wasm artifact, see [docs/deployment.md](docs/deployment.md) (reference; not validated as part of v0 app QA).
+
+## Wallet configuration (localnet)
+
+1. Start sandbox (`pnpm sandbox:start`).
+2. In Intear: **Settings → Developer → Localnet → Add**
+   - RPC: `http://127.0.0.1:3030` (or `http://localhost:3030`)
+   - Network ID: `localnet`
+3. Create a local account (e.g. `user.local`) on that network.
+4. In the app, click **Connect Intear** and select the **localnet** account (not mainnet).
+
+Wallet Selector uses a **testnet preset slot** with sandbox RPC URLs internally; Intear receives **`networkId: localnet`** on sign-in. This matches [NEAR’s localnet frontend pattern](https://docs.near.org/web3-apps/tutorials/localnet/run).
+
+## Contract interaction
+
+1. Ensure `NEXT_PUBLIC_NEAR_CONTRACT_ID=paidaid.sandbox` (default after `sandbox:deploy`).
+2. Go to `/contract`.
+3. **Connect Intear** → submit **set_message** (write).
+4. Use **Get my saved message**, **Get total message accounts**, or lookup by account ID (read via RPC).
+
+Read calls use `@paidaid/near` view methods; writes use Intear + `@near-js/transactions` (raw gas units).
+
+## Environment variables
+
+Server-side (e.g. home page config):
+
+| Variable           | Required | Default / example       |
+| ------------------ | -------- | ----------------------- |
+| `NEAR_NETWORK_ID`  | yes      | `localnet`              |
+| `NEAR_RPC_URL`     | yes      | `http://127.0.0.1:3030` |
+| `NEAR_CONTRACT_ID` | no       | `paidaid.sandbox`       |
+
+Browser (wallet + `/contract`):
+
+| Variable                       | Required       | Default / example       |
+| ------------------------------ | -------------- | ----------------------- |
+| `NEXT_PUBLIC_NEAR_NETWORK_ID`  | yes            | `localnet`              |
+| `NEXT_PUBLIC_NEAR_RPC_URL`     | yes            | `http://127.0.0.1:3030` |
+| `NEXT_PUBLIC_NEAR_CONTRACT_ID` | yes for writes | `paidaid.sandbox`       |
+
+Only `localnet` is accepted for `*_NETWORK_ID`. Empty contract ID strings are rejected.
+
+Files: `apps/web/.env.development`, optional `apps/web/.env.local` (gitignored).
+
+## Known limitations (v0)
+
+- **Localnet only** — no Meteor/MyNearWallet/testnet in the app.
+- **No public explorer** for localnet transactions (hashes shown in UI only).
+- **No CI** workflow in repo; run `pnpm check` locally.
+- **No automated E2E** for Intear or `set_message` (manual verification).
+- **Single contract** — message storage only; no marketplace or payments.
+- Sandbox genesis account is **`sandbox`** (not NEAR doc’s `test.near`); deploy uses well-known dev keys in `scripts/sandbox/deploy.mjs` (local dev only, never for production).
+- `.sandbox/` may contain generated keys; it is gitignored — do not commit.
+
+## Scripts reference
+
+See root `package.json` for `sandbox:*`, `contract:*`, and `check`.

@@ -1,7 +1,10 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const repoRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../..",
+);
 
 export const SANDBOX_DIR = path.join(repoRoot, ".sandbox");
 export const STATE_FILE = path.join(SANDBOX_DIR, "state.json");

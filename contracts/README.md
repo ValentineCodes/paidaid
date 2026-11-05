@@ -6,11 +6,11 @@ Rust workspace for NEAR contracts built with [near-sdk](https://docs.rs/near-sdk
 
 Minimal message board contract used to validate build, test, and deployment workflow.
 
-| Method | Type | Description |
-| ------ | ---- | ----------- |
-| `set_message(message: String)` | change | Saves a message for the transaction signer |
-| `get_message(account_id: AccountId)` | view | Returns the account's message, or JSON `null` |
-| `get_total_messages()` | view | Number of accounts with a stored message |
+| Method                               | Type   | Description                                   |
+| ------------------------------------ | ------ | --------------------------------------------- |
+| `set_message(message: String)`       | change | Saves a message for the transaction signer    |
+| `get_message(account_id: AccountId)` | view   | Returns the account's message, or JSON `null` |
+| `get_total_messages()`               | view   | Number of accounts with a stored message      |
 
 ## Prerequisites
 

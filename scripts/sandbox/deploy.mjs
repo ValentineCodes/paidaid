@@ -5,10 +5,7 @@ import { KeyPair } from "@near-js/crypto";
 import { JsonRpcProvider } from "@near-js/providers";
 import { KeyPairSigner } from "@near-js/signers";
 import { NEAR } from "@near-js/tokens";
-import {
-  DEFAULT_ACCOUNT_ID,
-  DEFAULT_PRIVATE_KEY,
-} from "near-sandbox";
+import { DEFAULT_ACCOUNT_ID, DEFAULT_PRIVATE_KEY } from "near-sandbox";
 import {
   CONTRACT_ACCOUNT_ID,
   SANDBOX_DIR,
@@ -47,7 +44,9 @@ const stateRaw = await fs.readFile(STATE_FILE, "utf8");
 const state = JSON.parse(stateRaw);
 const rpcUrl = state.rpcUrl;
 if (!rpcUrl) {
-  throw new Error("Missing rpcUrl in .sandbox/state.json — run pnpm sandbox:start first.");
+  throw new Error(
+    "Missing rpcUrl in .sandbox/state.json — run pnpm sandbox:start first.",
+  );
 }
 
 await fs.access(WASM_PATH);
@@ -72,7 +71,9 @@ if (!(await accountExists(provider, CONTRACT_ACCOUNT_ID))) {
   // Sandbox RPC can lag briefly after account creation.
   await new Promise((resolve) => setTimeout(resolve, 1500));
 } else {
-  console.log(`Account ${CONTRACT_ACCOUNT_ID} already exists; redeploying wasm…`);
+  console.log(
+    `Account ${CONTRACT_ACCOUNT_ID} already exists; redeploying wasm…`,
+  );
 }
 
 const contractAccount = new Account(

@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --test wallet/*.test.ts",
+    "test": "tsx --test wallet/*.test.ts",
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {

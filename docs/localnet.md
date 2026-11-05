@@ -15,11 +15,11 @@ Connect **Intear Wallet**, add **localnet** in Intear (RPC `http://127.0.0.1:303
 
 ## Scripts
 
-| Command | Action |
-| -------- | ------ |
-| `pnpm sandbox:start` | Start sandbox on port 3030 |
-| `pnpm sandbox:stop` | Stop the running manager |
-| `pnpm sandbox:reset` | Stop and delete `.sandbox/` |
+| Command               | Action                                  |
+| --------------------- | --------------------------------------- |
+| `pnpm sandbox:start`  | Start sandbox on port 3030              |
+| `pnpm sandbox:stop`   | Stop the running manager                |
+| `pnpm sandbox:reset`  | Stop and delete `.sandbox/`             |
 | `pnpm sandbox:deploy` | Deploy PaidAidCore to `paidaid.sandbox` |
 
 ## Environment
