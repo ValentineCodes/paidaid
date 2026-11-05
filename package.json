@@ -1,0 +1,25 @@
+{
+  "name": "paidaid",
+  "private": true,
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=22.22.2"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @paidaid/web dev",
+    "build": "pnpm -r --if-present build",
+    "lint": "pnpm -r --if-present lint",
+    "test": "pnpm -r --if-present test && pnpm contract:test",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "format": "prettier --write . && cargo fmt --all --manifest-path contracts/Cargo.toml",
+    "format:check": "prettier --check . && cargo fmt --all --manifest-path contracts/Cargo.toml -- --check",
+    "contract:clippy": "cargo clippy --all-targets --manifest-path contracts/Cargo.toml -- -D warnings",
+    "contract:test": "cargo test --manifest-path contracts/Cargo.toml",
+    "contract:check": "cargo check --target wasm32-unknown-unknown --manifest-path contracts/Cargo.toml",
+    "contract:build": "cargo build --release --target wasm32-unknown-unknown --manifest-path contracts/Cargo.toml",
+    "check": "pnpm format:check && pnpm typecheck && pnpm lint && pnpm contract:clippy && pnpm test && pnpm contract:check"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2"
+  }
+}
