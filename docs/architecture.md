@@ -14,7 +14,7 @@ paidaid/
 
 The site is a Next.js 16 app. The home page is a server component. It reads `NEAR_NETWORK_ID`, `NEAR_RPC_URL`, and the optional `NEAR_CONTRACT_ID` through `@paidaid/near`, and it shows the core contract's `get_total_messages` view method from `@paidaid/shared`.
 
-The page does not call the RPC. The contract account is empty until someone deploys `contracts/core`. Wallet login is also left for a later version. NEAR's JavaScript library is aimed at services and scripts; browser wallet connection uses a separate wallet connector.
+The home page still reads server-side NEAR config for display. Wallet connection runs in the browser via [`@near-wallet-selector/react-hook`](https://www.npmjs.com/package/@near-wallet-selector/react-hook) with **Meteor Wallet** and **MyNearWallet** on **testnet only** (loaded client-side, no SSR). Wallet setup lives in `apps/web/wallet/`; UI is in `apps/web/components/`.
 
 `next.config.ts` transpiles the workspace packages so the app can import their TypeScript source.
 

@@ -21,5 +21,14 @@
   },
   "devDependencies": {
     "prettier": "^3.6.2"
+  },
+  "pnpm": {
+    "packageExtensions": {
+      "@meteorwallet/sdk@1.0.24": {
+        "dependencies": {
+          "near-api-js": "6.5.1"
+        }
+      }
+    }
   }
 }
