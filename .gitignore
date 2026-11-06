@@ -11,3 +11,7 @@ target
 .env.*.local
 .sandbox
 .vercel
+
+# Supabase CLI local artifacts (never commit secrets)
+supabase/.temp
+supabase/.branches

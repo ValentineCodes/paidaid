@@ -1,15 +1,16 @@
 import Link from "next/link";
 
-export const mainNavItems = [
+export const mainSiteNavItems = [
   { href: "/", label: "Home" },
+  { href: "/explore", label: "Explore" },
   { href: "/contract", label: "Contract" },
 ] as const;
 
-export function SiteNav() {
+export function SiteNavMain() {
   return (
     <nav aria-label="Main">
       <ul className="flex flex-wrap gap-4 text-sm font-medium text-stone-600 sm:gap-6 dark:text-stone-400">
-        {mainNavItems.map((item) => (
+        {mainSiteNavItems.map((item) => (
           <li key={item.href}>
             <Link
               href={item.href}

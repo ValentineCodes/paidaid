@@ -24,14 +24,14 @@
 
 ## Identity architecture (final — V1)
 
-| Rule | Decision |
-|------|----------|
-| **Authentication** | **Supabase email/password only** — sole method in V1. |
-| **Not in V1** | Phone OTP, magic-link-as-primary, OAuth, wallet linking, wallet-based auth, nonce/challenge verification. |
+| Rule                   | Decision                                                                                                                           |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **Authentication**     | **Supabase email/password only** — sole method in V1.                                                                              |
+| **Not in V1**          | Phone OTP, magic-link-as-primary, OAuth, wallet linking, wallet-based auth, nonce/challenge verification.                          |
 | **Canonical identity** | `auth.users.id` (uuid) is the **sole** application user identifier and authorization subject. **`profiles.id` = `auth.users.id`**. |
-| **NEAR wallet** | **Not** part of authentication or marketplace onboarding. **Never** use NEAR AccountId as app identifier or RBAC credential. |
-| **V0 demo** | Intear + PaidAidCore remain **isolated** under **`/contract`** (developer demo). See §1.7. |
-| **Future payments** | May add wallet signing for settlement later; **application identity stays** `auth.users.id`. |
+| **NEAR wallet**        | **Not** part of authentication or marketplace onboarding. **Never** use NEAR AccountId as app identifier or RBAC credential.       |
+| **V0 demo**            | Intear + PaidAidCore remain **isolated** under **`/contract`** (developer demo). See §1.7.                                         |
+| **Future payments**    | May add wallet signing for settlement later; **application identity stays** `auth.users.id`.                                       |
 
 ---
 
@@ -39,13 +39,13 @@
 
 ### 1.1 Monorepo layout
 
-| Area | Location | Role |
-|------|----------|------|
-| Web app | `apps/web` | Next.js 16 (App Router), React 19, TypeScript, Tailwind 4, Geist fonts |
-| Shared types | `packages/shared` | `PROTOCOL_NAME`, `NearConfig`, `CORE_METHODS`, `parseNearNetworkId` (localnet-only) |
-| NEAR client | `packages/near` | `readNearConfig`, `viewMethod`, PaidAidCore helpers |
-| Contract | `contracts/core` | **PaidAidCore** — per-account message storage |
-| Local chain | `scripts/sandbox/` | `near-sandbox` start/stop/reset/deploy |
+| Area         | Location           | Role                                                                                |
+| ------------ | ------------------ | ----------------------------------------------------------------------------------- |
+| Web app      | `apps/web`         | Next.js 16 (App Router), React 19, TypeScript, Tailwind 4, Geist fonts              |
+| Shared types | `packages/shared`  | `PROTOCOL_NAME`, `NearConfig`, `CORE_METHODS`, `parseNearNetworkId` (localnet-only) |
+| NEAR client  | `packages/near`    | `readNearConfig`, `viewMethod`, PaidAidCore helpers                                 |
+| Contract     | `contracts/core`   | **PaidAidCore** — per-account message storage                                       |
+| Local chain  | `scripts/sandbox/` | `near-sandbox` start/stop/reset/deploy                                              |
 
 ### 1.2 Routes (V0)
 
@@ -58,10 +58,10 @@ Intear + Wallet Selector for **`/contract`** only; **not** marketplace identity.
 
 ### 1.7 V0 NEAR demo vs V1 marketplace (UX boundary)
 
-| Location | Role |
-|----------|------|
-| `apps/web/app/contract/*`, `apps/web/wallet/*`, wallet components | **Isolated demo** |
-| Marketplace (planned) | **Supabase session + RLS only** — no wallet chrome in onboarding or core flows |
+| Location                                                          | Role                                                                           |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `apps/web/app/contract/*`, `apps/web/wallet/*`, wallet components | **Isolated demo**                                                              |
+| Marketplace (planned)                                             | **Supabase session + RLS only** — no wallet chrome in onboarding or core flows |
 
 Prefer scoping `WalletProvider` to `/contract` when implementing marketplace so the shell never implies a wallet is required.
 
@@ -83,13 +83,13 @@ Prefer scoping `WalletProvider` to `/contract` when implementing marketplace so 
 Also: `open` → `expired` (never assigned; expiry condition met)  
 Non-terminal exploring only **`open`** for discovery in typical browse.
 
-| Status | Meaning |
-|--------|---------|
-| `draft` | Not published. |
-| `open` | Published; can receive responses; **only** state where a response may be **accepted**. |
-| `assigned` | A response was accepted; formal engagement exists. |
-| `completed` | Engagement successfully completed. |
-| `expired` | Never assigned; passed deadline/expiry (separate from **completed**). |
+| Status      | Meaning                                                                                |
+| ----------- | -------------------------------------------------------------------------------------- |
+| `draft`     | Not published.                                                                         |
+| `open`      | Published; can receive responses; **only** state where a response may be **accepted**. |
+| `assigned`  | A response was accepted; formal engagement exists.                                     |
+| `completed` | Engagement successfully completed.                                                     |
+| `expired`   | Never assigned; passed deadline/expiry (separate from **completed**).                  |
 
 **Acceptance (when a response is accepted):** Selected response → `accepted`; all other **pending** responses on that request → `rejected`; request → `assigned`; **assignment** row created; **active** **engagement** created; **formal engagement `conversation`** created (distinct from any **pre-acceptance lobby** — see §8); notifications emitted — **one atomic transaction** (`accept_response` RPC).
 
@@ -116,17 +116,17 @@ Non-terminal exploring only **`open`** for discovery in typical browse.
 
 All enforced in **DB (CHECK / triggers)** and **application validation**:
 
-| Field | Rule |
-|-------|------|
-| **Title** | Required; **3–50** characters. |
-| **Description** | Required; **max 1,000** characters. |
-| **Budget** | Required; **positive** integer base units (see data model). |
-| **Timing** | `immediate` **or** `scheduled`. |
-| **scheduled_at** | **Required** if `scheduled`; **must be NULL** if `immediate`. |
-| **Tags** | Optional; **up to 3** predefined catalogue tags; **no** custom tags; **no** automatic inference; searchable. |
-| **Location** | Optional; meaningful for physical-world tasks; online tasks **do not** require physical location. |
-| **Photos** | Optional; **max 5** per request. |
-| **Location permission** | **Do not** require device location permission at app launch or onboarding. |
+| Field                   | Rule                                                                                                         |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------ |
+| **Title**               | Required; **3–50** characters.                                                                               |
+| **Description**         | Required; **max 1,000** characters.                                                                          |
+| **Budget**              | Required; **positive** integer base units (see data model).                                                  |
+| **Timing**              | `immediate` **or** `scheduled`.                                                                              |
+| **scheduled_at**        | **Required** if `scheduled`; **must be NULL** if `immediate`.                                                |
+| **Tags**                | Optional; **up to 3** predefined catalogue tags; **no** custom tags; **no** automatic inference; searchable. |
+| **Location**            | Optional; meaningful for physical-world tasks; online tasks **do not** require physical location.            |
+| **Photos**              | Optional; **max 5** per request.                                                                             |
+| **Location permission** | **Do not** require device location permission at app launch or onboarding.                                   |
 
 **Budget copy:** Indicative only — **not** funded, escrowed, or guaranteed on publish.
 
@@ -136,8 +136,8 @@ All enforced in **DB (CHECK / triggers)** and **application validation**:
 
 A requester may **update** a request **only if**:
 
-- Status is **`draft`** or **`open`**, and  
-- Request **has not expired** (see expiration job), and  
+- Status is **`draft`** or **`open`**, and
+- Request **has not expired** (see expiration job), and
 - **`first_response_at IS NULL`** — **no response has ever been submitted** (including withdrawn or later rejected).
 
 Once **any** response row exists for the request, the request is **non-editable** — even if all current rows are `withdrawn` or `rejected`. This must be enforced in **`SECURITY DEFINER` RPCs** / triggers (not UI-only).
@@ -200,10 +200,10 @@ A **provider** cannot have more than one **`active`** engagement on the **same c
 
 ## 11. Public browsing vs authentication
 
-| Activity | Anonymous | Authenticated |
-|----------|-----------|---------------|
-| Browse **open** requests (safe fields) | Yes | Yes |
-| Create request, respond, accept, chat, profile | No | Yes |
+| Activity                                       | Anonymous | Authenticated |
+| ---------------------------------------------- | --------- | ------------- |
+| Browse **open** requests (safe fields)         | Yes       | Yes           |
+| Create request, respond, accept, chat, profile | No        | Yes           |
 
 **Public** responses must **not** expose private messages, email, phone, exact address, or participant-only data. RLS + **public views** or column-scoped policies as in data model.
 
