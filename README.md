@@ -1,12 +1,12 @@
 # PaidAid
 
-PaidAid is an open marketplace where people and AI agents can offer services, discover work, and get paid on NEAR. **v0** ships a Next.js site, TypeScript NEAR client packages, and **PaidAidCore** — a minimal Rust contract used to validate the full stack (RPC views, wallet signing, local deployment).
+PaidAid is an open marketplace where people and AI agents can offer services, discover work, and get paid on NEAR. **V0** ships a Next.js site, TypeScript NEAR client packages, and **PaidAidCore** — a minimal Rust contract (localnet) for RPC views and wallet signing. **V1** adds the **Supabase-backed marketplace** (auth, requests, responses, engagements, chat, delivery, notifications); see [docs/v1-release-readiness.md](docs/v1-release-readiness.md) for scope and deployment.
 
 ## Project overview
 
 | Area         | Location           | Role                                                                    |
 | ------------ | ------------------ | ----------------------------------------------------------------------- |
-| Web app      | `apps/web`         | Next.js 16 UI, wallet (Intear), `/contract` interaction                 |
+| Web app      | `apps/web`         | Next.js 16 UI, marketplace + isolated `/contract` NEAR demo             |
 | Client       | `packages/near`    | RPC view calls via `near-api-js` v7                                     |
 | Shared types | `packages/shared`  | `NearConfig`, method names, network helpers                             |
 | Contract     | `contracts/core`   | `PaidAidCore` wasm (`set_message`, `get_message`, `get_total_messages`) |
@@ -14,7 +14,7 @@ PaidAid is an open marketplace where people and AI agents can offer services, di
 
 **Network scope (v0):** the app targets **localnet only** (`NEAR_NETWORK_ID=localnet`, sandbox RPC on port **3030**). Public testnet is not wired into the web app; see [docs/deployment.md](docs/deployment.md) only as a future/CLI reference.
 
-See [docs/architecture.md](docs/architecture.md) and [docs/v0-completion.md](docs/v0-completion.md) for audit status and v1 gaps.
+See [docs/architecture.md](docs/architecture.md) and [docs/v0-completion.md](docs/v0-completion.md) for v0 audit notes. **V1 planning:** [docs/v1-architecture.md](docs/v1-architecture.md), [docs/v1-data-model.md](docs/v1-data-model.md), [docs/v1-implementation-plan.md](docs/v1-implementation-plan.md). **V1 release / hardening:** [docs/v1-release-readiness.md](docs/v1-release-readiness.md).
 
 ## Prerequisites
 
@@ -68,13 +68,13 @@ Full walkthrough: [docs/localnet.md](docs/localnet.md).
 
 ### Common commands
 
-| Command              | Purpose                                             |
-| -------------------- | --------------------------------------------------- |
-| `pnpm dev`           | Next.js dev server                                  |
-| `pnpm build`         | Production build (all packages that define `build`) |
-| `pnpm check`         | Format, typecheck, lint, clippy, tests, wasm check  |
-| `pnpm sandbox:stop`  | Stop sandbox                                        |
-| `pnpm sandbox:reset` | Delete `.sandbox/` state                            |
+| Command              | Purpose                                                 |
+| -------------------- | ------------------------------------------------------- |
+| `pnpm dev`           | Next.js dev server                                      |
+| `pnpm build`         | Production build (`apps/web`: Next.js `next build`)     |
+| `pnpm check`         | Format, typecheck, lint, clippy, unit tests, wasm check |
+| `pnpm sandbox:stop`  | Stop sandbox                                            |
+| `pnpm sandbox:reset` | Delete `.sandbox/` state                                |
 
 ### Supabase (database — Docker, like Active)
 
@@ -91,6 +91,10 @@ Local Supabase runs in **Docker** (same model as Active). Install [Docker Deskto
 | `pnpm db:types:linked` | Regenerate types from **linked** remote (`supabase link` first)       |
 
 After `pnpm db:start`, run `supabase status` (or open Studio on port **55323**) and copy **API URL** + **anon key** into `apps/web/.env.local` as `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. This repo uses **5532x** ports by default so you can run another Supabase project (e.g. Active on **5432x**) on the same machine.
+
+Migrations create private Storage buckets: `request-photos`, `live-profile-photos`, `conversation-attachments`, `delivery-attachments`. **Realtime** is enabled in migrations for message, notification, and engagement-related tables — verify publication on a hosted project after `db push`.
+
+**72h auto-completion** is implemented as `public.auto_complete_engagements()` (granted to **service_role** only); schedule it via pg_cron or an external worker — see [docs/phase7-auto-complete-cron.md](docs/phase7-auto-complete-cron.md).
 
 Active also has `db:serve` (Edge Functions) and extra seeds; PaidAid will add those when Edge Functions land here.
 
@@ -141,6 +145,10 @@ Read calls use `@paidaid/near` view methods; writes use Intear + `@near-js/trans
 
 ## Environment variables
 
+Copy [apps/web/.env.example](apps/web/.env.example) to `apps/web/.env.local` and fill in values.
+
+### NEAR (V0 `/contract` demo — localnet only)
+
 Server-side (e.g. home page config):
 
 | Variable           | Required | Default / example       |
@@ -159,17 +167,36 @@ Browser (wallet + `/contract`):
 
 Only `localnet` is accepted for `*_NETWORK_ID`. Empty contract ID strings are rejected.
 
+### Supabase (V1 marketplace)
+
+| Variable                        | Required for marketplace | Notes                                                  |
+| ------------------------------- | ------------------------ | ------------------------------------------------------ |
+| `NEXT_PUBLIC_SUPABASE_URL`      | yes                      | From `supabase status` (local) or project API settings |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | yes                      | **Public** anon key only                               |
+| `SUPABASE_URL`                  | optional                 | Server/middleware fallback                             |
+| `SUPABASE_ANON_KEY`             | optional                 | Server/middleware fallback                             |
+
+**Never** expose the **service role** key in `NEXT_PUBLIC_*` or client bundles. Use it only in secure server/cron jobs (e.g. invoking `auto_complete_engagements`).
+
 Files: `apps/web/.env.development`, optional `apps/web/.env.local` (gitignored).
 
-## Known limitations (v0)
+## Known limitations
+
+### V0 (`/contract`)
 
 - **Localnet only** — no Meteor/MyNearWallet/testnet in the app.
 - **No public explorer** for localnet transactions (hashes shown in UI only).
-- **No CI** workflow in repo; run `pnpm check` locally.
 - **No automated E2E** for Intear or `set_message` (manual verification).
-- **Single contract** — message storage only; no marketplace or payments.
+- **Single contract** — message storage only; no marketplace or payments in the NEAR layer.
 - Sandbox genesis account is **`sandbox`** (not NEAR doc’s `test.near`); deploy uses well-known dev keys in `scripts/sandbox/deploy.mjs` (local dev only, never for production).
 - `.sandbox/` may contain generated keys; it is gitignored — do not commit.
+
+### V1 (marketplace)
+
+- **No CI** workflow in repo by default; run `pnpm check` and `pnpm build` locally or in your pipeline.
+- **No Playwright/Cypress** E2E in repo; manual or add in your environment.
+- **`expire_open_requests`** — confirm job is scheduled in production if you rely on listing expiry (see architecture doc).
+- See [docs/v1-release-readiness.md](docs/v1-release-readiness.md) for security/testing caveats and V1 exclusions (escrow, wallet identity, AI, etc.).
 
 ## Scripts reference
 

@@ -1,12 +1,19 @@
+import { connection } from "next/server";
+
 import { createClient } from "../../lib/supabase/server";
 import { SiteHeaderMarketplace } from "../../components/site-header-marketplace";
 import { isSupabaseConfigured } from "../../lib/supabase/env";
+
+/** Opt out of prerender for cookie/session-backed header (cacheComponents). */
+export const instant = false;
 
 export default async function MainLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  await connection();
+
   let user: { email: string; id: string } | null = null;
   let unreadNotifications = 0;
   if (isSupabaseConfigured()) {
