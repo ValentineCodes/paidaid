@@ -41,13 +41,20 @@ Defaults for `pnpm dev` are in `apps/web/.env.development` (localnet + `paidaid.
 
 ## Local development
 
-**Terminal 1 — sandbox (keep running):**
+**Terminal 1 — Supabase (Docker, marketplace DB):**
+
+```bash
+pnpm db:start
+pnpm db:reset   # optional — apply migrations
+```
+
+**Terminal 2 — NEAR sandbox for `/contract` (keep running):**
 
 ```bash
 pnpm sandbox:start
 ```
 
-**Terminal 2 — build, deploy, run web:**
+**Terminal 3 — build contract wasm, deploy, run web:**
 
 ```bash
 pnpm contract:build
@@ -55,7 +62,7 @@ pnpm sandbox:deploy
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Use **Contract** → **Connect Intear**.
+Open [http://localhost:3000](http://localhost:3000) for the **marketplace** (public request feed). Use **Contract** in the nav → **Connect Intear** for the NEAR demo.
 
 Full walkthrough: [docs/localnet.md](docs/localnet.md).
 

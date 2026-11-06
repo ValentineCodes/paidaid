@@ -243,15 +243,20 @@ export type Database = {
           id: string;
           title: string;
           description: string;
+          description_preview: string | null;
           timing_type: Database["public"]["Enums"]["timing_type"];
           scheduled_at: string | null;
           deadline_at: string | null;
           budget_amount: string;
           budget_asset_id: string;
+          asset_symbol: string;
+          asset_decimals: number;
           location_kind: Database["public"]["Enums"]["location_kind"];
           location_label: string | null;
           published_at: string | null;
           created_at: string;
+          first_photo_path: string | null;
+          photo_paths: Json;
           tags: Json;
         };
         Relationships: [];
@@ -284,6 +289,39 @@ export type Database = {
           p_byte_sizes: number[];
         };
         Returns: undefined;
+      };
+      list_requests_public: {
+        Args: {
+          p_search: string | null;
+          p_tag_ids: string[] | null;
+          p_category: Database["public"]["Enums"]["tag_category"] | null;
+          p_asset_id: string | null;
+          p_location_kind: Database["public"]["Enums"]["location_kind"] | null;
+          p_limit: number;
+          p_cursor_published_at: string | null;
+          p_cursor_id: string | null;
+        };
+        Returns: {
+          id: string;
+          title: string;
+          description_preview: string | null;
+          timing_type: Database["public"]["Enums"]["timing_type"];
+          scheduled_at: string | null;
+          deadline_at: string | null;
+          budget_amount: string;
+          budget_asset_id: string;
+          asset_symbol: string;
+          asset_decimals: number;
+          location_kind: Database["public"]["Enums"]["location_kind"];
+          location_label: string | null;
+          published_at: string | null;
+          tags: Json;
+          first_photo_path: string | null;
+        }[];
+      };
+      open_request_id_for_photo_path: {
+        Args: { p_path: string };
+        Returns: string | null;
       };
     };
     Enums: {

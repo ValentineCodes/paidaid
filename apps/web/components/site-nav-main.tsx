@@ -1,8 +1,8 @@
 import Link from "next/link";
 
 export const mainSiteNavItems = [
-  { href: "/", label: "Home" },
-  { href: "/explore", label: "Explore" },
+  { href: "/", label: "Marketplace" },
+  { href: "/requests/mine", label: "My requests" },
   { href: "/contract", label: "Contract" },
 ] as const;
 

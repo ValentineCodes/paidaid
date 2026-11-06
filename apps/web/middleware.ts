@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "./lib/supabase/middleware";
 import { isSupabaseConfigured } from "./lib/supabase/env";
 
-const PROTECTED_PREFIXES = ["/account", "/requests/new"];
+const PROTECTED_PREFIXES = ["/account", "/requests/new", "/requests/mine"];
 
 export async function middleware(request: NextRequest) {
   if (!isSupabaseConfigured()) {
