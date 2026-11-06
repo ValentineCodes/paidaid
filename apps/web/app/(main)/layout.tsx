@@ -8,6 +8,7 @@ export default async function MainLayout({
   children: React.ReactNode;
 }) {
   let user: { email: string; id: string } | null = null;
+  let unreadNotifications = 0;
   if (isSupabaseConfigured()) {
     try {
       const supabase = await createClient();
@@ -19,6 +20,12 @@ export default async function MainLayout({
           id: authUser.id,
           email: authUser.email ?? "",
         };
+        const { count } = await supabase
+          .from("notifications")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", authUser.id)
+          .is("read_at", null);
+        unreadNotifications = count ?? 0;
       }
     } catch {
       /* Session read failed — treat as signed out */
@@ -27,7 +34,10 @@ export default async function MainLayout({
 
   return (
     <>
-      <SiteHeaderMarketplace user={user} />
+      <SiteHeaderMarketplace
+        user={user}
+        unreadNotifications={unreadNotifications}
+      />
       {children}
     </>
   );

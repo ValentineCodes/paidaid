@@ -365,3 +365,81 @@ Enforces: `draft | open`, not expired, **`first_response_at IS NULL`**, field co
 ---
 
 This model aligns with **email-only auth**, **Active** composition/edit/issue/auto-complete rules, **pre-accept lobby + formal conversations**, **atomic accept_response**, **public browse**, and **no** wallet or payment settlement in V1.
+
+---
+
+## Phase 4 implementation notes (repository)
+
+These are **applied** differences from the purely logical description above; the behaviour matches the architecture.
+
+1. **Request edit lock in RLS** — Row-level policies that gate request/tag/photo updates use **`requests.first_response_at IS NULL`** (equivalent to “no `request_responses` row has ever existed” because `first_response_at` is set on the **first insert** into `request_responses` and never cleared). The Phase 4 migration replaces earlier policies that referenced `request_responses` directly so the stub table can be upgraded.
+
+2. **`add_request_photos`** — The RPC’s “still editable” check now uses **`first_response_at IS NULL`** for the same reason as (1).
+
+3. **`conversations` and `engagement` rows** — Phase 5 removes the temporary **`CHECK (kind <> 'engagement')`** and adds **`accept_response`**, which **updates** the existing **`pre_accept`** row for the accepted response to **`kind = engagement`** (sets **`engagement_id`**, clears **`response_id`**) when present; otherwise inserts a new engagement conversation.
+
+4. **Numeric types in generated TypeScript** — Supabase CLI maps **`numeric`** columns to **`number`** in `database.types.ts`. Call sites that need **arbitrary-precision** strings for money should keep using **string conversion at boundaries** (as the web app does for `formatBudgetSmallestUnits` and RPC string amounts).
+
+---
+
+## Phase 5 implementation notes (repository)
+
+1. **`scheduled_for_day`** — **`accept_response`** sets **`engagements.scheduled_for_day`** to **`(scheduled_at AT TIME ZONE 'UTC')::date`** when **`timing_type = scheduled`**, otherwise **`(now() AT TIME ZONE 'UTC')::date`**. This is a **single server calendar (UTC)** until the timezone item in §22 is decided.
+
+2. **Same-date rule** — Enforced by a **partial unique index** on **`(provider_user_id, scheduled_for_day) WHERE status = 'active'`** plus an **`exists`** check inside **`accept_response`** before insert (concurrent sessions serialize on **`requests` FOR UPDATE** and **`provider_profiles` FOR UPDATE**).
+
+3. **Pre-accept conversation** — The **`pre_accept`** row for the chosen response is **promoted in place** to **`engagement`** (no duplicate lobby row).
+
+4. **Notifications** — **`submit_request_response`** inserts **`request_new_response`** for the requester. **`accept_response`** inserts **`response_accepted`** for the winning provider and **`response_rejected`** for each previously pending response id (captured before status updates). **Unread/read UI** is minimal (**`read_at`** column exists; marking read is not implemented).
+
+---
+
+## Phase 6 implementation notes (repository)
+
+1. **Tables** — **`messages`** (`kind`: `text` \| `location`), **`message_attachments`**, **`message_reads`**, **`profile_private_contact`** (optional phone). Indexes on **`messages (conversation_id, created_at)`** and **`message_attachments (message_id)`**.
+
+2. **Max 10 attachments per message** — Enforced by a **`BEFORE INSERT`** trigger on **`message_attachments`** that counts existing rows for **`message_id`** (allows exactly ten inserts; a follow-up migration replaces the trigger if an earlier revision counted wrong).
+
+3. **Private phone** — Stored only in **`profile_private_contact`**. RLS: owner **all**; **select** also allowed when **`can_read_private_contact(target)`** is true (pre_accept co-participant or engagement partner on the formal conversation). Chat and engagement headers use this for **`tel:`** links.
+
+4. **Storage** — Bucket **`conversation-attachments`**. Path convention enforced in RPC: **`{sender_id}/{conversation_id}/{message_id}/{uuid}.{ext}`**. Policies restrict read/write/delete to conversation participants; objects are served via **signed URLs** in the web app (not public URLs).
+
+5. **RPCs** — **`send_message`** (text or location; optional params defaulted in **`20251106220100_send_message_optional_params.sql`**), **`add_message_attachments`**, **`mark_conversation_read`**. All **`SECURITY DEFINER`** with participant checks, live-photo gate, MIME/size validation aligned with **`message_attachments`** constraints.
+
+6. **RLS** — **`messages`**, **`message_attachments`**, **`message_reads`**: participants only; no cross-conversation access. **`requests`**: assigned providers can **`SELECT`** full request rows (**`requests_select_assigned_provider`** in **`20251106220200_requests_provider_read_assigned.sql`**) for engagement detail.
+
+7. **Realtime** — **`supabase_realtime`** publication includes **`messages`** and **`message_reads`** for filtered **`postgres_changes`** subscriptions from the chat client. **Source of truth** remains Postgres; Realtime is for sync only.
+
+8. **Web client** — **`/conversations/[id]`** loads history server-side; **`conversation-chat.tsx`** subscribes to Realtime, sends via RPC + optional Storage upload, shows read receipts, location share via **`navigator.geolocation`** (explicit action only), attachment validation in **`lib/chat/allowed-attachment.ts`** (tests for count and executable rejection).
+
+---
+
+## Phase 7 implementation notes (repository)
+
+1. **Tables** — **`deliveries`** (one per **`engagement_id`**), **`delivery_attachments`** (images/video only, max 10, 25 MB), **`engagement_issues`**, **`reviews`** (unique **`engagement_id`**). **`notification_kind`** extended for delivery/issue/review events.
+
+2. **72h auto-complete** — On **`submit_delivery`**, **`engagements.auto_complete_deadline_at = submitted_at + interval '72 hours'`**. **`review_delivery(..., 'revision')`** clears it until resubmission. **`report_engagement_issue`** clears it while issues can block; **`resolve_engagement_issue`** calls **`restore_engagement_auto_deadline_if_eligible`** to restore the deadline when no open issues remain and delivery is still **`pending_review`**.
+
+3. **RPCs (authenticated)** — **`submit_delivery`** (optional **`p_post_to_chat`** inserts **`[Delivery] …`** text into the engagement conversation), **`add_delivery_attachments`**, **`review_delivery`** (requester: **`approve`** \| **`revision`**), **`report_engagement_issue`**, **`resolve_engagement_issue`**, **`submit_review`** (requester, after **`completed`**). Internal: **`complete_engagement_after_delivery`** (approve + auto paths); **`auto_complete_engagements()`** batch job — **`GRANT EXECUTE` to `service_role` only**; **`REVOKE`** **`complete_engagement_after_delivery`** from **`authenticated`** (see **`20251106230100_phase7_security_realtime.sql`**).
+
+4. **Storage** — Bucket **`delivery-attachments`**. Path **`{uid}/{engagement_id}/{delivery_id}/{uuid}.ext`**, enforced in **`add_delivery_attachments`**. Signed URLs in UI.
+
+5. **Realtime** — Publication includes **`deliveries`** and **`engagement_issues`** for engagement page sync.
+
+6. **Scheduling** — See **`docs/phase7-auto-complete-cron.md`** (pg_cron / service worker; test by setting **`auto_complete_deadline_at`** in the past and running **`select auto_complete_engagements()`** as **`postgres`**).
+
+7. **Web** — **`/engagements/[id]`** includes **`engagement-workflow.tsx`**: provider submit + optional proof + post to chat; requester approve / request revision; issues; review after completion. Proof validation: **`lib/delivery/allowed-delivery-attachment.ts`**.
+
+---
+
+## Phase 8 implementation notes (repository)
+
+1. **`notifications` extensions** — **`category`** (`notification_category` enum: `requests_responses`, `messages`, `payments_wallet`, `calls`, `tips_reminders`), optional **`conversation_id`**, **`message_id`**. Trigger **`notifications_set_category_trg`** sets **`category`** from **`kind`** on insert. Indexes for **`(user_id, category, created_at desc)`** and partial unread **`(user_id, created_at)` WHERE read_at IS NULL**.
+
+2. **New `notification_kind` values** — **`new_message`**, **`response_withdrawn`**, **`engagement_created`**. **`send_message`** inserts one **`new_message`** row for the peer (with **`conversation_id`**, **`message_id`**, **`request_id`**, **`engagement_id`** when present). **`withdraw_request_response`** notifies the requester (**`response_withdrawn`**). **`accept_response`** adds a requester **`engagement_created`** row (in addition to existing **`response_accepted`** / **`response_rejected`**).
+
+3. **Mark read** — **`mark_notification_read(p_id)`**, **`mark_all_notifications_read(p_category default null)`** (SECURITY DEFINER). RLS: recipients may **`UPDATE`** own rows; trigger **`notifications_enforce_read_only_update`** allows only **`read_at`** changes. **`grant update`** on **`notifications`** to **`authenticated`**.
+
+4. **Realtime** — **`supabase_realtime`** publication includes **`notifications`** for inbox refresh.
+
+5. **Web** — **`/notifications`** server-paginated (`?category=&page=`), **`notifications-inbox.tsx`**: unread dot, filters, mark one / mark all in filter, deep links via **`lib/notifications/notification-link.ts`**. Header badge: unread count from layout query.

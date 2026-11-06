@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "../../../lib/supabase/server";
 import { isSupabaseConfigured } from "../../../lib/supabase/env";
+import { PrivateContactForm } from "./private-contact-form";
 import { ProfileForm } from "./profile-form";
 
 export default async function AccountPage() {
@@ -65,6 +66,12 @@ export default async function AccountPage() {
     );
   }
 
+  const { data: privateContact } = await supabase
+    .from("profile_private_contact")
+    .select("phone")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-6 py-16">
       <div>
@@ -76,6 +83,9 @@ export default async function AccountPage() {
           Profile
         </h2>
         <ProfileForm profile={profile} />
+      </section>
+      <section className="flex flex-col gap-4 border-t border-stone-200 pt-8 dark:border-stone-800">
+        <PrivateContactForm initialPhone={privateContact?.phone ?? null} />
       </section>
     </main>
   );

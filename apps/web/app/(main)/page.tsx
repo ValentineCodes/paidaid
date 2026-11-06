@@ -62,17 +62,17 @@ export default async function MarketplaceHomePage({ searchParams }: PageProps) {
   };
 
   const { data: rows, error } = await supabase.rpc("list_requests_public", {
-    p_search: parsed.search || null,
-    p_tag_ids: parsed.tagIds.length ? parsed.tagIds : null,
-    p_category: parsed.category,
-    p_asset_id: parsed.assetId,
-    p_location_kind: parsed.locationKind,
+    p_search: parsed.search || undefined,
+    p_tag_ids: parsed.tagIds.length ? parsed.tagIds : undefined,
+    p_category: parsed.category ?? undefined,
+    p_asset_id: parsed.assetId ?? undefined,
+    p_location_kind: parsed.locationKind ?? undefined,
     p_limit: parsed.limit,
-    p_cursor_published_at: parsed.cursorPublishedAt,
-    p_cursor_id: parsed.cursorId,
+    p_cursor_published_at: parsed.cursorPublishedAt ?? undefined,
+    p_cursor_id: parsed.cursorId ?? undefined,
   });
 
-  const feed = (rows ?? []) as FeedCardRow[];
+  const feed = (rows ?? []) as unknown as FeedCardRow[];
   const last = feed[feed.length - 1];
   const hasMore = feed.length === parsed.limit && last;
   const nextCursor =

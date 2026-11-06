@@ -6,6 +6,8 @@ import { isSupabaseConfigured } from "../../../../lib/supabase/env";
 import { REQUEST_PHOTOS_BUCKET } from "../../../../lib/constants/storage";
 import { formatBudgetSmallestUnits } from "../../../../lib/requests/format-budget";
 import type { Json, Tables } from "../../../../lib/database.types";
+import { RequestResponsesOwnerList } from "./request-responses-owner";
+import { RespondSection } from "./respond-section";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -54,6 +56,14 @@ export default async function RequestDetailPage({ params }: PageProps) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  const { data: profileRow } = user
+    ? await supabase
+        .from("profiles")
+        .select("live_profile_photo_path, live_profile_photo_captured_at")
+        .eq("id", user.id)
+        .maybeSingle()
+    : { data: null };
 
   const { data: ownRow } = user
     ? await supabase
@@ -126,6 +136,8 @@ export default async function RequestDetailPage({ params }: PageProps) {
       ? formatBudgetSmallestUnits(budgetAmount, displayDecimals)
       : "";
 
+  const budgetAmountStr = budgetAmount != null ? String(budgetAmount) : "";
+
   let photoUrls: string[] = [];
   if (isOwner && user && row) {
     const { data: photos } = await supabase
@@ -160,6 +172,66 @@ export default async function RequestDetailPage({ params }: PageProps) {
           ? `In person — ${locationLabel}`
           : "In person";
 
+  const hasLiveProfilePhoto =
+    profileRow?.live_profile_photo_path != null &&
+    profileRow?.live_profile_photo_captured_at != null;
+
+  let pendingResponseId: string | null = null;
+  if (user && !isOwner && status === "open" && pub) {
+    const { data: pp } = await supabase
+      .from("provider_profiles")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (pp) {
+      const { data: pend } = await supabase
+        .from("request_responses")
+        .select("id")
+        .eq("request_id", id)
+        .eq("provider_profile_id", pp.id)
+        .eq("status", "pending")
+        .maybeSingle();
+      pendingResponseId = pend?.id ?? null;
+    }
+  }
+
+  const showRespond = user && !isOwner && status === "open" && isPublicListing;
+
+  let preConversationId: string | null = null;
+  if (user && !isOwner && status === "open" && pub && pendingResponseId) {
+    const { data: preConv } = await supabase
+      .from("conversations")
+      .select("id")
+      .eq("request_id", id)
+      .eq("kind", "pre_accept")
+      .eq("response_id", pendingResponseId)
+      .maybeSingle();
+    preConversationId = preConv?.id ?? null;
+  }
+
+  const canAcceptOffers =
+    isOwner &&
+    !!user &&
+    status === "open" &&
+    (!row?.expires_at || new Date(row.expires_at) > new Date());
+
+  const { data: assignmentRow } =
+    isOwner && user
+      ? await supabase
+          .from("assignments")
+          .select("id, accepted_response_id, provider_user_id")
+          .eq("request_id", id)
+          .maybeSingle()
+      : { data: null };
+
+  const { data: engagementRow } = assignmentRow?.id
+    ? await supabase
+        .from("engagements")
+        .select("id, status, scheduled_for_day")
+        .eq("assignment_id", assignmentRow.id)
+        .maybeSingle()
+    : { data: null };
+
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-12">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -184,6 +256,14 @@ export default async function RequestDetailPage({ params }: PageProps) {
                 </Link>
               </>
             )}
+            {user && (
+              <>
+                {" · "}
+                <Link href="/responses/mine" className="underline">
+                  My responses
+                </Link>
+              </>
+            )}
           </p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">
             {title}
@@ -205,7 +285,7 @@ export default async function RequestDetailPage({ params }: PageProps) {
         </p>
       )}
 
-      {!isOwner && (
+      {!user && (
         <p
           className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100"
           role="note"
@@ -214,8 +294,16 @@ export default async function RequestDetailPage({ params }: PageProps) {
           <Link href="/auth/login" className="font-medium underline">
             Sign in
           </Link>{" "}
-          to post a request or use future authenticated actions (responses will
-          come in a later release).
+          to respond to requests or post your own.
+        </p>
+      )}
+
+      {user && !isOwner && (
+        <p
+          className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100"
+          role="note"
+        >
+          Budget shown is indicative — not deposited or escrowed.
         </p>
       )}
 
@@ -299,6 +387,80 @@ export default async function RequestDetailPage({ params }: PageProps) {
             ))}
           </div>
         </section>
+      )}
+
+      {isOwner && user && (
+        <>
+          {assignmentRow && engagementRow && (
+            <section
+              className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-900 dark:bg-emerald-950/40"
+              aria-labelledby="assigned-heading"
+            >
+              <h2
+                id="assigned-heading"
+                className="text-sm font-medium text-emerald-950 dark:text-emerald-100"
+              >
+                This request is assigned
+              </h2>
+              <p className="mt-1 text-sm text-emerald-900 dark:text-emerald-200">
+                Engagement is{" "}
+                <span className="capitalize">{engagementRow.status}</span>.
+                Scheduled day (UTC):{" "}
+                <span className="font-mono">
+                  {engagementRow.scheduled_for_day}
+                </span>
+                .
+              </p>
+              <p className="mt-2">
+                <Link
+                  href={`/engagements/${engagementRow.id}`}
+                  className="text-sm font-medium underline"
+                >
+                  Open engagement overview
+                </Link>
+              </p>
+            </section>
+          )}
+          <section className="flex flex-col gap-3">
+            <h2 className="text-lg font-medium text-stone-900 dark:text-stone-100">
+              Responses
+            </h2>
+            {!canAcceptOffers && status !== "open" && (
+              <p className="text-sm text-stone-600 dark:text-stone-400">
+                This request is not open for accepting new offers
+                {status === "assigned"
+                  ? " — you have already chosen a provider."
+                  : "."}
+              </p>
+            )}
+            {!canAcceptOffers &&
+              status === "open" &&
+              row?.expires_at != null &&
+              new Date(row.expires_at) <= new Date() && (
+                <p className="text-sm text-stone-600 dark:text-stone-400">
+                  This request has expired — you cannot accept responses.
+                </p>
+              )}
+            <RequestResponsesOwnerList
+              requestId={id}
+              assetDecimals={displayDecimals}
+              assetSymbol={displaySymbol}
+              canAcceptOffers={canAcceptOffers}
+            />
+          </section>
+        </>
+      )}
+
+      {showRespond && budgetAmount != null && (
+        <RespondSection
+          requestId={id}
+          budgetAmountSmallest={budgetAmountStr}
+          assetSymbol={displaySymbol}
+          assetDecimals={displayDecimals}
+          hasLiveProfilePhoto={hasLiveProfilePhoto}
+          pendingResponseId={pendingResponseId}
+          preConversationId={preConversationId}
+        />
       )}
     </main>
   );

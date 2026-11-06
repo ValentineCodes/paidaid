@@ -8,7 +8,7 @@ export type FeedCardRow = {
   title: string;
   description_preview: string | null;
   timing_type: Tables<"requests">["timing_type"];
-  budget_amount: string;
+  budget_amount: string | number;
   asset_symbol: string;
   asset_decimals: number;
   location_kind: Tables<"requests">["location_kind"];

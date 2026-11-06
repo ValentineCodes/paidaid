@@ -151,7 +151,7 @@ export async function createRequest(
 
   const { data: requestId, error: rpcError } = await supabase.rpc(
     "create_request",
-    rpcPayload,
+    rpcPayload as never,
   );
 
   if (rpcError || !requestId) {
