@@ -69,6 +69,24 @@ Full walkthrough: [docs/localnet.md](docs/localnet.md).
 | `pnpm sandbox:stop`  | Stop sandbox                                        |
 | `pnpm sandbox:reset` | Delete `.sandbox/` state                            |
 
+### Supabase (database — Docker, like Active)
+
+Local Supabase runs in **Docker** (same model as Active). Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or another engine the CLI can use) and the [Supabase CLI](https://supabase.com/docs/guides/cli). From the repo root, migrations live in `supabase/migrations/` and config in `supabase/config.toml`.
+
+| Command                | Purpose                                                               |
+| ---------------------- | --------------------------------------------------------------------- |
+| `pnpm db:start`        | `supabase start` — pull/run containers (Postgres, Auth, API, Studio…) |
+| `pnpm db:stop`         | `supabase stop`                                                       |
+| `pnpm db:reset`        | `supabase db reset` — migrations + `supabase/seed.sql`                |
+| `pnpm db:migrate`      | `supabase migration up --local`                                       |
+| `pnpm db:push`         | `supabase db push` — apply migrations to a linked remote project      |
+| `pnpm db:types`        | Regenerate `apps/web/lib/database.types.ts` from **local** `public`   |
+| `pnpm db:types:linked` | Regenerate types from **linked** remote (`supabase link` first)       |
+
+After `pnpm db:start`, run `supabase status` (or open Studio on port **55323**) and copy **API URL** + **anon key** into `apps/web/.env.local` as `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. This repo uses **5532x** ports by default so you can run another Supabase project (e.g. Active on **5432x**) on the same machine.
+
+Active also has `db:serve` (Edge Functions) and extra seeds; PaidAid will add those when Edge Functions land here.
+
 ## Rust contract
 
 ```bash
@@ -148,4 +166,4 @@ Files: `apps/web/.env.development`, optional `apps/web/.env.local` (gitignored).
 
 ## Scripts reference
 
-See root `package.json` for `sandbox:*`, `contract:*`, and `check`.
+See root `package.json` for `sandbox:*`, `contract:*`, `db:*`, and `check`.

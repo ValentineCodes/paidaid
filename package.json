@@ -21,6 +21,13 @@
     "sandbox:start": "node scripts/sandbox/start.mjs",
     "sandbox:stop": "node scripts/sandbox/stop.mjs",
     "sandbox:deploy": "node scripts/sandbox/deploy.mjs",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset",
+    "db:migrate": "supabase migration up --local",
+    "db:push": "supabase db push",
+    "db:types": "supabase gen types typescript --local --schema public > apps/web/lib/database.types.ts",
+    "db:types:linked": "supabase gen types typescript --linked --schema public > apps/web/lib/database.types.ts",
     "check": "pnpm format:check && pnpm typecheck && pnpm lint && pnpm contract:clippy && pnpm test && pnpm contract:check"
   },
   "devDependencies": {
