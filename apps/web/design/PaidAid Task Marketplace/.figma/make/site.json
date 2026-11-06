@@ -1,0 +1,10 @@
+{
+  "description": "A community marketplace where people post tasks, compare offers, message collaborators, and build trust through completed work and reviews.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

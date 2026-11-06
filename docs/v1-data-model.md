@@ -218,7 +218,7 @@ Created on **first response** (same transaction as first `request_responses` ins
 | `messages.conversation_id` | `uuid` | → `conversations`                                                                  |
 | `messages.sender_id`       | `uuid` | Must be requester or responding provider for that thread (enforced in RPC/trigger) |
 
-**Profile gate** on insert (must have live profile photo).
+**Profile gate** on insert (must have a usable profile photo: `avatar_url` and/or uploaded profile image).
 
 **RLS:** Participants only (requester + provider party for that thread).
 

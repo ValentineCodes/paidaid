@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { connection } from "next/server";
 
+import { getRequestWallTimeMs } from "../../lib/datetime/request-wall-time";
 import { createClient } from "../../lib/supabase/server";
 import { isSupabaseConfigured } from "../../lib/supabase/env";
 import {
@@ -7,66 +9,113 @@ import {
   parseDiscoveryParams,
 } from "../../lib/discovery/feed-params";
 import { discoverySearchString } from "../../lib/discovery/build-url";
-import { MarketplaceFilters } from "./marketplace/marketplace-filters";
 import { RequestFeedCard, type FeedCardRow } from "./request-feed-card";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
+function Icon({
+  name,
+  size = 22,
+}: {
+  name: "search" | "shield" | "message" | "briefcase" | "arrow";
+  size?: number;
+}) {
+  const common = {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    fill: "none" as const,
+    stroke: "currentColor" as const,
+    strokeWidth: 1.8,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    "aria-hidden": true as const,
+  };
+  switch (name) {
+    case "search":
+      return (
+        <svg {...common}>
+          <circle cx="11" cy="11" r="7" />
+          <path d="m20 20-4-4" />
+        </svg>
+      );
+    case "shield":
+      return (
+        <svg {...common}>
+          <path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z" />
+        </svg>
+      );
+    case "message":
+      return (
+        <svg {...common}>
+          <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z" />
+        </svg>
+      );
+    case "briefcase":
+      return (
+        <svg {...common}>
+          <rect x="3" y="7" width="18" height="13" rx="2" />
+          <path d="M8 7V4h8v3M3 12h18M10 12v2h4v-2" />
+        </svg>
+      );
+    default:
+      return (
+        <svg {...common}>
+          <path d="M5 12h14M14 7l5 5-5 5" />
+        </svg>
+      );
+  }
+}
+
 export default async function MarketplaceHomePage({ searchParams }: PageProps) {
   const sp = await searchParams;
 
   if (!isSupabaseConfigured()) {
     return (
-      <main className="mx-auto max-w-3xl px-6 py-16">
-        <h1 className="text-2xl font-semibold">Marketplace</h1>
-        <p className="mt-2 text-stone-600 dark:text-stone-400">
-          Set{" "}
-          <code className="font-mono text-sm">NEXT_PUBLIC_SUPABASE_URL</code>{" "}
-          and{" "}
-          <code className="font-mono text-sm">
-            NEXT_PUBLIC_SUPABASE_ANON_KEY
-          </code>{" "}
-          in <code className="font-mono text-sm">apps/web/.env.local</code>.
-        </p>
+      <main>
+        <section className="hero">
+          <div className="eyebrow">
+            <span /> Open marketplace · Built for people
+          </div>
+          <h1>
+            If you can pay for it,
+            <br />
+            <em>someone can do it.</em>
+          </h1>
+          <p>
+            Configure Supabase to load live requests. Budgets are indicative only —
+            not deposited or escrowed.
+          </p>
+          <p className="max-w-xl text-[13px] text-[var(--muted)]">
+            Set{" "}
+            <code className="font-mono text-sm text-[var(--ink)]">
+              NEXT_PUBLIC_SUPABASE_URL
+            </code>{" "}
+            and{" "}
+            <code className="font-mono text-sm text-[var(--ink)]">
+              NEXT_PUBLIC_SUPABASE_ANON_KEY
+            </code>{" "}
+            in <code className="font-mono text-sm">apps/web/.env.local</code>.
+          </p>
+        </section>
       </main>
     );
   }
 
+  await connection();
+  const nowMs = getRequestWallTimeMs();
+
   const supabase = await createClient();
   const parsed = parseDiscoveryParams(sp);
 
-  const [{ data: assets }, { data: tags }] = await Promise.all([
-    supabase.from("assets").select("*").order("canonical_asset_key"),
-    supabase.from("tags").select("*").order("category").order("sort_order"),
-  ]);
-
-  const tagIdsParam = Array.isArray(sp.tags)
-    ? sp.tags.filter(
-        (x): x is string => typeof x === "string" && /^[0-9a-f-]{36}$/i.test(x),
-      )
-    : typeof sp.tags === "string"
-      ? sp.tags
-          .split(",")
-          .map((s) => s.trim())
-          .filter((s) => /^[0-9a-f-]{36}$/i.test(s))
-      : [];
-
-  const filterState = {
-    q: typeof sp.q === "string" ? sp.q : "",
-    selectedTagIds: tagIdsParam,
-    category: typeof sp.category === "string" ? sp.category : "",
-    assetId: typeof sp.asset === "string" ? sp.asset : "",
-    location: typeof sp.location === "string" ? sp.location : "",
-  };
-
   const { data: rows, error } = await supabase.rpc("list_requests_public", {
     p_search: parsed.search || undefined,
-    p_tag_ids: parsed.tagIds.length ? parsed.tagIds : undefined,
-    p_category: parsed.category ?? undefined,
-    p_asset_id: parsed.assetId ?? undefined,
-    p_location_kind: parsed.locationKind ?? undefined,
+    p_tag_ids: undefined,
+    p_category: undefined,
+    p_asset_id: undefined,
+    p_location_kind: undefined,
     p_limit: parsed.limit,
     p_cursor_published_at: parsed.cursorPublishedAt ?? undefined,
     p_cursor_id: parsed.cursorId ?? undefined,
@@ -80,13 +129,8 @@ export default async function MarketplaceHomePage({ searchParams }: PageProps) {
       ? buildFeedCursorParam(last.published_at, last.id)
       : null;
 
-  const baseQuery = discoverySearchString({
-    q: filterState.q,
-    tags: filterState.selectedTagIds,
-    category: filterState.category as never,
-    asset: filterState.assetId,
-    location: filterState.location,
-  });
+  const q = typeof sp.q === "string" ? sp.q : "";
+  const baseQuery = discoverySearchString({ q });
 
   const nextHref =
     nextCursor && baseQuery !== ""
@@ -96,54 +140,99 @@ export default async function MarketplaceHomePage({ searchParams }: PageProps) {
         : null;
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-6 py-10">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Marketplace</h1>
-        <p className="mt-1 max-w-2xl text-sm text-stone-600 dark:text-stone-400">
-          Open requests you can browse without an account. Budgets are
-          indicative only — not deposited or escrowed.
+    <main>
+      <section className="hero">
+        <div className="eyebrow">
+          <span /> Open marketplace · Built for people
+        </div>
+        <h1>
+          If you can pay for it,
+          <br />
+          <em>someone can do it.</em>
+        </h1>
+        <p>
+          Real people, useful work, direct connection. Post what you need or find
+          something worth doing. Budgets are indicative only — not deposited or
+          escrowed.
         </p>
-      </div>
+        <form method="get" action="/" className="search-wrap">
+          <Icon name="search" />
+          <input
+            name="q"
+            type="search"
+            defaultValue={q}
+            placeholder="What can you help with?"
+            aria-label="Search tasks"
+          />
+          <button type="submit">Search</button>
+        </form>
+        <div className="trust-row">
+          <span>
+            <Icon name="shield" size={16} /> Human verified
+          </span>
+          <span>
+            <Icon name="message" size={16} /> Direct messaging
+          </span>
+          <span>
+            <Icon name="briefcase" size={16} /> One account, both ways
+          </span>
+        </div>
+      </section>
 
-      {assets?.length && tags?.length ? (
-        <MarketplaceFilters assets={assets} tags={tags} state={filterState} />
-      ) : null}
-
-      {error && (
-        <p
-          className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
-          role="alert"
-        >
-          {error.message}
-        </p>
-      )}
-
-      {!error && feed.length === 0 && (
-        <p className="rounded-lg border border-stone-200 px-4 py-8 text-center text-stone-600 dark:border-stone-800 dark:text-stone-400">
-          No open requests match your filters. Try clearing filters or check
-          back later.
-        </p>
-      )}
-
-      <ul className="flex flex-col gap-4">
-        {feed.map((row) => (
-          <li key={row.id}>
-            <RequestFeedCard row={row} />
-          </li>
-        ))}
-      </ul>
-
-      {nextHref && (
-        <div className="flex justify-center">
-          <Link
-            href={nextHref}
-            className="rounded-lg border border-stone-300 px-4 py-2 text-sm font-medium text-stone-800 hover:bg-stone-100 dark:border-stone-600 dark:text-stone-100 dark:hover:bg-stone-800"
-            scroll={false}
-          >
-            Load more
+      <section className="market">
+        <div className="section-head">
+          <div>
+            <span className="section-kicker">THE MARKETPLACE</span>
+            <h2>Work worth doing</h2>
+          </div>
+          <Link href="/requests/new" className="text-button">
+            Post what you need <Icon name="arrow" size={17} />
           </Link>
         </div>
-      )}
+
+        {error && (
+          <p
+            className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
+            role="alert"
+          >
+            {error.message}
+          </p>
+        )}
+
+        {!error && feed.length === 0 && (
+          <div className="empty">
+            <Icon name="search" size={30} />
+            <h3>No tasks found</h3>
+            <p>Try another search or check back later.</p>
+          </div>
+        )}
+
+        {!error && feed.length > 0 ? (
+          <div className="result-count">
+            <span>
+              {feed.length} open task{feed.length === 1 ? "" : "s"}
+              {hasMore ? " · more below" : ""}
+            </span>
+          </div>
+        ) : null}
+
+        {!error && feed.length > 0 ? (
+          <div className="task-grid">
+            {feed.map((row) => (
+              <RequestFeedCard key={row.id} row={row} nowMs={nowMs} />
+            ))}
+          </div>
+        ) : null}
+
+        {nextHref && (
+          <div className="mt-8 flex justify-center">
+            <Link href={nextHref} className="primary" scroll={false}>
+              Load more
+              <Icon name="arrow" size={16} />
+            </Link>
+          </div>
+        )}
+      </section>
     </main>
   );
 }

@@ -1,25 +1,31 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Manrope:wght@500;600;700;800&display=swap");
 @import "tailwindcss";
+@import "./figma-design.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* Match Figma: `dark` class on `body.app` (see theme script + `ThemeToggle`). */
+@custom-variant dark (&:where(.dark, .dark *));
 
+/*
+  Bridge Figma design tokens (`figma-design.css` `.app` / `--ink` / etc.) to Tailwind
+  utilities so existing pages can keep using `stone-*` and `font-mono`.
+*/
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+  --font-sans: var(--font-dm-sans), "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-manrope), Manrope, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
 
-body {
-  background: var(--background);
-  color: var(--foreground);
+  --color-stone-50: var(--stone-50);
+  --color-stone-100: var(--stone-100);
+  --color-stone-200: var(--stone-200);
+  --color-stone-300: var(--stone-300);
+  --color-stone-400: var(--stone-400);
+  --color-stone-500: var(--stone-500);
+  --color-stone-600: var(--stone-600);
+  --color-stone-700: var(--stone-700);
+  --color-stone-800: var(--stone-800);
+  --color-stone-900: var(--stone-900);
+  --color-stone-950: var(--stone-950);
 }

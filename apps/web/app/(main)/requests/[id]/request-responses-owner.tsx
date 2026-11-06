@@ -1,7 +1,10 @@
 import Link from "next/link";
 
-import { LIVE_PROFILE_PHOTOS_BUCKET } from "../../../../lib/constants/storage";
 import { createClient } from "../../../../lib/supabase/server";
+import {
+  profileHasPhotoForGating,
+  resolveProfileDisplayUrl,
+} from "../../../../lib/profiles/resolve-photo";
 import { formatBudgetSmallestUnits } from "../../../../lib/requests/format-budget";
 import { AcceptResponseForm } from "./accept-response-form";
 
@@ -15,6 +18,7 @@ type Row = {
     headline: string | null;
     profiles: {
       display_name: string;
+      avatar_url: string | null;
       live_profile_photo_path: string | null;
     } | null;
   } | null;
@@ -55,7 +59,7 @@ export async function RequestResponsesOwnerList({
       created_at,
       provider_profiles (
         headline,
-        profiles ( display_name, live_profile_photo_path )
+        profiles ( display_name, avatar_url, live_profile_photo_path )
       )
     `,
     )
@@ -80,14 +84,12 @@ export async function RequestResponsesOwnerList({
 
   const withUrls = await Promise.all(
     list.map(async (r) => {
-      const path = r.provider_profiles?.profiles?.live_profile_photo_path;
-      if (!path) {
-        return { ...r, photoUrl: null as string | null };
-      }
-      const { data } = await supabase.storage
-        .from(LIVE_PROFILE_PHOTOS_BUCKET)
-        .createSignedUrl(path, 3600);
-      return { ...r, photoUrl: data?.signedUrl ?? null };
+      const prof = r.provider_profiles?.profiles ?? null;
+      const hasPhoto = profileHasPhotoForGating(prof);
+      const photoUrl = hasPhoto
+        ? await resolveProfileDisplayUrl(supabase, prof)
+        : null;
+      return { ...r, photoUrl };
     }),
   );
 
@@ -124,37 +126,39 @@ export async function RequestResponsesOwnerList({
             <div className="min-w-0 flex-1">
               <p className="font-medium text-stone-900 dark:text-stone-100">
                 {name}
-                {r.provider_profiles?.headline ? (
-                  <span className="ml-2 font-normal text-stone-600 dark:text-stone-400">
-                    — {r.provider_profiles.headline}
-                  </span>
-                ) : null}
               </p>
-              <p className="mt-1 text-xs capitalize text-stone-500">
-                {r.status.replace(/_/g, " ")} ·{" "}
-                {new Date(r.created_at).toLocaleString()}
-              </p>
-              <p className="mt-2 font-mono text-sm">
-                {amount} {assetSymbol}
+              {r.provider_profiles?.headline && (
+                <p className="text-sm text-stone-600 dark:text-stone-400">
+                  {r.provider_profiles.headline}
+                </p>
+              )}
+              <p className="mt-1 font-mono text-sm text-stone-800 dark:text-stone-200">
+                {amount} {assetSymbol} proposed
               </p>
               {r.message && (
                 <p className="mt-2 whitespace-pre-wrap text-sm text-stone-700 dark:text-stone-300">
                   {r.message}
                 </p>
               )}
-              {convByResponse.get(r.id) && (
-                <p className="mt-3">
+              <p className="mt-2 text-xs text-stone-500">
+                {new Date(r.created_at).toLocaleString()}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {showAccept && (
+                  <AcceptResponseForm
+                    requestId={requestId}
+                    responseId={r.id}
+                  />
+                )}
+                {convByResponse.has(r.id) && (
                   <Link
                     href={`/conversations/${convByResponse.get(r.id)}`}
-                    className="text-sm font-medium underline"
+                    className="text-sm font-medium text-stone-900 underline dark:text-stone-100"
                   >
                     Open chat
                   </Link>
-                </p>
-              )}
-              {showAccept ? (
-                <AcceptResponseForm requestId={requestId} responseId={r.id} />
-              ) : null}
+                )}
+              </div>
             </div>
           </li>
         );

@@ -6,7 +6,6 @@ const AVATAR_URL_MAX = 2000;
 export type ProfileFieldErrors = {
   displayName?: string;
   bio?: string;
-  avatarUrl?: string;
 };
 
 export function validateDisplayName(value: string): string | null {
@@ -54,7 +53,6 @@ export function validateAvatarUrl(
 export function validateProfileForm(input: {
   displayName: string;
   bio?: string | null;
-  avatarUrl?: string | null;
 }): ProfileFieldErrors | null {
   const errors: ProfileFieldErrors = {};
   const dn = validateDisplayName(input.displayName);
@@ -64,10 +62,6 @@ export function validateProfileForm(input: {
   const bio = validateBio(input.bio);
   if (bio) {
     errors.bio = bio;
-  }
-  const avatar = validateAvatarUrl(input.avatarUrl);
-  if (avatar) {
-    errors.avatarUrl = avatar;
   }
   return Object.keys(errors).length > 0 ? errors : null;
 }

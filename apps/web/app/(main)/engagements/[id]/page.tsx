@@ -3,7 +3,10 @@ import { notFound, redirect } from "next/navigation";
 
 import { createClient } from "../../../../lib/supabase/server";
 import { isSupabaseConfigured } from "../../../../lib/supabase/env";
-import { LIVE_PROFILE_PHOTOS_BUCKET } from "../../../../lib/constants/storage";
+import {
+  profileHasPhotoForGating,
+  resolveProfileDisplayUrl,
+} from "../../../../lib/profiles/resolve-photo";
 import { formatBudgetSmallestUnits } from "../../../../lib/requests/format-budget";
 import { EngagementWorkflow } from "./engagement-workflow";
 import type { Database } from "../../../../lib/database.types";
@@ -108,17 +111,11 @@ export default async function EngagementPage({ params }: PageProps) {
 
   const { data: peerProfile } = await supabase
     .from("profiles")
-    .select("display_name, live_profile_photo_path")
+    .select("display_name, avatar_url, live_profile_photo_path")
     .eq("id", peerId)
     .maybeSingle();
 
-  let peerPhotoUrl: string | null = null;
-  if (peerProfile?.live_profile_photo_path) {
-    const { data } = await supabase.storage
-      .from(LIVE_PROFILE_PHOTOS_BUCKET)
-      .createSignedUrl(peerProfile.live_profile_photo_path, 3600);
-    peerPhotoUrl = data?.signedUrl ?? null;
-  }
+  const peerPhotoUrl = await resolveProfileDisplayUrl(supabase, peerProfile);
 
   let peerPhone: string | null = null;
   const { data: canRead } = await supabase.rpc("can_read_private_contact", {
@@ -171,14 +168,11 @@ export default async function EngagementPage({ params }: PageProps) {
 
   const { data: myProfile } = await supabase
     .from("profiles")
-    .select("live_profile_photo_path, live_profile_photo_captured_at")
+    .select("avatar_url, live_profile_photo_path")
     .eq("id", user.id)
     .maybeSingle();
 
-  const hasLivePhoto = Boolean(
-    myProfile?.live_profile_photo_path &&
-    myProfile?.live_profile_photo_captured_at,
-  );
+  const hasProfilePhoto = profileHasPhotoForGating(myProfile);
 
   const budgetStr =
     accepted && asset
@@ -319,7 +313,7 @@ export default async function EngagementPage({ params }: PageProps) {
         {conv?.id ? (
           <Link
             href={`/conversations/${conv.id}`}
-            className="w-fit rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white dark:bg-stone-100 dark:text-stone-900"
+            className="w-fit rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white dark:bg-[#edf2ed] dark:text-[#101614]"
           >
             Open conversation
           </Link>
@@ -341,7 +335,7 @@ export default async function EngagementPage({ params }: PageProps) {
         deliveryAttachments={deliveryAttachments}
         issues={issueRows ?? []}
         existingReview={reviewRow}
-        hasLivePhoto={hasLivePhoto}
+        hasProfilePhoto={hasProfilePhoto}
       />
     </main>
   );

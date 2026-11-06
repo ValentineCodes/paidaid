@@ -1,7 +1,7 @@
 /** Supabase Storage bucket for request attachments (server + client). */
 export const REQUEST_PHOTOS_BUCKET = "request-photos";
 
-/** Live camera profile photos (gate before responding). Path prefix must match auth uid. */
+/** Uploaded profile photos (path prefix must match auth uid). */
 export const LIVE_PROFILE_PHOTOS_BUCKET = "live-profile-photos";
 
 /** Chat attachments: path `{uid}/{conversation_id}/{message_id}/...` */

@@ -27,8 +27,7 @@ export default function LoginPage() {
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-semibold tracking-tight">Sign in</h1>
         <p className="text-stone-600 dark:text-stone-400">
-          Use your email and password. NEAR wallet is only needed on the
-          Contract demo page.
+          Use your email and password to sign in.
         </p>
       </div>
       <Suspense fallback={<p className="text-sm text-stone-500">Loading…</p>}>

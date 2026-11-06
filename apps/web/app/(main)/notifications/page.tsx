@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { connection } from "next/server";
 import { redirect } from "next/navigation";
 
 import { createClient } from "../../../lib/supabase/server";
@@ -43,14 +44,24 @@ export default async function NotificationsPage({ searchParams }: PageProps) {
 
   if (!isSupabaseConfigured()) {
     return (
-      <main className="mx-auto max-w-3xl px-6 py-16">
-        <p className="text-stone-600 dark:text-stone-400">
-          Configure Supabase in{" "}
-          <code className="font-mono text-sm">.env.local</code>.
+      <main className="inner-page">
+        <div className="page-heading">
+          <span>STAY IN THE LOOP</span>
+          <h1>Updates</h1>
+          <p>Configure Supabase to load updates.</p>
+        </div>
+        <p className="text-sm text-[var(--muted)]">
+          Set{" "}
+          <code className="font-mono text-[var(--ink)]">
+            NEXT_PUBLIC_SUPABASE_URL
+          </code>{" "}
+          in <code className="font-mono">apps/web/.env.local</code>.
         </p>
       </main>
     );
   }
+
+  await connection();
 
   const supabase = await createClient();
   const {
@@ -86,10 +97,13 @@ export default async function NotificationsPage({ searchParams }: PageProps) {
 
   if (error) {
     return (
-      <main className="mx-auto max-w-3xl px-6 py-12">
-        <p className="text-sm text-red-700 dark:text-red-300">
-          {error.message}
-        </p>
+      <main className="inner-page">
+        <div className="page-heading">
+          <span>STAY IN THE LOOP</span>
+          <h1>Updates</h1>
+          <p>Responses, messages, and progress in one place.</p>
+        </div>
+        <p className="text-sm text-red-700 dark:text-red-300">{error.message}</p>
       </main>
     );
   }
@@ -98,16 +112,11 @@ export default async function NotificationsPage({ searchParams }: PageProps) {
   const hasMore = list.length === PAGE_SIZE;
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-12">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Notifications</h1>
-        <p className="mt-1 text-sm text-stone-500">
-          In-app updates.{" "}
-          <span className="text-stone-400">
-            Payments, calls, and wallet alerts are not active in V1 — filters
-            stay for later.
-          </span>
-        </p>
+    <main className="inner-page">
+      <div className="page-heading">
+        <span>STAY IN THE LOOP</span>
+        <h1>Updates</h1>
+        <p>Responses, messages, and progress in one place.</p>
       </div>
 
       <NotificationsInbox
@@ -119,8 +128,8 @@ export default async function NotificationsPage({ searchParams }: PageProps) {
         hasMore={hasMore}
       />
 
-      <p className="text-center text-sm text-stone-500">
-        <Link href="/" className="underline">
+      <p className="mt-8 text-center text-sm text-[var(--muted)]">
+        <Link href="/" className="font-semibold text-[var(--ink)] underline">
           Back to discovery
         </Link>
       </p>

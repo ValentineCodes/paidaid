@@ -1,8 +1,10 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
+import { useRouter } from "next/navigation";
 
+import { FigmaIcon } from "../../../../components/figma-icons";
 import { formatBudgetSmallestUnits } from "../../../../lib/requests/format-budget";
 import {
   submitRequestResponse,
@@ -11,15 +13,16 @@ import {
 
 const initial: SubmitResponseState = { error: null };
 
-function SubmitResponseButton() {
+function SendOfferButton() {
   const { pending } = useFormStatus();
   return (
     <button
       type="submit"
       disabled={pending}
-      className="w-full rounded-lg bg-stone-900 px-3 py-2.5 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-60 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-stone-200 sm:w-auto"
+      className="primary-wide"
     >
-      {pending ? "Submitting…" : "Submit response"}
+      {pending ? "Sending…" : "Send offer"}{" "}
+      <FigmaIcon name="send" size={17} />
     </button>
   );
 }
@@ -37,104 +40,91 @@ export function ResponseOfferForm({
   assetSymbol,
   assetDecimals,
 }: Props) {
+  const router = useRouter();
   const [state, formAction] = useActionState(submitRequestResponse, initial);
   const budgetHuman =
     budgetAmountSmallest !== ""
       ? formatBudgetSmallestUnits(budgetAmountSmallest, assetDecimals)
       : "";
 
-  return (
-    <form action={formAction} className="flex flex-col gap-4">
-      <input type="hidden" name="request_id" value={requestId} />
+  useEffect(() => {
+    if (state.success) {
+      router.refresh();
+    }
+  }, [state.success, router]);
 
-      <div className="flex flex-col gap-1.5">
-        <label
-          htmlFor="respond_proposed_human"
-          className="text-sm font-medium text-stone-700 dark:text-stone-300"
-        >
-          Your offer (whole {assetSymbol} units)
-        </label>
-        <input
-          id="respond_proposed_human"
-          name="proposed_human"
-          type="text"
-          inputMode="numeric"
-          pattern="[0-9]*"
-          required
-          defaultValue={budgetHuman}
-          autoComplete="off"
-          className="rounded-lg border border-stone-300 bg-white px-3 py-2 font-mono text-stone-900 outline-none ring-stone-400 focus:ring-2 dark:border-stone-600 dark:bg-stone-950 dark:text-stone-100"
-          aria-describedby="respond_budget_hint"
-        />
-        <p
-          id="respond_budget_hint"
-          className="text-xs text-stone-500 dark:text-stone-400"
-        >
-          Indicative budget on the request is {budgetHuman} {assetSymbol} (same
-          asset; whole units only).
+  if (state.success) {
+    return (
+      <div className="sent-state">
+        <span>
+          <FigmaIcon name="check" />
+        </span>
+        <h3>Offer sent</h3>
+        <p>
+          The requester will be notified. You can follow the conversation in
+          Messages.
         </p>
-        {state.fieldErrors?.proposedHuman && (
-          <p className="text-sm text-red-700 dark:text-red-300">
-            {state.fieldErrors.proposedHuman}
-          </p>
-        )}
       </div>
+    );
+  }
 
-      <div className="flex flex-col gap-1.5">
-        <label
-          htmlFor="respond_headline"
-          className="text-sm font-medium text-stone-700 dark:text-stone-300"
-        >
-          Provider headline (optional)
-        </label>
-        <input
-          id="respond_headline"
-          name="headline"
-          type="text"
-          maxLength={160}
-          className="rounded-lg border border-stone-300 bg-white px-3 py-2 text-stone-900 outline-none ring-stone-400 focus:ring-2 dark:border-stone-600 dark:bg-stone-950 dark:text-stone-100"
-        />
-        {state.fieldErrors?.headline && (
-          <p className="text-sm text-red-700 dark:text-red-300">
-            {state.fieldErrors.headline}
-          </p>
-        )}
-      </div>
+  return (
+    <form action={formAction} className="flex flex-col">
+      <input type="hidden" name="request_id" value={requestId} />
+      <input type="hidden" name="headline" value="" />
 
-      <div className="flex flex-col gap-1.5">
-        <label
-          htmlFor="respond_message"
-          className="text-sm font-medium text-stone-700 dark:text-stone-300"
-        >
-          Message (optional)
-        </label>
+      <label htmlFor="respond_proposed_human">
+        Offer amount
+        <div className="amount-input">
+          <input
+            id="respond_proposed_human"
+            name="proposed_human"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            required
+            defaultValue={budgetHuman}
+            autoComplete="off"
+            aria-describedby="respond_budget_hint"
+          />
+          <span>{assetSymbol}</span>
+        </div>
+      </label>
+      <p
+        id="respond_budget_hint"
+        className="mt-[-8px] mb-[15px] text-[11px] font-normal text-[var(--muted)]"
+      >
+        Indicative budget on this task is {budgetHuman} {assetSymbol} (whole
+        units only).
+      </p>
+      {state.fieldErrors?.proposedHuman && (
+        <p className="mb-3 text-[12px] text-red-700 dark:text-red-300">
+          {state.fieldErrors.proposedHuman}
+        </p>
+      )}
+
+      <label htmlFor="respond_message">
+        Message
         <textarea
           id="respond_message"
           name="message"
-          rows={4}
+          placeholder="Introduce yourself and explain how you’d approach this task…"
           maxLength={2000}
-          className="rounded-lg border border-stone-300 bg-white px-3 py-2 text-stone-900 outline-none ring-stone-400 focus:ring-2 dark:border-stone-600 dark:bg-stone-950 dark:text-stone-100"
         />
-        {state.fieldErrors?.message && (
-          <p className="text-sm text-red-700 dark:text-red-300">
-            {state.fieldErrors.message}
-          </p>
-        )}
-      </div>
-
-      {state.error && (
-        <p className="text-sm text-red-700 dark:text-red-300">{state.error}</p>
-      )}
-      {state.success && (
-        <p
-          className="text-sm text-emerald-800 dark:text-emerald-200"
-          role="status"
-        >
-          Response submitted. The requester will be able to review it.
+      </label>
+      {state.fieldErrors?.message && (
+        <p className="text-[12px] text-red-700 dark:text-red-300">
+          {state.fieldErrors.message}
         </p>
       )}
 
-      <SubmitResponseButton />
+      {state.error && (
+        <p className="mb-3 text-[12px] text-red-700 dark:text-red-300">
+          {state.error}
+        </p>
+      )}
+
+      <SendOfferButton />
     </form>
   );
 }

@@ -170,7 +170,7 @@ export function NotificationsInbox({
             href={queryForFilter(f.value, 1)}
             className={`rounded-full border px-3 py-1 text-xs font-medium ${
               category === f.value
-                ? "border-stone-900 bg-stone-900 text-white dark:border-stone-100 dark:bg-stone-100 dark:text-stone-900"
+                ? "border-stone-900 bg-stone-900 text-white dark:border-[#edf2ed] dark:bg-[#edf2ed] dark:text-[#101614]"
                 : "border-stone-300 text-stone-700 dark:border-stone-600 dark:text-stone-300"
             }`}
             title={f.hint}

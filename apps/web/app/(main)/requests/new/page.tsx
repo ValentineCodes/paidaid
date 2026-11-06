@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "../../../../lib/supabase/server";
 import { isSupabaseConfigured } from "../../../../lib/supabase/env";
-import { RequestComposerForm } from "./request-composer-form";
+import { NewRequestClient } from "./new-request-client";
 
 export default async function NewRequestPage() {
   if (!isSupabaseConfigured()) {
@@ -52,18 +52,10 @@ export default async function NewRequestPage() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-12">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">New request</h1>
-        <p className="mt-1 text-sm text-stone-500">
-          Step through each section, then publish or save as a draft.
-        </p>
-      </div>
-      <RequestComposerForm
-        assets={assets}
-        tags={tags}
-        defaultAssetId={assets[0].id}
-      />
-    </main>
+    <NewRequestClient
+      assets={assets}
+      tags={tags}
+      defaultAssetId={assets[0].id}
+    />
   );
 }

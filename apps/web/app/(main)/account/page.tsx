@@ -1,35 +1,42 @@
 import Link from "next/link";
+import { connection } from "next/server";
 import { redirect } from "next/navigation";
 
 import { createClient } from "../../../lib/supabase/server";
 import { isSupabaseConfigured } from "../../../lib/supabase/env";
-import { PrivateContactForm } from "./private-contact-form";
-import { ProfileForm } from "./profile-form";
+import { getRequestWallTimeMs } from "../../../lib/datetime/request-wall-time";
+import { resolveProfileDisplayUrl } from "../../../lib/profiles/resolve-photo";
+import { ProfileShell } from "./profile-shell";
 
 export default async function AccountPage() {
   if (!isSupabaseConfigured()) {
     return (
-      <main className="mx-auto max-w-3xl px-6 py-16">
-        <h1 className="text-2xl font-semibold">Account</h1>
-        <p className="mt-2 text-stone-600 dark:text-stone-400">
-          Configure{" "}
-          <code className="font-mono text-sm">NEXT_PUBLIC_SUPABASE_URL</code>{" "}
+      <main className="inner-page">
+        <div className="page-heading">
+          <span>YOUR IDENTITY</span>
+          <h1>Profile</h1>
+          <p>Configure Supabase to load your account.</p>
+        </div>
+        <p className="text-sm text-[var(--muted)]">
+          Set{" "}
+          <code className="font-mono text-[var(--ink)]">
+            NEXT_PUBLIC_SUPABASE_URL
+          </code>{" "}
           and{" "}
-          <code className="font-mono text-sm">
+          <code className="font-mono text-[var(--ink)]">
             NEXT_PUBLIC_SUPABASE_ANON_KEY
           </code>{" "}
-          in <code className="font-mono text-sm">apps/web/.env.local</code>. See{" "}
-          <code className="font-mono text-sm">apps/web/.env.example</code>.
+          in <code className="font-mono text-[var(--ink)]">apps/web/.env.local</code>.
         </p>
-        <Link
-          href="/"
-          className="mt-4 inline-block text-sm font-medium underline"
-        >
+        <Link href="/" className="mt-6 inline-block text-sm font-bold underline">
           Back to home
         </Link>
       </main>
     );
   }
+
+  await connection();
+  const nowMs = getRequestWallTimeMs();
 
   const supabase = await createClient();
   const {
@@ -48,45 +55,69 @@ export default async function AccountPage() {
 
   if (error) {
     return (
-      <main className="mx-auto max-w-3xl px-6 py-16">
-        <p className="text-red-700 dark:text-red-300">{error.message}</p>
+      <main className="inner-page">
+        <p className="text-red-700">{error.message}</p>
       </main>
     );
   }
 
   if (!profile) {
     return (
-      <main className="mx-auto max-w-3xl px-6 py-16">
-        <h1 className="text-2xl font-semibold">Account</h1>
-        <p className="mt-2 text-stone-600 dark:text-stone-400">
-          Your profile row is missing. Ensure the database migration ran and
-          sign-up included display name metadata.
-        </p>
+      <main className="inner-page">
+        <div className="page-heading">
+          <span>YOUR IDENTITY</span>
+          <h1>Profile</h1>
+          <p>Your profile row is missing. Run migrations and sign up again.</p>
+        </div>
       </main>
     );
   }
 
-  const { data: privateContact } = await supabase
-    .from("profile_private_contact")
-    .select("phone")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const { data: reviewRows } = await supabase
+    .from("reviews")
+    .select("id, rating, comment, created_at, requester_id")
+    .eq("provider_user_id", user.id)
+    .order("created_at", { ascending: false });
+
+  const reviews = reviewRows ?? [];
+  const reviewCount = reviews.length;
+  const avgRating =
+    reviewCount > 0
+      ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount
+      : null;
+
+  const requesterIds = [...new Set(reviews.map((r) => r.requester_id))];
+  const requesterNames = new Map<string, string>();
+  if (requesterIds.length > 0) {
+    const { data: nameRows } = await supabase
+      .from("profiles")
+      .select("id, display_name")
+      .in("id", requesterIds);
+    for (const row of nameRows ?? []) {
+      requesterNames.set(row.id, row.display_name);
+    }
+  }
+
+  const { count: assignmentCount } = await supabase
+    .from("assignments")
+    .select("*", { count: "exact", head: true })
+    .or(`requester_id.eq.${user.id},provider_user_id.eq.${user.id}`);
+
+  const taskCount = assignmentCount ?? 0;
+
+  const photoDisplayUrl = await resolveProfileDisplayUrl(supabase, profile);
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-6 py-16">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Account</h1>
-        <p className="mt-1 text-sm text-stone-500">Signed in as {user.email}</p>
-      </div>
-      <section className="flex flex-col gap-4">
-        <h2 className="text-lg font-medium text-stone-900 dark:text-stone-100">
-          Profile
-        </h2>
-        <ProfileForm profile={profile} />
-      </section>
-      <section className="flex flex-col gap-4 border-t border-stone-200 pt-8 dark:border-stone-800">
-        <PrivateContactForm initialPhone={privateContact?.phone ?? null} />
-      </section>
-    </main>
+    <ProfileShell
+      nowMs={nowMs}
+      profile={profile}
+      photoDisplayUrl={photoDisplayUrl}
+      userEmail={user.email ?? ""}
+      reviews={reviews.slice(0, 10)}
+      requesterNames={requesterNames}
+      avgRating={avgRating}
+      reviewCount={reviewCount}
+      taskCount={taskCount}
+    />
   );
 }

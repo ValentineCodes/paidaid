@@ -47,50 +47,46 @@ export function PrivateContactForm({ initialPhone }: Props) {
   }
 
   return (
-    <form
-      onSubmit={(e) => void save(e)}
-      className="flex max-w-lg flex-col gap-3"
-    >
-      <div>
-        <h2 className="text-lg font-medium text-stone-900 dark:text-stone-100">
-          Contact (private)
-        </h2>
-        <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
-          Optional phone number. Only visible to people you are messaging in a
-          request or engagement chat — not on public listings.
-        </p>
-      </div>
-      <label className="flex flex-col gap-1">
-        <span className="text-sm font-medium text-stone-700 dark:text-stone-300">
+    <div>
+      <span className="text-[9px] font-bold tracking-[1.2px] text-[var(--muted)]">
+        CONTACT
+      </span>
+      <h3 className="mt-1 font-['Manrope'] text-lg font-semibold text-[var(--ink)]">
+        Private phone
+      </h3>
+      <p className="mb-4 text-[12px] leading-relaxed text-[var(--muted)]">
+        Optional — only visible to people you message in a task conversation.
+      </p>
+      <form onSubmit={(e) => void save(e)} className="form-fields">
+        <label>
           Phone
-        </span>
-        <input
-          type="tel"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          placeholder="+1 …"
-          autoComplete="tel"
-          className="rounded-lg border border-stone-300 bg-white px-3 py-2 dark:border-stone-600 dark:bg-stone-950 dark:text-stone-100"
-        />
-      </label>
-      {msg && (
-        <p
-          className={
-            status === "err"
-              ? "text-sm text-red-700 dark:text-red-300"
-              : "text-sm text-emerald-800 dark:text-emerald-200"
-          }
+          <input
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="+1 …"
+            autoComplete="tel"
+          />
+        </label>
+        {msg ? (
+          <p
+            className={
+              status === "err"
+                ? "text-[12px] text-red-700"
+                : "text-[12px] text-emerald-800"
+            }
+          >
+            {msg}
+          </p>
+        ) : null}
+        <button
+          type="submit"
+          disabled={status === "saving"}
+          className="primary !w-fit"
         >
-          {msg}
-        </p>
-      )}
-      <button
-        type="submit"
-        disabled={status === "saving"}
-        className="w-fit rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60 dark:bg-stone-100 dark:text-stone-900"
-      >
-        {status === "saving" ? "Saving…" : "Save contact"}
-      </button>
-    </form>
+          {status === "saving" ? "Saving…" : "Save contact"}
+        </button>
+      </form>
+    </div>
   );
 }

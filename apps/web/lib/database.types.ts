@@ -1006,7 +1006,8 @@ export type Database = {
         Row: {
           asset_decimals: number | null;
           asset_symbol: string | null;
-          budget_amount: number | null;
+          /** Exact smallest units as string (avoids JSON float rounding for NEAR yocto). */
+          budget_amount: string | null;
           budget_asset_id: string | null;
           created_at: string | null;
           deadline_at: string | null;
@@ -1123,7 +1124,8 @@ export type Database = {
         Returns: {
           asset_decimals: number;
           asset_symbol: string;
-          budget_amount: number;
+          /** Exact smallest units as string (avoids JSON float rounding for NEAR yocto). */
+          budget_amount: string;
           budget_asset_id: string;
           deadline_at: string;
           description_preview: string;
@@ -1159,6 +1161,17 @@ export type Database = {
       open_request_id_for_photo_path: {
         Args: { p_path: string };
         Returns: string;
+      };
+      profile_has_usable_photo: {
+        Args: { p_id: string };
+        Returns: boolean;
+      };
+      request_requester_public_card: {
+        Args: { p_request_id: string };
+        Returns: {
+          display_name: string;
+          verified: boolean;
+        }[];
       };
       report_engagement_issue: {
         Args: { p_body: string; p_category: string; p_engagement_id: string };

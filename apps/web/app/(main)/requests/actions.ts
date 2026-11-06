@@ -50,6 +50,8 @@ export async function createRequest(
   const budgetAssetId = String(formData.get("budget_asset_id") ?? "");
   const publishRaw = String(formData.get("publish") ?? "true");
   const publish = publishRaw === "true";
+  const stayInModalRaw = String(formData.get("stay_in_modal") ?? "");
+  const stayInModal = stayInModalRaw === "true";
 
   const tagIds = formData
     .getAll("tag_id")
@@ -204,6 +206,13 @@ export async function createRequest(
 
   revalidatePath("/requests");
   revalidatePath(`/requests/${requestIdStr}`);
+  if (stayInModal) {
+    return {
+      error: null,
+      success: true,
+      requestId: requestIdStr,
+    };
+  }
   redirect(`/requests/${requestIdStr}`);
 }
 

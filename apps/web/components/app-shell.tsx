@@ -1,11 +1,18 @@
+import { ThemeScript } from "./theme-script";
+
 type AppShellProps = {
   children: React.ReactNode;
 };
 
 /**
- * Root layout shell. Marketplace routes use `(main)/layout` for the header.
- * The `/contract` demo uses `(contract-demo)/layout` for WalletProvider.
+ * Root shell: `body` gets `.app` (+ optional `.dark`) from {@link ThemeScript}.
+ * Main routes wrap content in Figma `.app` styles via `body` class.
  */
 export function AppShell({ children }: AppShellProps) {
-  return <>{children}</>;
+  return (
+    <>
+      <ThemeScript />
+      {children}
+    </>
+  );
 }

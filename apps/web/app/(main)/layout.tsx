@@ -2,6 +2,7 @@ import { connection } from "next/server";
 
 import { createClient } from "../../lib/supabase/server";
 import { SiteHeaderMarketplace } from "../../components/site-header-marketplace";
+import { MobileNav } from "../../components/mobile-nav";
 import { isSupabaseConfigured } from "../../lib/supabase/env";
 
 /** Opt out of prerender for cookie/session-backed header (cacheComponents). */
@@ -9,8 +10,10 @@ export const instant = false;
 
 export default async function MainLayout({
   children,
+  modal,
 }: {
   children: React.ReactNode;
+  modal: React.ReactNode;
 }) {
   await connection();
 
@@ -45,7 +48,11 @@ export default async function MainLayout({
         user={user}
         unreadNotifications={unreadNotifications}
       />
-      {children}
+      <div className="relative flex min-w-0 w-full flex-1 flex-col">
+        {children}
+        {modal}
+      </div>
+      <MobileNav unreadNotifications={unreadNotifications} />
     </>
   );
 }

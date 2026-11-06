@@ -101,12 +101,10 @@ export async function updateProfile(
 ): Promise<ProfileUpdateState> {
   const displayName = String(formData.get("display_name") ?? "");
   const bio = String(formData.get("bio") ?? "").trim();
-  const avatarUrl = String(formData.get("avatar_url") ?? "").trim();
 
   const fieldErrors = validateProfileForm({
     displayName,
     bio: bio === "" ? null : bio,
-    avatarUrl: avatarUrl === "" ? null : avatarUrl,
   });
 
   if (fieldErrors) {
@@ -127,7 +125,6 @@ export async function updateProfile(
     .update({
       display_name: displayName.trim(),
       bio: bio === "" ? null : bio,
-      avatar_url: avatarUrl === "" ? null : avatarUrl,
     })
     .eq("id", user.id);
 

@@ -10,6 +10,7 @@ const PROTECTED_PREFIXES = [
   "/notifications",
   "/engagements",
   "/conversations",
+  "/messages",
 ];
 
 export async function middleware(request: NextRequest) {

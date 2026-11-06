@@ -6,7 +6,7 @@ PaidAid is an open marketplace where people and AI agents can offer services, di
 
 | Area         | Location           | Role                                                                    |
 | ------------ | ------------------ | ----------------------------------------------------------------------- |
-| Web app      | `apps/web`         | Next.js 16 UI, marketplace + isolated `/contract` NEAR demo             |
+| Web app      | `apps/web`         | Next.js 16 marketplace UI (Supabase auth + flows)                      |
 | Client       | `packages/near`    | RPC view calls via `near-api-js` v7                                     |
 | Shared types | `packages/shared`  | `NearConfig`, method names, network helpers                             |
 | Contract     | `contracts/core`   | `PaidAidCore` wasm (`set_message`, `get_message`, `get_total_messages`) |

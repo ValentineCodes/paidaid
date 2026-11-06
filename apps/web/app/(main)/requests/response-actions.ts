@@ -57,35 +57,37 @@ export async function submitRequestResponse(
     return { error: "You must be signed in to respond." };
   }
 
-  const { data: requestRow, error: reqErr } = await supabase
-    .from("requests")
-    .select("id, requester_id, status, budget_asset_id, expires_at")
+  // Open listings only — `requests` RLS allows select for owners (and assigned
+  // providers), so responders must not query that table for preflight.
+  const { data: openRequest, error: openErr } = await supabase
+    .from("requests_public")
+    .select("id, budget_asset_id")
     .eq("id", requestId)
     .maybeSingle();
 
-  if (reqErr || !requestRow) {
-    return { error: reqErr?.message ?? "Request not found" };
+  if (openErr || !openRequest?.budget_asset_id) {
+    return {
+      error:
+        openErr?.message ??
+        "This request is not open for offers (or it was removed).",
+    };
   }
 
-  if (requestRow.requester_id === user.id) {
+  const budgetAssetId = openRequest.budget_asset_id;
+
+  const { data: ownRow } = await supabase
+    .from("requests")
+    .select("requester_id")
+    .eq("id", requestId)
+    .maybeSingle();
+  if (ownRow?.requester_id === user.id) {
     return { error: "You cannot respond to your own request." };
-  }
-
-  if (requestRow.status !== "open") {
-    return { error: "This request is not open for responses." };
-  }
-
-  if (
-    requestRow.expires_at != null &&
-    new Date(requestRow.expires_at) <= new Date()
-  ) {
-    return { error: "This request has expired." };
   }
 
   const { data: asset, error: assetErr } = await supabase
     .from("assets")
     .select("id, symbol, decimals")
-    .eq("id", requestRow.budget_asset_id)
+    .eq("id", budgetAssetId)
     .maybeSingle();
 
   if (assetErr || !asset) {

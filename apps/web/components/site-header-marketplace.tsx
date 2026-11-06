@@ -1,77 +1,115 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 import { PaidAidLogo } from "./paidaid-logo";
-import { SiteNavMain } from "./site-nav-main";
 import { SignOutForm } from "./sign-out-form";
+import { ThemeToggle } from "./theme-toggle";
 
 type SiteHeaderMarketplaceProps = {
   user: { email: string; id: string } | null;
   unreadNotifications?: number;
 };
 
+function initials(email: string) {
+  const local = email.split("@")[0] ?? "?";
+  const parts = local.split(/[.\s_-]+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return (parts[0]![0]! + parts[1]![0]!).toUpperCase();
+  }
+  return local.slice(0, 2).toUpperCase() || "?";
+}
+
+function DesktopNavLink({
+  href,
+  children,
+  badge,
+}: {
+  href: string;
+  children: React.ReactNode;
+  badge?: number;
+}) {
+  const pathname = usePathname() ?? "";
+  const active =
+    href === "/"
+      ? pathname === "/" || pathname === ""
+      : pathname === href || pathname.startsWith(`${href}/`);
+
+  return (
+    <Link href={href} className={active ? "active" : undefined}>
+      {children}
+      {href === "/notifications" && (badge ?? 0) > 0 ? <i /> : null}
+    </Link>
+  );
+}
+
 export function SiteHeaderMarketplace({
   user,
   unreadNotifications = 0,
 }: SiteHeaderMarketplaceProps) {
   return (
-    <header className="border-b border-stone-200 dark:border-stone-800">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-6 sm:gap-8">
-          <PaidAidLogo />
-          <SiteNavMain />
-        </div>
-        <div className="flex flex-wrap items-center gap-3 text-sm">
+    <header className="topbar">
+      <div className="topbar-inner">
+        <PaidAidLogo />
+        <nav className="desktop-nav max-lg:hidden" aria-label="Main">
+          <DesktopNavLink href="/">Discover</DesktopNavLink>
+          <DesktopNavLink href="/requests/mine">Activity</DesktopNavLink>
+          <DesktopNavLink href="/messages">Messages</DesktopNavLink>
+          <DesktopNavLink href="/notifications" badge={unreadNotifications}>
+            Updates
+          </DesktopNavLink>
+        </nav>
+        <div className="header-actions">
+          <ThemeToggle />
           {user ? (
             <>
-              <span className="truncate text-stone-500 dark:text-stone-400">
-                {user.email}
-              </span>
-              <Link
-                href="/requests/mine"
-                className="rounded-lg border border-stone-300 px-3 py-1.5 font-medium text-stone-800 transition hover:bg-stone-100 dark:border-stone-600 dark:text-stone-100 dark:hover:bg-stone-800"
-              >
-                My requests
-              </Link>
-              <Link
-                href="/requests/new"
-                className="rounded-lg border border-stone-300 px-3 py-1.5 font-medium text-stone-800 transition hover:bg-stone-100 dark:border-stone-600 dark:text-stone-100 dark:hover:bg-stone-800"
-              >
-                New request
-              </Link>
-              <Link
-                href="/notifications"
-                className="relative rounded-lg border border-stone-300 px-3 py-1.5 font-medium text-stone-800 transition hover:bg-stone-100 dark:border-stone-600 dark:text-stone-100 dark:hover:bg-stone-800"
-              >
-                Notifications
-                {unreadNotifications > 0 ? (
-                  <span
-                    className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] font-semibold text-white"
-                    aria-label={`${unreadNotifications} unread notifications`}
-                  >
-                    {unreadNotifications > 99 ? "99+" : unreadNotifications}
-                  </span>
-                ) : null}
+              <Link href="/requests/new" className="create-button max-sm:text-[0]">
+                <svg
+                  width={18}
+                  height={18}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  aria-hidden
+                >
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                Post a task
               </Link>
               <Link
                 href="/account"
-                className="rounded-lg border border-stone-300 px-3 py-1.5 font-medium text-stone-800 transition hover:bg-stone-100 dark:border-stone-600 dark:text-stone-100 dark:hover:bg-stone-800"
+                className="avatar max-sm:hidden"
+                aria-label="Open profile"
               >
-                Account
+                {initials(user.email)}
+                <span />
               </Link>
-              <SignOutForm />
+              <div className="max-lg:hidden">
+                <SignOutForm />
+              </div>
             </>
           ) : (
             <>
               <Link
                 href="/auth/login"
-                className="rounded-lg px-3 py-1.5 font-medium text-stone-700 transition hover:text-stone-900 dark:text-stone-300 dark:hover:text-stone-100"
+                className="hidden text-sm font-semibold text-[var(--muted)] hover:text-[var(--ink)] sm:inline"
               >
                 Sign in
               </Link>
-              <Link
-                href="/auth/sign-up"
-                className="rounded-lg bg-stone-900 px-3 py-1.5 font-medium text-white transition hover:bg-stone-800 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-stone-200"
-              >
+              <Link href="/auth/sign-up" className="create-button max-sm:text-[0]">
+                <svg
+                  width={18}
+                  height={18}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  aria-hidden
+                >
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
                 Sign up
               </Link>
             </>

@@ -38,7 +38,7 @@ type Props = {
   deliveryAttachments: DeliveryAttRow[];
   issues: IssueRow[];
   existingReview: ReviewRow | null;
-  hasLivePhoto: boolean;
+  hasProfilePhoto: boolean;
 };
 
 function DeliveryMediaLink({ path, mime }: { path: string; mime: string }) {
@@ -100,7 +100,7 @@ export function EngagementWorkflow({
   deliveryAttachments,
   issues,
   existingReview,
-  hasLivePhoto,
+  hasProfilePhoto,
 }: Props) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -163,8 +163,8 @@ export function EngagementWorkflow({
   }, [supabase, engagementId, refresh]);
 
   async function runSubmitDelivery() {
-    if (!hasLivePhoto) {
-      setError("Live profile photo is required.");
+    if (!hasProfilePhoto) {
+      setError("Add a profile photo in Account settings before submitting.");
       return;
     }
     if (!desc.trim()) {
@@ -386,9 +386,9 @@ export function EngagementWorkflow({
           <h2 className="text-lg font-medium text-stone-900 dark:text-stone-100">
             I&apos;m done — submit delivery
           </h2>
-          {!hasLivePhoto && (
+          {!hasProfilePhoto && (
             <p className="mt-2 text-sm text-amber-800 dark:text-amber-200">
-              Add a live profile photo under Account before submitting.
+              Add a profile photo under Account before submitting.
             </p>
           )}
           {(deliveryStatus === null ||
@@ -437,9 +437,9 @@ export function EngagementWorkflow({
               </div>
               <button
                 type="button"
-                disabled={busy || !hasLivePhoto}
+                disabled={busy || !hasProfilePhoto}
                 onClick={() => void runSubmitDelivery()}
-                className="w-fit rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-stone-100 dark:text-stone-900"
+                className="w-fit rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-[#edf2ed] dark:text-[#101614]"
               >
                 {busy ? "Submitting…" : "Submit for review"}
               </button>
@@ -573,7 +573,7 @@ export function EngagementWorkflow({
               type="button"
               disabled={busy || !issueBody.trim()}
               onClick={() => void runReportIssue()}
-              className="w-fit rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-stone-100 dark:text-stone-900"
+              className="w-fit rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-[#edf2ed] dark:text-[#101614]"
             >
               Submit issue
             </button>
@@ -645,7 +645,7 @@ export function EngagementWorkflow({
               type="button"
               disabled={busy || rating < 1 || rating > 5}
               onClick={() => void runSubmitReview()}
-              className="w-fit rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-stone-100 dark:text-stone-900"
+              className="w-fit rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-[#edf2ed] dark:text-[#101614]"
             >
               Submit review
             </button>

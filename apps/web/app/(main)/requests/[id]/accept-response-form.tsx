@@ -17,7 +17,7 @@ function AcceptOfferButton({ disabled }: { disabled?: boolean }) {
     <button
       type="submit"
       disabled={pending || disabled}
-      className="mt-3 rounded-lg bg-stone-900 px-3 py-2 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-60 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-stone-200"
+      className="mt-3 rounded-lg bg-stone-900 px-3 py-2 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-60 dark:bg-[#edf2ed] dark:text-[#101614] dark:hover:bg-[#dde5df]"
     >
       {pending ? "Accepting…" : "Accept this offer"}
     </button>
