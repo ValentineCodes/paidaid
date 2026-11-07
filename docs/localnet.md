@@ -21,6 +21,8 @@ Connect **Intear Wallet**, add **localnet** in Intear (RPC `http://127.0.0.1:303
 | `pnpm sandbox:stop`   | Stop the running manager                |
 | `pnpm sandbox:reset`  | Stop and delete `.sandbox/`             |
 | `pnpm sandbox:deploy` | Deploy PaidAidCore to `paidaid.sandbox` |
+| `pnpm sandbox:deploy-escrow` | Deploy PaidAidEscrow to `paidaid-escrow.sandbox` |
+| `pnpm sandbox:test-escrow` | Integration checks for escrow (native path) |
 
 ## Environment
 

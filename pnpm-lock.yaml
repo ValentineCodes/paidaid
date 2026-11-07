@@ -34,6 +34,9 @@ importers:
       '@near-js/tokens':
         specifier: 2.5.1
         version: 2.5.1
+      '@near-js/transactions':
+        specifier: 2.5.1
+        version: 2.5.1(@near-js/crypto@2.5.1(@near-js/types@2.5.1)(@near-js/utils@2.5.1(@near-js/types@2.5.1)))(@near-js/types@2.5.1)(@near-js/utils@2.5.1(@near-js/types@2.5.1))
       near-sandbox:
         specifier: 0.3.5
         version: 0.3.5
