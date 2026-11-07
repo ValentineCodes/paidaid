@@ -428,8 +428,10 @@ body.app:not(.dark) {
   margin-top: 6px;
 }
 .text-button {
-  display: flex;
+  display: inline-flex;
   align-items: center;
+  width: fit-content;
+  max-width: 100%;
   gap: 8px;
   font-size: 14px;
   font-weight: 700;
@@ -1433,7 +1435,8 @@ a.update {
   font-weight: 700;
   position: relative;
 }
-.profile-avatar span {
+.profile-avatar span,
+.profile-avatar-badge {
   position: absolute;
   right: 0;
   bottom: 3px;
@@ -1445,6 +1448,36 @@ a.update {
   color: var(--surface);
   display: grid;
   place-items: center;
+}
+.profile-edit-avatar-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 24px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+.profile-avatar--editable {
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  overflow: hidden;
+  transition: transform 0.15s ease;
+}
+.profile-avatar--editable:hover {
+  transform: scale(1.02);
+}
+.profile-avatar--editable:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+.profile-avatar-initials {
+  font-size: 21px;
+}
+.profile-avatar-badge {
+  pointer-events: none;
 }
 .profile-card h2 {
   font-size: 21px;

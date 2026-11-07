@@ -4,8 +4,8 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "../../../../lib/supabase/server";
 import { isSupabaseConfigured } from "../../../../lib/supabase/env";
+import { resolveProfileDisplayUrl } from "../../../../lib/profiles/resolve-photo";
 import { ProfileForm } from "../profile-form";
-import { ProfilePhotoUpload } from "../profile-photo-upload";
 
 export default async function EditProfilePage() {
   if (!isSupabaseConfigured()) {
@@ -52,6 +52,8 @@ export default async function EditProfilePage() {
     redirect("/account");
   }
 
+  const photoDisplayUrl = await resolveProfileDisplayUrl(supabase, profile);
+
   return (
     <main className="inner-page">
       <div className="page-heading">
@@ -67,8 +69,7 @@ export default async function EditProfilePage() {
       </div>
 
       <div className="mx-auto max-w-[680px] rounded-[14px] border border-[var(--line)] bg-[var(--surface)] p-7">
-        <ProfilePhotoUpload />
-        <ProfileForm profile={profile} />
+        <ProfileForm profile={profile} photoDisplayUrl={photoDisplayUrl} />
       </div>
     </main>
   );
