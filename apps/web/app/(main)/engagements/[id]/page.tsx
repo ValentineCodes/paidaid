@@ -12,6 +12,8 @@ import { normalizeDbNumericAmount } from "@paidaid/shared";
 import { formatBudgetSmallestUnits } from "../../../../lib/requests/format-budget";
 import { EngagementWorkflow } from "./engagement-workflow";
 import { EngagementFundingSection } from "./engagement-funding-section";
+import { EngagementSettlementSection } from "./engagement-settlement-section";
+import type { EngagementSettlementView } from "../../../../lib/engagement/settlement-types";
 import { loadActiveLinkedNearWallet } from "../../../../lib/near/load-linked-wallet";
 import type { Database } from "../../../../lib/database.types";
 import type { EngagementFundingPrepareResult } from "../../../../lib/engagement/funding-types";
@@ -189,6 +191,20 @@ export default async function EngagementPage({ params }: PageProps) {
         )
       : "";
 
+  const { data: paymentRow } = await supabase
+    .from("engagement_escrow_payments")
+    .select("*")
+    .eq("engagement_id", id)
+    .maybeSingle();
+
+  const { data: paymentAsset } = paymentRow
+    ? await supabase
+        .from("assets")
+        .select("asset_standard, token_contract_id, symbol, decimals")
+        .eq("id", paymentRow.asset_id)
+        .maybeSingle()
+    : { data: null };
+
   let fundingTerms: EngagementFundingPrepareResult | null = null;
   let linkedRequesterNear: string | null = null;
   let fundingPrerequisites: {
@@ -223,20 +239,6 @@ export default async function EngagementPage({ params }: PageProps) {
       };
     }
 
-    const { data: paymentRow } = await supabase
-      .from("engagement_escrow_payments")
-      .select("*")
-      .eq("engagement_id", id)
-      .maybeSingle();
-
-    const { data: paymentAsset } = paymentRow
-      ? await supabase
-          .from("assets")
-          .select("asset_standard, token_contract_id, symbol, decimals")
-          .eq("id", paymentRow.asset_id)
-          .maybeSingle()
-      : { data: null };
-
     if (paymentRow && paymentAsset) {
       fundingTerms = {
         paymentId: paymentRow.id,
@@ -260,7 +262,34 @@ export default async function EngagementPage({ params }: PageProps) {
     }
   }
 
-  const paymentFunded = fundingTerms?.status === "funded";
+  const paymentFunded = paymentRow?.status === "funded";
+
+  let initialSettlement: EngagementSettlementView | null = null;
+  if (paymentRow) {
+    initialSettlement = {
+      settlementStatus: paymentRow.settlement_status,
+      settlementEligibleAt: paymentRow.settlement_eligible_at,
+      settlementTrigger: paymentRow.settlement_trigger,
+      releaseTxHash: paymentRow.release_tx_hash,
+      releasedAt: paymentRow.released_at,
+      settlementLastError: paymentRow.settlement_last_error,
+      paymentFunded: paymentRow.status === "funded",
+      onChainEscrowId:
+        paymentRow.on_chain_escrow_id == null
+          ? null
+          : String(paymentRow.on_chain_escrow_id),
+      requesterNearAccountId: paymentRow.requester_near_account_id,
+      providerNearAccountId: paymentRow.provider_near_account_id,
+      escrowContractId: paymentRow.escrow_contract_id,
+      amountSmallestUnits:
+        paymentAsset != null
+          ? normalizeDbNumericAmount(paymentRow.amount)
+          : null,
+    };
+  }
+
+  const openIssueCount =
+    issueRows?.filter((i) => i.status === "open").length ?? 0;
 
   if (isProvider) {
     const { data: prerequisites } = await supabase.rpc(
@@ -435,6 +464,16 @@ export default async function EngagementPage({ params }: PageProps) {
           initialTerms={fundingTerms}
           linkedRequesterNearAccountId={linkedRequesterNear}
           initialPrerequisites={fundingPrerequisites}
+        />
+      )}
+
+      {paymentFunded && (
+        <EngagementSettlementSection
+          engagementId={id}
+          isRequester={!isProvider}
+          linkedRequesterNearAccountId={linkedRequesterNear}
+          initialSettlement={initialSettlement}
+          openIssueCount={openIssueCount}
         />
       )}
 

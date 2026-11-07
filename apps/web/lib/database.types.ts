@@ -296,8 +296,16 @@ export type Database = {
           on_chain_escrow_id: number | null
           provider_near_account_id: string
           provider_user_id: string
+          release_tx_hash: string | null
+          released_at: string | null
           requester_near_account_id: string
           requester_user_id: string
+          settlement_eligible_at: string | null
+          settlement_last_error: string | null
+          settlement_status: Database["public"]["Enums"]["engagement_settlement_status"]
+          settlement_trigger:
+            | Database["public"]["Enums"]["engagement_settlement_trigger"]
+            | null
           status: Database["public"]["Enums"]["engagement_payment_status"]
           updated_at: string
         }
@@ -316,8 +324,16 @@ export type Database = {
           on_chain_escrow_id?: number | null
           provider_near_account_id: string
           provider_user_id: string
+          release_tx_hash?: string | null
+          released_at?: string | null
           requester_near_account_id: string
           requester_user_id: string
+          settlement_eligible_at?: string | null
+          settlement_last_error?: string | null
+          settlement_status?: Database["public"]["Enums"]["engagement_settlement_status"]
+          settlement_trigger?:
+            | Database["public"]["Enums"]["engagement_settlement_trigger"]
+            | null
           status?: Database["public"]["Enums"]["engagement_payment_status"]
           updated_at?: string
         }
@@ -336,8 +352,16 @@ export type Database = {
           on_chain_escrow_id?: number | null
           provider_near_account_id?: string
           provider_user_id?: string
+          release_tx_hash?: string | null
+          released_at?: string | null
           requester_near_account_id?: string
           requester_user_id?: string
+          settlement_eligible_at?: string | null
+          settlement_last_error?: string | null
+          settlement_status?: Database["public"]["Enums"]["engagement_settlement_status"]
+          settlement_trigger?:
+            | Database["public"]["Enums"]["engagement_settlement_trigger"]
+            | null
           status?: Database["public"]["Enums"]["engagement_payment_status"]
           updated_at?: string
         }
@@ -1247,6 +1271,10 @@ export type Database = {
         Args: { p_auto?: boolean; p_engagement_id: string }
         Returns: boolean
       }
+      complete_engagement_after_settlement: {
+        Args: { p_auto?: boolean; p_engagement_id: string }
+        Returns: boolean
+      }
       confirm_live_profile_photo: {
         Args: { p_storage_path: string }
         Returns: undefined
@@ -1300,6 +1328,23 @@ export type Database = {
           requester_display_name: string
           requester_near_account_id: string
           requester_wallet_linked: boolean
+        }[]
+      }
+      get_engagement_settlement_status: {
+        Args: { p_engagement_id: string }
+        Returns: {
+          amount: number
+          escrow_contract_id: string
+          on_chain_escrow_id: number
+          payment_funded: boolean
+          provider_near_account_id: string
+          release_tx_hash: string
+          released_at: string
+          requester_near_account_id: string
+          settlement_eligible_at: string
+          settlement_last_error: string
+          settlement_status: Database["public"]["Enums"]["engagement_settlement_status"]
+          settlement_trigger: Database["public"]["Enums"]["engagement_settlement_trigger"]
         }[]
       }
       is_conversation_participant: {
@@ -1370,6 +1415,13 @@ export type Database = {
         Args: { p_conversation_id: string }
         Returns: undefined
       }
+      mark_engagement_settlement_eligible: {
+        Args: {
+          p_engagement_id: string
+          p_trigger: Database["public"]["Enums"]["engagement_settlement_trigger"]
+        }
+        Returns: boolean
+      }
       mark_notification_read: {
         Args: { p_notification_id: string }
         Returns: undefined
@@ -1407,8 +1459,16 @@ export type Database = {
           on_chain_escrow_id: number | null
           provider_near_account_id: string
           provider_user_id: string
+          release_tx_hash: string | null
+          released_at: string | null
           requester_near_account_id: string
           requester_user_id: string
+          settlement_eligible_at: string | null
+          settlement_last_error: string | null
+          settlement_status: Database["public"]["Enums"]["engagement_settlement_status"]
+          settlement_trigger:
+            | Database["public"]["Enums"]["engagement_settlement_trigger"]
+            | null
           status: Database["public"]["Enums"]["engagement_payment_status"]
           updated_at: string
         }
@@ -1444,8 +1504,58 @@ export type Database = {
           on_chain_escrow_id: number | null
           provider_near_account_id: string
           provider_user_id: string
+          release_tx_hash: string | null
+          released_at: string | null
           requester_near_account_id: string
           requester_user_id: string
+          settlement_eligible_at: string | null
+          settlement_last_error: string | null
+          settlement_status: Database["public"]["Enums"]["engagement_settlement_status"]
+          settlement_trigger:
+            | Database["public"]["Enums"]["engagement_settlement_trigger"]
+            | null
+          status: Database["public"]["Enums"]["engagement_payment_status"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "engagement_escrow_payments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      record_engagement_settlement_progress: {
+        Args: {
+          p_engagement_id: string
+          p_last_error?: string
+          p_release_tx_hash?: string
+          p_status: Database["public"]["Enums"]["engagement_settlement_status"]
+        }
+        Returns: {
+          amount: number
+          asset_id: string
+          chain_id: string
+          create_tx_hash: string | null
+          created_at: string
+          engagement_id: string
+          escrow_contract_id: string
+          fund_tx_hash: string | null
+          funded_at: string | null
+          id: string
+          last_error: string | null
+          on_chain_escrow_id: number | null
+          provider_near_account_id: string
+          provider_user_id: string
+          release_tx_hash: string | null
+          released_at: string | null
+          requester_near_account_id: string
+          requester_user_id: string
+          settlement_eligible_at: string | null
+          settlement_last_error: string | null
+          settlement_status: Database["public"]["Enums"]["engagement_settlement_status"]
+          settlement_trigger:
+            | Database["public"]["Enums"]["engagement_settlement_trigger"]
+            | null
           status: Database["public"]["Enums"]["engagement_payment_status"]
           updated_at: string
         }
@@ -1536,6 +1646,13 @@ export type Database = {
         | "deposit_submitted"
         | "funded"
         | "failed"
+      engagement_settlement_status:
+        | "not_eligible"
+        | "eligible"
+        | "release_submitted"
+        | "released"
+        | "release_failed"
+      engagement_settlement_trigger: "manual_approve" | "auto_complete"
       engagement_status: "active" | "completed"
       issue_status: "open" | "resolved"
       location_kind: "unspecified" | "online" | "in_person"
@@ -1560,6 +1677,9 @@ export type Database = {
         | "new_message"
         | "response_withdrawn"
         | "engagement_created"
+        | "settlement_eligible"
+        | "settlement_released"
+        | "settlement_auto_eligible"
       provider_profile_kind: "human" | "ai"
       request_status: "draft" | "open" | "assigned" | "completed" | "expired"
       response_status: "pending" | "withdrawn" | "accepted" | "rejected"
@@ -1708,6 +1828,14 @@ export const Constants = {
         "funded",
         "failed",
       ],
+      engagement_settlement_status: [
+        "not_eligible",
+        "eligible",
+        "release_submitted",
+        "released",
+        "release_failed",
+      ],
+      engagement_settlement_trigger: ["manual_approve", "auto_complete"],
       engagement_status: ["active", "completed"],
       issue_status: ["open", "resolved"],
       location_kind: ["unspecified", "online", "in_person"],
@@ -1733,6 +1861,9 @@ export const Constants = {
         "new_message",
         "response_withdrawn",
         "engagement_created",
+        "settlement_eligible",
+        "settlement_released",
+        "settlement_auto_eligible",
       ],
       provider_profile_kind: ["human", "ai"],
       request_status: ["draft", "open", "assigned", "completed", "expired"],

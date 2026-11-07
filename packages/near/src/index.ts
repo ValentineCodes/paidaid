@@ -22,7 +22,9 @@ export {
 } from "./core-contract";
 export {
   assertEscrowRecordMatchesFunding,
+  assertEscrowReleasedOnChain,
   assertFundingCompleteOnChain,
+  waitForEscrowReleaseSettlement,
   explorerTransactionUrl,
   fetchTxFinalOutcome,
   findEscrowIdForEngagementByScan,

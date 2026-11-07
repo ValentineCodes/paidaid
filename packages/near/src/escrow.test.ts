@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   assertEscrowRecordMatchesFunding,
+  assertEscrowReleasedOnChain,
   assertFundingCompleteOnChain,
   normalizeTransactionOutcome,
   parseEscrowIdFromCreateOutcome,
@@ -89,6 +90,21 @@ test("assertFundingCompleteOnChain requires Funded and deposited", () => {
       { ...record, engagement_id: "other" },
       expected,
     ),
+  );
+});
+
+test("assertEscrowReleasedOnChain requires Released status", () => {
+  assert.throws(() =>
+    assertEscrowReleasedOnChain({
+      engagement_id: "e",
+      requester: "a",
+      provider: "b",
+      asset: "Native",
+      ft_contract: null,
+      amount: "1",
+      deposited: "1",
+      status: "Funded",
+    }),
   );
 });
 

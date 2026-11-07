@@ -254,7 +254,9 @@ export async function viewActiveEscrowIdForEngagement(
   engagementId: string,
 ): Promise<string | null> {
   const contractId = requireEscrowContractId(config);
-  const result = await createProvider(config).callFunction<unknown>({
+  const result = await createProvider(config).callFunction<
+    string | number | { "0": string | number }
+  >({
     contractId,
     method: ESCROW_METHODS.getActiveEscrowIdForEngagement,
     args: { engagement_id: engagementId },
@@ -401,6 +403,42 @@ export async function fetchTxFinalOutcome(
     return legacy.txStatus(txHash, accountId);
   }
   throw new Error("NEAR provider does not support transaction status queries");
+}
+
+const SETTLEMENT_POLL_MS = 450;
+const SETTLEMENT_MAX_POLL_ATTEMPTS = 40;
+
+export function assertEscrowReleasedOnChain(record: OnChainEscrowRecord): void {
+  if (record.status !== "Released") {
+    throw new Error(`Escrow is not released (status ${record.status})`);
+  }
+}
+
+export async function waitForEscrowReleaseSettlement(
+  config: EscrowNearConfig,
+  escrowId: string,
+): Promise<OnChainEscrowRecord> {
+  for (let attempt = 0; attempt < SETTLEMENT_MAX_POLL_ATTEMPTS; attempt += 1) {
+    const record = await viewEscrowRecord(config, escrowId);
+    if (!record) {
+      throw new Error("Escrow record not found");
+    }
+    if (record.status === "Released") {
+      return record;
+    }
+    if (record.status === "Releasing") {
+      await delay(SETTLEMENT_POLL_MS);
+      continue;
+    }
+    if (record.status === "Funded" && attempt < 3) {
+      await delay(SETTLEMENT_POLL_MS);
+      continue;
+    }
+    throw new Error(
+      `Release did not complete (escrow status ${record.status})`,
+    );
+  }
+  throw new Error("Timed out waiting for escrow release");
 }
 
 export function assertFundingCompleteOnChain(

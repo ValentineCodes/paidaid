@@ -326,7 +326,8 @@ export function EngagementWorkflow({
           Completion &amp; delivery
         </h2>
         <p className="mt-1 text-sm text-stone-500">
-          Budgets are indicative only — there is no payment settlement in V1.
+          Fund escrow before approving delivery when this engagement uses
+          on-chain payment.
         </p>
 
         {engagementStatus === "active" && deliveryStatus && (
@@ -346,7 +347,8 @@ export function EngagementWorkflow({
               deliveryStatus === "pending_review" &&
               openIssues.length === 0 && (
                 <p className="text-amber-800 dark:text-amber-200">
-                  Auto-completes if not approved by{" "}
+                  After 72 hours, delivery is treated as approved for payment
+                  release (you still sign NEAR to release escrow). Deadline:{" "}
                   {new Date(autoCompleteDeadlineAt).toLocaleString()} (unless an
                   open issue blocks it).
                 </p>
@@ -450,6 +452,12 @@ export function EngagementWorkflow({
               Waiting for the requester to approve or request changes.
             </p>
           )}
+          {deliveryStatus === "approved" && engagementStatus === "active" && (
+            <p className="mt-3 text-sm text-amber-800 dark:text-amber-200">
+              Delivery approved — the requester must release escrow to finish the
+              engagement.
+            </p>
+          )}
         </section>
       )}
 
@@ -485,7 +493,7 @@ export function EngagementWorkflow({
                 onClick={() => void runReview("approve")}
                 className="rounded-lg bg-green-800 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-green-700"
               >
-                Approve &amp; complete
+                Approve delivery
               </button>
             </div>
             <div className="mt-4">

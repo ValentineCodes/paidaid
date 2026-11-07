@@ -53,6 +53,7 @@ export const ESCROW_METHODS = {
   depositNative: "deposit_native",
   getEscrow: "get_escrow",
   getActiveEscrowIdForEngagement: "get_active_escrow_id_for_engagement",
+  release: "release",
 } as const;
 
 export type EscrowNearConfig = NearConfig & {
