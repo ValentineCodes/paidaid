@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { DismissDrawerLink } from "../../../../components/dismiss-drawer-link";
 import { FigmaIcon } from "../../../../components/figma-icons";
 
 function initialsFromDisplayName(name: string) {
@@ -38,9 +39,12 @@ export function PostedBySection({ displayName, verified, variant }: Props) {
       </div>
       <p className="mt-3 text-[11px] leading-relaxed text-[var(--muted)]">
         Only a display name is shown on listings.{" "}
-        <Link href="/account" className="font-semibold text-[var(--ink)] underline">
+        <DismissDrawerLink
+          href="/account"
+          className="font-semibold text-[var(--ink)] underline"
+        >
           Edit your profile
-        </Link>
+        </DismissDrawerLink>
       </p>
     </>
   );

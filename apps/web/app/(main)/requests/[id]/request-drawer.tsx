@@ -1,24 +1,36 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 
 import { FigmaIcon } from "../../../../components/figma-icons";
+import { isRequestDetailModalPath } from "../../../../lib/navigation/request-detail-modal-path";
 
 type Props = {
+  requestId: string;
   children: ReactNode;
 };
 
-export function RequestDrawer({ children }: Props) {
+export function RequestDrawer({ requestId, children }: Props) {
   const router = useRouter();
+  const pathname = usePathname();
+  const open =
+    isRequestDetailModalPath(pathname) &&
+    pathname === `/requests/${requestId}`;
 
   useEffect(() => {
+    if (!open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = prev;
     };
-  }, []);
+  }, [open]);
+
+  // Parallel @modal intercept can stay mounted after client nav; hide when URL moved away.
+  if (!open) {
+    return null;
+  }
 
   return (
     <div

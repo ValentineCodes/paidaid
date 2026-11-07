@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { DismissDrawerLink } from "../../../../components/dismiss-drawer-link";
 import { createClient } from "../../../../lib/supabase/server";
 import {
   profileHasPhotoForGating,
@@ -30,6 +31,7 @@ type Props = {
   assetSymbol: string;
   /** Owner may accept pending offers when true */
   canAcceptOffers: boolean;
+  variant?: "drawer" | "page";
 };
 
 export async function RequestResponsesOwnerList({
@@ -37,7 +39,9 @@ export async function RequestResponsesOwnerList({
   assetDecimals,
   assetSymbol,
   canAcceptOffers,
+  variant = "page",
 }: Props) {
+  const ChatLink = variant === "drawer" ? DismissDrawerLink : Link;
   const supabase = await createClient();
   const { data: preConvs } = await supabase
     .from("conversations")
@@ -151,12 +155,12 @@ export async function RequestResponsesOwnerList({
                   />
                 )}
                 {convByResponse.has(r.id) && (
-                  <Link
+                  <ChatLink
                     href={`/conversations/${convByResponse.get(r.id)}`}
                     className="text-sm font-medium text-stone-900 underline dark:text-stone-100"
                   >
                     Open chat
-                  </Link>
+                  </ChatLink>
                 )}
               </div>
             </div>

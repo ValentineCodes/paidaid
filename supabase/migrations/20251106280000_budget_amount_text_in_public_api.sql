@@ -66,7 +66,18 @@ grant select on public.requests_public to anon, authenticated;
 -- ---------------------------------------------------------------------------
 -- Discovery RPC: return budget_amount as text
 -- ---------------------------------------------------------------------------
-create or replace function public.list_requests_public(
+drop function if exists public.list_requests_public(
+  text,
+  uuid[],
+  public.tag_category,
+  uuid,
+  public.location_kind,
+  int,
+  timestamptz,
+  uuid
+);
+
+create function public.list_requests_public(
   p_search text default null,
   p_tag_ids uuid[] default null,
   p_category public.tag_category default null,

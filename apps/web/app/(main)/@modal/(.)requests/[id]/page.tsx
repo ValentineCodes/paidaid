@@ -20,7 +20,7 @@ export default async function RequestDetailModal({ params }: PageProps) {
   const data = await getRequestDetailOrNotFound(id, nowMs);
 
   return (
-    <RequestDrawer>
+    <RequestDrawer requestId={id}>
       <RequestDetailContent data={data} variant="drawer" />
     </RequestDrawer>
   );

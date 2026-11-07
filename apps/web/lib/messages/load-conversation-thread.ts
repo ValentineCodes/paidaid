@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { createClient } from "../supabase/server";
 import type { Database } from "../database.types";
 import type { ChatMessagePayload } from "./chat-types";
+import { mapListConversationMessagesRpc } from "./map-list-messages-rpc";
 
 type Client = Awaited<ReturnType<typeof createClient>>;
 
@@ -66,15 +67,12 @@ export async function loadConversationThreadData(
     notFound();
   }
 
-  const { data: reqRow } = await supabase
-    .from("requests")
-    .select(
-      "id, title, location_kind, location_label, timing_type, scheduled_at, requester_id",
-    )
-    .eq("id", conv.request_id)
-    .maybeSingle();
-
-  if (!reqRow) {
+  const { data: reqCtx, error: reqCtxErr } = await supabase.rpc(
+    "get_conversation_request_context",
+    { p_conversation_id: conversationId },
+  );
+  const reqRow = reqCtx?.[0];
+  if (reqCtxErr || !reqRow) {
     notFound();
   }
 
@@ -141,36 +139,57 @@ export async function loadConversationThreadData(
     peerPhone = pc?.phone ?? null;
   }
 
-  const { data: msgRows } = await supabase
-    .from("messages")
-    .select(
-      `
-      *,
-      message_attachments (*)
-    `,
-    )
-    .eq("conversation_id", conversationId)
-    .order("created_at", { ascending: true });
-
-  const senderIds = [...new Set((msgRows ?? []).map((m) => m.sender_id))];
-  const { data: nameRows } =
-    senderIds.length > 0
-      ? await supabase
-          .from("profiles")
-          .select("id, display_name")
-          .in("id", senderIds)
-      : { data: [] };
-
-  const nameById = new Map(
-    (nameRows ?? []).map((r) => [r.id, r.display_name] as const),
+  let initialMessages: ChatMessagePayload[] = [];
+  const { data: rpcRows, error: rpcErr } = await supabase.rpc(
+    "list_conversation_messages",
+    { p_conversation_id: conversationId },
   );
 
-  const initialMessages: ChatMessagePayload[] = (msgRows ?? []).map((m) => ({
-    ...m,
-    display_name: nameById.get(m.sender_id) ?? "User",
-    message_attachments: (m.message_attachments ??
-      []) as ChatMessagePayload["message_attachments"],
-  }));
+  if (!rpcErr && rpcRows) {
+    const senderIds = [...new Set(rpcRows.map((m) => m.sender_id))];
+    const { data: nameRows } =
+      senderIds.length > 0
+        ? await supabase
+            .from("profiles")
+            .select("id, display_name")
+            .in("id", senderIds)
+        : { data: [] };
+    const nameById = new Map(
+      (nameRows ?? []).map((r) => [r.id, r.display_name] as const),
+    );
+    initialMessages = mapListConversationMessagesRpc(rpcRows, nameById);
+  } else {
+    const { data: msgRows } = await supabase
+      .from("messages")
+      .select(
+        `
+        *,
+        message_attachments (*)
+      `,
+      )
+      .eq("conversation_id", conversationId)
+      .order("created_at", { ascending: true });
+
+    const senderIds = [...new Set((msgRows ?? []).map((m) => m.sender_id))];
+    const { data: nameRows } =
+      senderIds.length > 0
+        ? await supabase
+            .from("profiles")
+            .select("id, display_name")
+            .in("id", senderIds)
+        : { data: [] };
+
+    const nameById = new Map(
+      (nameRows ?? []).map((r) => [r.id, r.display_name] as const),
+    );
+
+    initialMessages = (msgRows ?? []).map((m) => ({
+      ...m,
+      display_name: nameById.get(m.sender_id) ?? "User",
+      message_attachments: (m.message_attachments ??
+        []) as ChatMessagePayload["message_attachments"],
+    }));
+  }
 
   const backHref =
     conv.kind === "engagement" && conv.engagement_id

@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { DismissDrawerLink } from "../../../../components/dismiss-drawer-link";
 import { RequestResponsesOwnerList } from "./request-responses-owner";
 import { RespondSection } from "./respond-section";
 import { PostedBySection } from "./posted-by-section";
@@ -194,12 +195,12 @@ export function RequestDetailContent({ data, variant }: Props) {
                   .
                 </p>
                 <p className="mt-2">
-                  <Link
+                  <DismissDrawerLink
                     href={`/engagements/${engagementRow.id}`}
                     className="text-sm font-medium underline"
                   >
                     Open engagement overview
-                  </Link>
+                  </DismissDrawerLink>
                 </p>
               </section>
             )}
@@ -223,6 +224,7 @@ export function RequestDetailContent({ data, variant }: Props) {
                 assetDecimals={displayDecimals}
                 assetSymbol={displaySymbol}
                 canAcceptOffers={canAcceptOffers}
+                variant="drawer"
               />
             </section>
           </>
@@ -242,9 +244,9 @@ export function RequestDetailContent({ data, variant }: Props) {
         )}
         {!user && (
           <div className="detail-section">
-            <Link href="/auth/login" className="primary-wide">
+            <DismissDrawerLink href="/auth/login" className="primary-wide">
               Sign in to respond
-            </Link>
+            </DismissDrawerLink>
           </div>
         )}
       </>

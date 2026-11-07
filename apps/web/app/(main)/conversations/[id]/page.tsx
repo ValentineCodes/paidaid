@@ -62,7 +62,7 @@ export default async function ConversationPage({ params }: PageProps) {
         activeConversationId={id}
         nowMs={nowMs}
       >
-        <div className="chat min-h-0 min-w-0">
+        <div className="chat min-h-0 min-w-0 flex h-full flex-col overflow-hidden">
         <ConversationChat
           conversationId={id}
           initialMessages={thread.initialMessages}

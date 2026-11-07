@@ -8,17 +8,38 @@ import { SignOutForm } from "./sign-out-form";
 import { ThemeToggle } from "./theme-toggle";
 
 type SiteHeaderMarketplaceProps = {
-  user: { email: string; id: string } | null;
+  user: {
+    email: string;
+    id: string;
+    displayName: string;
+    avatarUrl: string | null;
+    avatarKey: string;
+  } | null;
   unreadNotifications?: number;
 };
 
-function initials(email: string) {
+function initialsFromName(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return (parts[0]![0]! + parts[1]![0]!).toUpperCase();
+  }
+  return name.slice(0, 2).toUpperCase() || "?";
+}
+
+function initialsFromEmail(email: string) {
   const local = email.split("@")[0] ?? "?";
   const parts = local.split(/[.\s_-]+/).filter(Boolean);
   if (parts.length >= 2) {
     return (parts[0]![0]! + parts[1]![0]!).toUpperCase();
   }
   return local.slice(0, 2).toUpperCase() || "?";
+}
+
+function headerInitials(user: NonNullable<SiteHeaderMarketplaceProps["user"]>) {
+  if (user.displayName) {
+    return initialsFromName(user.displayName);
+  }
+  return initialsFromEmail(user.email);
 }
 
 function DesktopNavLink({
@@ -83,7 +104,17 @@ export function SiteHeaderMarketplace({
                 className="avatar max-sm:hidden"
                 aria-label="Open profile"
               >
-                {initials(user.email)}
+                {user.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- signed storage URL
+                  <img
+                    key={user.avatarKey}
+                    src={user.avatarUrl}
+                    alt=""
+                    className="size-full rounded-full object-cover"
+                  />
+                ) : (
+                  headerInitials(user)
+                )}
                 <span />
               </Link>
               <div className="max-lg:hidden">

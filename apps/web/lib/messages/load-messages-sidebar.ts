@@ -158,7 +158,21 @@ export async function loadMessagesSidebarData(
     }
   }
 
-  const validRows = rows.filter((r) => peerByConv.has(r.id));
+  let validRows = rows.filter((r) => peerByConv.has(r.id));
+  if (validRows.length === 0) {
+    return [];
+  }
+
+  const participantChecks = await Promise.all(
+    validRows.map(async (r) => {
+      const { data } = await supabase.rpc("is_conversation_participant", {
+        p_conversation_id: r.id,
+        p_user_id: userId,
+      });
+      return data === true;
+    }),
+  );
+  validRows = validRows.filter((_, i) => participantChecks[i]);
   if (validRows.length === 0) {
     return [];
   }
@@ -173,20 +187,19 @@ export async function loadMessagesSidebarData(
     (profiles ?? []).map((p) => [p.id, p.display_name] as const),
   );
 
-  const convIds = validRows.map((r) => r.id);
-  const { data: msgRows } = await supabase
-    .from("messages")
-    .select("conversation_id, body, created_at")
-    .in("conversation_id", convIds)
-    .order("created_at", { ascending: false });
-
   const lastBodyByConv = new Map<string, string | null>();
-  for (const m of msgRows ?? []) {
-    const cid = m.conversation_id as string;
-    if (!lastBodyByConv.has(cid)) {
-      lastBodyByConv.set(cid, m.body);
-    }
-  }
+  await Promise.all(
+    validRows.map(async (r) => {
+      const { data: msgRows } = await supabase.rpc("list_conversation_messages", {
+        p_conversation_id: r.id,
+      });
+      if (!msgRows?.length) {
+        return;
+      }
+      const last = msgRows[msgRows.length - 1]!;
+      lastBodyByConv.set(r.id, last.body);
+    }),
+  );
 
   return validRows.map((r) => {
     const peerId = peerByConv.get(r.id)!;

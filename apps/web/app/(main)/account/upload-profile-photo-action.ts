@@ -68,6 +68,8 @@ export async function uploadProfilePhotoFromFile(
   revalidatePath("/account");
   revalidatePath("/account/edit");
   revalidatePath("/", "layout");
+  revalidatePath("/messages", "layout");
   revalidatePath("/requests", "layout");
+  revalidatePath("/notifications", "layout");
   return { error: null, success: true, uploadedAt: new Date().toISOString() };
 }

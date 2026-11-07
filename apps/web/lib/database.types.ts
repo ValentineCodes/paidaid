@@ -1102,6 +1102,34 @@ export type Database = {
         Args: { p_conversation_id: string; p_user_id: string };
         Returns: boolean;
       };
+      get_conversation_request_context: {
+        Args: { p_conversation_id: string };
+        Returns: {
+          id: string;
+          location_kind: Database["public"]["Enums"]["location_kind"];
+          location_label: string | null;
+          requester_id: string;
+          scheduled_at: string | null;
+          timing_type: Database["public"]["Enums"]["timing_type"];
+          title: string;
+        }[];
+      };
+      list_conversation_messages: {
+        Args: { p_conversation_id: string };
+        Returns: {
+          body: string | null;
+          conversation_id: string;
+          created_at: string;
+          id: string;
+          kind: Database["public"]["Enums"]["message_kind"];
+          location_label: string | null;
+          location_lat: number | null;
+          location_lng: number | null;
+          message_attachments: Json;
+          sender_id: string;
+          updated_at: string;
+        }[];
+      };
       is_engagement_participant: {
         Args: { p_engagement_id: string; p_user_id: string };
         Returns: boolean;

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 
+import { DismissDrawerLink } from "../../../../components/dismiss-drawer-link";
 import { FigmaIcon } from "../../../../components/figma-icons";
 import { ResponseOfferForm } from "./response-offer-form";
 import { WithdrawResponseForm } from "./withdraw-response-form";
@@ -42,9 +43,9 @@ export function RespondSection({
             Upload a photo on your account so people know who they’re talking
             to. Any image file works — JPEG, PNG, WebP, or GIF.
           </p>
-          <Link href="/account/edit" className="primary-wide">
+          <DismissDrawerLink href="/account/edit" className="primary-wide">
             Open account settings
-          </Link>
+          </DismissDrawerLink>
         </div>
       )}
 
@@ -55,12 +56,12 @@ export function RespondSection({
             change your mind.
           </p>
           {preConversationId && (
-            <Link
+            <DismissDrawerLink
               href={`/conversations/${preConversationId}`}
               className="text-[13px] font-bold text-[var(--ink)] underline"
             >
               Open chat with requester
-            </Link>
+            </DismissDrawerLink>
           )}
           <WithdrawResponseForm
             responseId={pendingResponseId}

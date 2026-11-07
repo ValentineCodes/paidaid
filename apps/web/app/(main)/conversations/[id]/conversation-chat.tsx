@@ -12,6 +12,7 @@ import {
   validateChatFiles,
 } from "../../../../lib/chat/allowed-attachment";
 import type { Database } from "../../../../lib/database.types";
+import { fetchConversationMessages } from "../../../../lib/messages/fetch-conversation-messages";
 import type { ChatMessagePayload } from "../../../../lib/messages/chat-types";
 
 export type { ChatMessagePayload } from "../../../../lib/messages/chat-types";
@@ -114,6 +115,7 @@ export function ConversationChat({
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const [canSendMessages, setCanSendMessages] = useState(hasProfilePhoto);
   const [readByPeer, setReadByPeer] = useState<Set<string>>(new Set());
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -121,6 +123,77 @@ export function ConversationChat({
   useEffect(() => {
     void supabase.auth.getUser().then(({ data }) => setUser(data.user));
   }, [supabase]);
+
+  useEffect(() => {
+    setCanSendMessages(hasProfilePhoto);
+  }, [hasProfilePhoto]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void supabase
+      .from("profiles")
+      .select("avatar_url, live_profile_photo_path")
+      .eq("id", currentUserId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled || !data) {
+          return;
+        }
+        const live = data.live_profile_photo_path?.trim() ?? "";
+        const ext = data.avatar_url?.trim() ?? "";
+        setCanSendMessages(live.length > 0 || ext.length > 0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase, currentUserId]);
+
+  const syncMessagesFromServer = useCallback(async () => {
+    const rows = await fetchConversationMessages(supabase, conversationId);
+    setMessages(dedupeById(rows));
+  }, [supabase, conversationId]);
+
+  useEffect(() => {
+    setMessages(dedupeById(initialMessages));
+  }, [conversationId, initialMessages]);
+
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === "visible") {
+        void syncMessagesFromServer();
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
+    const poll = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void syncMessagesFromServer();
+      }
+    }, 20_000);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      window.clearInterval(poll);
+    };
+  }, [syncMessagesFromServer]);
+
+  const enrichIncomingRow = useCallback(
+    async (row: MessageRow): Promise<ChatMessagePayload> => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("display_name")
+        .eq("id", row.sender_id)
+        .maybeSingle();
+      const { data: attachments } = await supabase
+        .from("message_attachments")
+        .select("*")
+        .eq("message_id", row.id);
+      return {
+        ...row,
+        display_name: profile?.display_name ?? "User",
+        message_attachments: (attachments ?? []) as AttachmentRow[],
+      };
+    },
+    [supabase],
+  );
 
   const loadReads = useCallback(async () => {
     const ids = messages
@@ -188,41 +261,13 @@ export function ConversationChat({
         },
         async (payload) => {
           const row = payload.new as MessageRow;
-          if (row.id) {
-            const { data: full } = await supabase
-              .from("messages")
-              .select(
-                `
-                *,
-                profiles!messages_sender_id_fkey ( display_name ),
-                message_attachments (*)
-              `,
-              )
-              .eq("id", row.id)
-              .maybeSingle();
-            if (full) {
-              const typed = full as unknown as {
-                display_name?: string;
-                profiles?:
-                  { display_name: string } | { display_name: string }[];
-                message_attachments: AttachmentRow[] | null;
-              };
-              const dn = Array.isArray(typed.profiles)
-                ? typed.profiles[0]?.display_name
-                : typed.profiles?.display_name;
-              setMessages((prev) =>
-                dedupeById([
-                  ...prev,
-                  {
-                    ...row,
-                    display_name: dn ?? "User",
-                    message_attachments: typed.message_attachments ?? [],
-                  },
-                ]),
-              );
-            }
+          if (!row.id) {
+            return;
           }
+          const enriched = await enrichIncomingRow(row);
+          setMessages((prev) => dedupeById([...prev, enriched]));
           void markRead();
+          void syncMessagesFromServer();
         },
       )
       .on(
@@ -240,19 +285,30 @@ export function ConversationChat({
           }
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          void syncMessagesFromServer();
+        }
+      });
 
     return () => {
       void supabase.removeChannel(ch);
     };
-  }, [supabase, conversationId, markRead, peerUserId]);
+  }, [
+    supabase,
+    conversationId,
+    markRead,
+    peerUserId,
+    enrichIncomingRow,
+    syncMessagesFromServer,
+  ]);
 
   async function sendText() {
     const t = text.trim();
     if (!t || sending) {
       return;
     }
-    if (!hasProfilePhoto) {
+    if (!canSendMessages) {
       setError("Add a profile photo in Account before messaging.");
       return;
     }
@@ -320,38 +376,30 @@ export function ConversationChat({
     void markRead();
     const { data: full } = await supabase
       .from("messages")
-      .select(
-        `
-        *,
-        profiles!messages_sender_id_fkey ( display_name ),
-        message_attachments (*)
-      `,
-      )
+      .select("*")
       .eq("id", mid as string)
       .maybeSingle();
     if (full) {
-      const typed = full as unknown as {
-        profiles?: { display_name: string } | { display_name: string }[];
-        message_attachments: AttachmentRow[] | null;
-      };
-      const dn = Array.isArray(typed.profiles)
-        ? typed.profiles[0]?.display_name
-        : typed.profiles?.display_name;
+      const enriched = await enrichIncomingRow(full as MessageRow);
       setMessages((prev) =>
         dedupeById([
           ...prev.filter((m) => m.id !== (mid as string)),
           {
-            ...(full as unknown as MessageRow),
-            display_name: dn ?? "You",
-            message_attachments: typed.message_attachments ?? [],
+            ...enriched,
+            display_name:
+              enriched.sender_id === currentUserId
+                ? "You"
+                : enriched.display_name,
           },
         ]),
       );
+    } else {
+      void syncMessagesFromServer();
     }
   }
 
   async function shareLocation() {
-    if (!hasProfilePhoto) {
+    if (!canSendMessages) {
       setError("Add a profile photo in Account before messaging.");
       return;
     }
@@ -391,7 +439,7 @@ export function ConversationChat({
   const peerInitials = initialsFromDisplayName(peerDisplayName);
 
   return (
-    <>
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       {!hideChatHead ? (
         <div className="chat-head shrink-0">
           <div className={`avatar ${peerAvatarClass}`}>
@@ -425,14 +473,14 @@ export function ConversationChat({
           <button
             type="button"
             onClick={() => void shareLocation()}
-            disabled={sending || !user || !hasProfilePhoto}
+            disabled={sending || !user || !canSendMessages}
           >
             <FigmaIcon name="pin" size={17} /> Share location
           </button>
         </div>
       ) : null}
 
-      <div className="chat-body flex min-h-0 flex-1 flex-col">
+      <div className="chat-body min-h-0 flex-1 overflow-auto">
         {messages.length === 0 && (
           <p className="text-[12px] text-[var(--muted)]">
             No messages yet. Say hello.
@@ -513,7 +561,7 @@ export function ConversationChat({
           type="button"
           className="attach-trigger icon-button shrink-0"
           aria-label="Attach files"
-          disabled={!hasProfilePhoto}
+          disabled={!canSendMessages}
           onClick={() => fileInputRef.current?.click()}
         >
           <FigmaIcon name="attach" size={18} />
@@ -524,7 +572,6 @@ export function ConversationChat({
           maxLength={8000}
           rows={1}
           placeholder="Write a message..."
-          disabled={!hasProfilePhoto}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
@@ -535,7 +582,7 @@ export function ConversationChat({
         <button
           type="button"
           className="send"
-          disabled={sending || !user || !hasProfilePhoto}
+          disabled={sending || !user || !canSendMessages}
           aria-label="Send message"
           onClick={() => void sendText()}
         >
@@ -543,7 +590,7 @@ export function ConversationChat({
         </button>
       </div>
 
-      {!hasProfilePhoto ? (
+      {!canSendMessages ? (
         <p className="border-t border-[var(--line)] px-4 py-2 text-[11px] text-amber-800 dark:text-amber-200">
           Add a profile photo in Account settings to send messages.
         </p>
@@ -563,7 +610,7 @@ export function ConversationChat({
           {files.length} file{files.length === 1 ? "" : "s"} ready to send
         </p>
       ) : null}
-    </>
+    </div>
   );
 }
 

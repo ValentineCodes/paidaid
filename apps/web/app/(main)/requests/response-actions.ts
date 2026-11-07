@@ -224,6 +224,10 @@ export async function confirmLiveProfilePhoto(
   }
 
   revalidatePath("/account");
+  revalidatePath("/account/edit");
+  revalidatePath("/", "layout");
+  revalidatePath("/messages", "layout");
   revalidatePath("/requests", "layout");
+  revalidatePath("/notifications", "layout");
   return { ok: true };
 }
