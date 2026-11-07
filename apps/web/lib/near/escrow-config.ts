@@ -1,10 +1,18 @@
 import {
   DEFAULT_LOCALNET_ESCROW_CONTRACT_ID,
+  assertSameNearNetwork,
   chainIdFromNetwork,
+  defaultRpcUrlForNetwork,
+  networkFromChainId,
   type EscrowNearConfig,
   type NearNetworkId,
 } from "@paidaid/shared";
 import { readAlignedNearRuntimeConfig } from "./runtime-config";
+
+export type PaymentEscrowBinding = {
+  escrow_contract_id: string;
+  chain_id: string;
+};
 
 export function readEscrowContractId(
   env: Record<string, string | undefined> = process.env,
@@ -43,4 +51,27 @@ export function chainIdForCurrentNearNetwork(
 ): string {
   const { networkId } = readAlignedNearRuntimeConfig(env);
   return chainIdFromNetwork(networkId);
+}
+
+/** H1: verify payments against frozen row network + contract, not transient env only. */
+export function escrowNearConfigForPayment(
+  payment: PaymentEscrowBinding,
+  env: Record<string, string | undefined> = process.env,
+): EscrowNearConfig {
+  const paymentNetwork = networkFromChainId(payment.chain_id);
+  const aligned = readAlignedNearRuntimeConfig(env);
+  assertSameNearNetwork(
+    aligned.networkId,
+    paymentNetwork,
+    "Payment escrow verification",
+  );
+  const rpcUrl =
+    env.NEAR_RPC_URL?.trim() ||
+    env.NEXT_PUBLIC_NEAR_RPC_URL?.trim() ||
+    defaultRpcUrlForNetwork(paymentNetwork);
+  return {
+    networkId: paymentNetwork,
+    rpcUrl,
+    escrowContractId: payment.escrow_contract_id.trim(),
+  };
 }

@@ -3,6 +3,9 @@
 import {
   assertEscrowRecordMatchesFunding,
   assertEscrowReleasedOnChain,
+  assertTransactionFinalSuccess,
+  fetchTxFinalOutcome,
+  TransactionExecutionFailedError,
   viewEscrowRecord,
   waitForEscrowReleaseSettlement,
   type FundingVerificationExpectation,
@@ -10,12 +13,19 @@ import {
 import { normalizeDbNumericAmount } from "@paidaid/shared";
 import { createClient } from "../../../lib/supabase/server";
 import { createServiceClient } from "../../../lib/supabase/service";
-import { readEscrowNearRuntimeConfig } from "../../../lib/near/escrow-config";
+import { escrowNearConfigForPayment } from "../../../lib/near/escrow-config";
 import type { Database } from "../../../lib/database.types";
 import type { EngagementSettlementView } from "../../../lib/engagement/settlement-types";
 
 type PaymentRow = Database["public"]["Tables"]["engagement_escrow_payments"]["Row"];
 type AssetRow = Database["public"]["Tables"]["assets"]["Row"];
+
+function nearConfigForPayment(payment: PaymentRow) {
+  return escrowNearConfigForPayment({
+    escrow_contract_id: payment.escrow_contract_id,
+    chain_id: payment.chain_id,
+  });
+}
 
 export type SettlementActionResult =
   | { ok: true; settlement: EngagementSettlementView }
@@ -70,6 +80,9 @@ function buildExpectation(
   payment: PaymentRow,
   asset: AssetRow,
 ): FundingVerificationExpectation {
+  if (!payment.engagement_id) {
+    throw new Error("Payment is not linked to an engagement.");
+  }
   return {
     engagementId: payment.engagement_id,
     requesterNearAccountId: payment.requester_near_account_id,
@@ -236,11 +249,25 @@ export async function reportEngagementReleaseTx(
     return { ok: false, error: "Asset metadata missing." };
   }
 
-  const config = readEscrowNearRuntimeConfig();
+  const config = nearConfigForPayment(payment);
   const escrowId = String(payment.on_chain_escrow_id);
   const autoComplete = payment.settlement_trigger === "auto_complete";
 
   try {
+    try {
+      const rpcOutcome = await fetchTxFinalOutcome(
+        config,
+        txHash,
+        payment.requester_near_account_id,
+      );
+      assertTransactionFinalSuccess(rpcOutcome);
+    } catch (e) {
+      if (e instanceof TransactionExecutionFailedError) {
+        throw e;
+      }
+      // Hash may not be indexed yet; escrow release polling is authoritative below.
+    }
+
     await applySettlementProgress(engagementId, "release_submitted", {
       releaseTxHash: txHash,
       lastError: null,

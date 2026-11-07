@@ -180,20 +180,10 @@ export async function acceptRequestResponse(
     return { error: "You must be signed in." };
   }
 
-  const { error: rpcError } = await supabase.rpc("accept_response", {
-    p_request_id: requestId,
-    p_response_id: responseId,
-  } as never);
-
-  if (rpcError) {
-    return { error: rpcError.message };
-  }
-
-  revalidatePath(`/requests/${requestId}`);
-  revalidatePath("/responses/mine");
-  revalidatePath("/notifications");
-  revalidatePath("/engagements", "layout");
-  return { error: null, success: true };
+  return {
+    error:
+      "Direct accept is disabled. Use “Accept and fund escrow” to fund on-chain first.",
+  };
 }
 
 export async function confirmLiveProfilePhoto(

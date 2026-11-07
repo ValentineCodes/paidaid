@@ -2,8 +2,14 @@
 export const WALLET_LINK_RECIPIENT =
   process.env.WALLET_LINK_RECIPIENT?.trim() || "paidaid";
 
-export function buildWalletLinkMessage(nearAccountId: string, challengeId: string) {
-  return `Link NEAR account ${nearAccountId.toLowerCase()} to your PaidAid profile. Challenge ${challengeId}.`;
+export function buildWalletLinkMessage(
+  nearAccountId: string,
+  paidAidUserId: string,
+  challengeId: string,
+  networkId: string,
+  recipient: string = WALLET_LINK_RECIPIENT,
+): string {
+  return `Link NEAR account ${nearAccountId.toLowerCase()} to PaidAid user ${paidAidUserId}. Challenge ${challengeId}. Network ${networkId}. Recipient ${recipient}.`;
 }
 
 export function walletChallengeNonceFromHex(hex: string): Buffer {

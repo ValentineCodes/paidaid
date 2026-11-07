@@ -23,6 +23,7 @@ import {
 import {
   checkRequesterFundingBalance,
   loadEngagementFundingPrerequisites,
+  issueEscrowCreateAuthorization,
   prepareEngagementFunding,
   reportEngagementCreateTx,
   reportEngagementFundTx,
@@ -178,7 +179,15 @@ function FundingSectionInner({
 
       if (!onChainEscrowId) {
         setStep("Creating escrow on-chain…");
-        const createTx = await sendCreateEscrowTransaction(wallet, current);
+        const auth = await issueEscrowCreateAuthorization(engagementId);
+        if (!auth.ok) {
+          throw new Error(auth.error);
+        }
+        const createTx = await sendCreateEscrowTransaction(
+          wallet,
+          current,
+          auth.authorization,
+        );
         if (!createTx.txHash) {
           throw new Error("Create transaction did not return a hash.");
         }

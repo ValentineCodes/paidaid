@@ -1,5 +1,11 @@
 //! PaidAid engagement escrow — native NEAR + allowlisted NEP-141 (smallest units only).
 
+mod authorization;
+
+use authorization::{
+    build_funding_auth_message, parse_authorized_signer_pk_b64, verify_funding_authorization_signature,
+    EscrowFundingAuthFields,
+};
 use near_contract_standards::fungible_token::receiver::FungibleTokenReceiver;
 use near_sdk::borsh::{BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::{U128, U64};
@@ -10,7 +16,7 @@ use near_sdk::{
 };
 use near_sdk::serde::{Deserialize, Serialize};
 
-const MAX_ENGAGEMENT_ID_LEN: usize = 64;
+pub(crate) const MAX_ENGAGEMENT_ID_LEN: usize = 64;
 const GAS_FT_TRANSFER: Gas = Gas::from_tgas(15);
 const GAS_CALLBACK: Gas = Gas::from_tgas(8);
 
@@ -20,6 +26,7 @@ enum StorageKey {
     Escrows,
     AllowedFt,
     EngagementActive,
+    UsedAuthNonces,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -68,6 +75,9 @@ pub struct PaidAidEscrow {
     /// engagement_id -> active escrow id (only non-terminal)
     engagement_active: LookupMap<String, u64>,
     allowed_ft: LookupSet<AccountId>,
+    /// Ed25519 public key bytes for backend funding attestations (32 bytes).
+    authorized_signer_pk: [u8; 32],
+    used_auth_nonces: LookupSet<String>,
 }
 
 #[derive(Deserialize)]
@@ -78,32 +88,84 @@ struct FtDepositMessage {
 #[near]
 impl PaidAidEscrow {
     #[init]
-    pub fn new(owner: AccountId) -> Self {
+    pub fn new(owner: AccountId, authorized_signer_pk_b64: String) -> Self {
         require!(!owner.as_str().is_empty(), "owner required");
+        let pk = parse_authorized_signer_pk_b64(&authorized_signer_pk_b64);
         Self {
             owner,
             next_id: 1,
             escrows: LookupMap::new(StorageKey::Escrows),
             engagement_active: LookupMap::new(StorageKey::EngagementActive),
             allowed_ft: LookupSet::new(StorageKey::AllowedFt),
+            authorized_signer_pk: pk,
+            used_auth_nonces: LookupSet::new(StorageKey::UsedAuthNonces),
         }
     }
 
-    /// Requester (signer) creates an escrow bound to `provider` and `engagement_id`.
+    pub fn set_authorized_signer(&mut self, authorized_signer_pk_b64: String) {
+        require!(env::predecessor_account_id() == self.owner, "only owner");
+        self.authorized_signer_pk = parse_authorized_signer_pk_b64(&authorized_signer_pk_b64);
+    }
+
+    pub fn get_authorized_signer_pk_b64(&self) -> String {
+        near_sdk::base64::encode(self.authorized_signer_pk)
+    }
+
+    /// Unauthenticated escrow creation is disabled (V2.2). Use `create_escrow_with_authorization`.
     pub fn create_escrow(
+        &mut self,
+        _engagement_id: String,
+        _provider: AccountId,
+        _asset: EscrowAsset,
+        _ft_contract: Option<AccountId>,
+        _amount: U128,
+    ) -> U64 {
+        env::panic_str("create_escrow requires backend authorization; use create_escrow_with_authorization");
+    }
+
+    /// Requester (signer) creates an escrow with a valid backend attestation.
+    pub fn create_escrow_with_authorization(
         &mut self,
         engagement_id: String,
         provider: AccountId,
         asset: EscrowAsset,
         ft_contract: Option<AccountId>,
         amount: U128,
+        expires_at_ns: U64,
+        nonce: String,
+        signature: String,
+        network_id: String,
     ) -> U64 {
         let requester = env::predecessor_account_id();
-        validate_engagement_id(&engagement_id);
-        require!(provider != requester, "provider must differ from requester");
-        let amount: u128 = amount.into();
-        require!(amount > 0, "amount must be positive");
+        let contract_id = env::current_account_id();
+        let amount_u128: u128 = amount.into();
+        require!(amount_u128 > 0, "amount must be positive");
+        require!(
+            env::block_timestamp() <= expires_at_ns.0,
+            "funding authorization expired"
+        );
+        require!(
+            !self.used_auth_nonces.contains(&nonce),
+            "authorization nonce already used"
+        );
 
+        let ft_label = ft_contract.as_ref().map(|a| a.to_string());
+        let fields = EscrowFundingAuthFields {
+            contract_id: contract_id.to_string(),
+            network_id,
+            engagement_id: engagement_id.clone(),
+            requester: requester.to_string(),
+            provider: provider.to_string(),
+            asset: asset.clone(),
+            ft_contract: ft_label,
+            amount: amount_u128.to_string(),
+            expires_at_ns: expires_at_ns.0,
+            nonce: nonce.clone(),
+        };
+        let expected_message = build_funding_auth_message(&fields);
+        verify_funding_authorization_signature(&fields, &signature, &self.authorized_signer_pk);
+
+        require!(provider != requester, "provider must differ from requester");
         match asset {
             EscrowAsset::Native => {
                 require!(ft_contract.is_none(), "native escrow cannot set ft_contract");
@@ -116,9 +178,40 @@ impl PaidAidEscrow {
             }
         }
 
+        self.used_auth_nonces.insert(nonce);
+
+        self.insert_escrow_record(
+            engagement_id,
+            requester,
+            provider,
+            asset,
+            ft_contract,
+            amount_u128,
+            &expected_message,
+        )
+    }
+
+    fn insert_escrow_record(
+        &mut self,
+        engagement_id: String,
+        requester: AccountId,
+        provider: AccountId,
+        asset: EscrowAsset,
+        ft_contract: Option<AccountId>,
+        amount: u128,
+        _auth_message_hint: &str,
+    ) -> U64 {
+        validate_engagement_id(&engagement_id);
+
         if let Some(active_id) = self.engagement_active.get(&engagement_id) {
             if let Some(existing) = self.escrows.get(active_id) {
-                require!(existing.status.is_terminal(), "engagement already has active escrow");
+                if !existing.status.is_terminal() {
+                    require!(
+                        existing.requester == requester,
+                        "engagement has active escrow owned by another requester"
+                    );
+                    require!(false, "engagement already has active escrow");
+                }
             }
         }
 
@@ -345,7 +438,7 @@ trait FungibleToken {
     fn ft_transfer(&mut self, receiver_id: AccountId, amount: U128, memo: Option<String>);
 }
 
-fn validate_engagement_id(id: &str) {
+pub(crate) fn validate_engagement_id(id: &str) {
     let t = id.trim();
     require!(!t.is_empty(), "engagement_id required");
     require!(t.len() <= MAX_ENGAGEMENT_ID_LEN, "engagement_id too long");
@@ -356,221 +449,9 @@ fn validate_engagement_id(id: &str) {
     );
 }
 
-fn validate_near_account_label(_id: &str) {
+pub(crate) fn validate_near_account_label(_id: &str) {
     require!(!_id.is_empty(), "account id empty");
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use near_sdk::test_utils::{accounts, VMContextBuilder};
-    use near_sdk::testing_env;
-
-    fn builder(prepaid: NearToken) -> VMContextBuilder {
-        let mut b = VMContextBuilder::new();
-        b.predecessor_account_id(accounts(1))
-            .signer_account_id(accounts(1))
-            .attached_deposit(prepaid);
-        b
-    }
-
-    fn init_contract() -> PaidAidEscrow {
-        testing_env!(VMContextBuilder::new().build());
-        PaidAidEscrow::new(accounts(0))
-    }
-
-    #[test]
-    fn create_rejects_zero_amount() {
-        let mut c = init_contract();
-        testing_env!(builder(NearToken::from_near(0)).build());
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            c.create_escrow(
-                "550e8400-e29b-41d4-a716-446655440000".to_string(),
-                accounts(2),
-                EscrowAsset::Native,
-                None,
-                U128(0),
-            );
-        }));
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn native_deposit_exact_funds() {
-        let mut c = init_contract();
-        testing_env!(builder(NearToken::from_near(0)).build());
-        let id = c
-            .create_escrow(
-                "eng-1".to_string(),
-                accounts(2),
-                EscrowAsset::Native,
-                None,
-                U128(1_000_000_000_000_000_000_000_000),
-            )
-            .0;
-
-        testing_env!(
-            builder(NearToken::from_yoctonear(1_000_000_000_000_000_000_000_000)).build()
-        );
-        c.deposit_native(U64(id));
-
-        let escrow = c.get_escrow(U64(id)).unwrap();
-        assert_eq!(escrow.status, EscrowStatus::Funded);
-        assert_eq!(escrow.deposited, escrow.amount);
-
-        assert_eq!(
-            c.get_active_escrow_id_for_engagement("eng-1".to_string())
-                .map(|u| u.0),
-            Some(id)
-        );
-    }
-
-    #[test]
-    fn release_requires_requester() {
-        let mut c = init_contract();
-        testing_env!(builder(NearToken::from_near(0)).build());
-        let id = c
-            .create_escrow(
-                "eng-2".to_string(),
-                accounts(2),
-                EscrowAsset::Native,
-                None,
-                U128(5),
-            )
-            .0;
-        testing_env!(builder(NearToken::from_yoctonear(5)).build());
-        c.deposit_native(U64(id));
-
-        testing_env!(VMContextBuilder::new().predecessor_account_id(accounts(3)).build());
-        let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let _ = c.release(U64(id));
-        }));
-        assert!(res.is_err());
-    }
-
-    #[test]
-    fn duplicate_active_engagement_rejected() {
-        let mut c = init_contract();
-        testing_env!(builder(NearToken::from_near(0)).build());
-        let _ = c.create_escrow(
-            "same-eng".to_string(),
-            accounts(2),
-            EscrowAsset::Native,
-            None,
-            U128(10),
-        );
-        let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            c.create_escrow(
-                "same-eng".to_string(),
-                accounts(3),
-                EscrowAsset::Native,
-                None,
-                U128(10),
-            );
-        }));
-        assert!(res.is_err());
-    }
-
-    #[test]
-    fn nep141_requires_allowlist_on_create() {
-        let mut c = init_contract();
-        testing_env!(builder(NearToken::from_near(0)).build());
-        let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            c.create_escrow(
-                "eng-ft".to_string(),
-                accounts(2),
-                EscrowAsset::Nep141,
-                Some(accounts(4)),
-                U128(100),
-            );
-        }));
-        assert!(res.is_err());
-    }
-
-    #[test]
-    fn payout_failure_reverts_to_funded() {
-        let mut c = init_contract();
-        testing_env!(builder(NearToken::from_near(0)).build());
-        let id = c
-            .create_escrow(
-                "eng-cb".to_string(),
-                accounts(2),
-                EscrowAsset::Native,
-                None,
-                U128(50),
-            )
-            .0;
-        testing_env!(builder(NearToken::from_yoctonear(50)).build());
-        c.deposit_native(U64(id));
-        let _ = c.release(U64(id));
-
-        testing_env!(builder(NearToken::from_near(0)).build());
-        c.on_payout_complete(U64(id), "release".to_string(), Err(PromiseError::Failed));
-
-        let escrow = c.get_escrow(U64(id)).unwrap();
-        assert_eq!(escrow.status, EscrowStatus::Funded);
-        assert_eq!(escrow.deposited, 50);
-    }
-
-    #[test]
-    fn payout_success_clears_deposit_and_terminalizes() {
-        let mut c = init_contract();
-        testing_env!(builder(NearToken::from_near(0)).build());
-        let id = c
-            .create_escrow(
-                "eng-ok".to_string(),
-                accounts(2),
-                EscrowAsset::Native,
-                None,
-                U128(7),
-            )
-            .0;
-        testing_env!(builder(NearToken::from_yoctonear(7)).build());
-        c.deposit_native(U64(id));
-        let _ = c.release(U64(id));
-
-        testing_env!(builder(NearToken::from_near(0)).build());
-        c.on_payout_complete(U64(id), "release".to_string(), Ok(()));
-
-        let escrow = c.get_escrow(U64(id)).unwrap();
-        assert_eq!(escrow.status, EscrowStatus::Released);
-        assert_eq!(escrow.deposited, 0);
-    }
-
-    #[test]
-    fn ft_on_transfer_wrong_amount_refunds_full() {
-        let mut c = init_contract();
-        testing_env!(
-            VMContextBuilder::new()
-                .predecessor_account_id(accounts(0))
-                .build()
-        );
-        c.add_allowed_ft(accounts(4));
-        testing_env!(builder(NearToken::from_near(0)).build());
-        let id = c
-            .create_escrow(
-                "eng-ft-wrong".to_string(),
-                accounts(2),
-                EscrowAsset::Nep141,
-                Some(accounts(4)),
-                U128(1_000),
-            )
-            .0;
-
-        testing_env!(VMContextBuilder::new()
-            .predecessor_account_id(accounts(4))
-            .signer_account_id(accounts(1))
-            .build());
-        let out = c.ft_on_transfer(
-            accounts(1),
-            U128(999),
-            format!(r#"{{"escrow_id":{id}}}"#),
-        );
-        match out {
-            PromiseOrValue::Value(v) => assert_eq!(v.0, 999),
-            PromiseOrValue::Promise(_) => panic!("expected refund value"),
-        }
-        let escrow = c.get_escrow(U64(id)).unwrap();
-        assert_eq!(escrow.status, EscrowStatus::Pending);
-    }
-}
+mod contract_tests;

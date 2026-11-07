@@ -9,6 +9,140 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      acceptance_funding_intents: {
+        Row: {
+          amount: number
+          asset_id: string
+          auth_expires_at: string
+          auth_nonce: string
+          chain_id: string
+          create_tx_hash: string | null
+          created_at: string
+          escrow_contract_id: string
+          expires_at: string
+          finalized_at: string | null
+          fund_tx_hash: string | null
+          id: string
+          last_error: string | null
+          on_chain_escrow_id: number | null
+          payment_id: string | null
+          planned_assignment_id: string
+          planned_engagement_id: string
+          provider_near_account_id: string
+          provider_user_id: string
+          request_id: string
+          requester_near_account_id: string
+          requester_user_id: string
+          response_id: string
+          status: Database["public"]["Enums"]["acceptance_funding_intent_status"]
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          asset_id: string
+          auth_expires_at: string
+          auth_nonce: string
+          chain_id: string
+          create_tx_hash?: string | null
+          created_at?: string
+          escrow_contract_id: string
+          expires_at: string
+          finalized_at?: string | null
+          fund_tx_hash?: string | null
+          id?: string
+          last_error?: string | null
+          on_chain_escrow_id?: number | null
+          payment_id?: string | null
+          planned_assignment_id: string
+          planned_engagement_id: string
+          provider_near_account_id: string
+          provider_user_id: string
+          request_id: string
+          requester_near_account_id: string
+          requester_user_id: string
+          response_id: string
+          status?: Database["public"]["Enums"]["acceptance_funding_intent_status"]
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          asset_id?: string
+          auth_expires_at?: string
+          auth_nonce?: string
+          chain_id?: string
+          create_tx_hash?: string | null
+          created_at?: string
+          escrow_contract_id?: string
+          expires_at?: string
+          finalized_at?: string | null
+          fund_tx_hash?: string | null
+          id?: string
+          last_error?: string | null
+          on_chain_escrow_id?: number | null
+          payment_id?: string | null
+          planned_assignment_id?: string
+          planned_engagement_id?: string
+          provider_near_account_id?: string
+          provider_user_id?: string
+          request_id?: string
+          requester_near_account_id?: string
+          requester_user_id?: string
+          response_id?: string
+          status?: Database["public"]["Enums"]["acceptance_funding_intent_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "acceptance_funding_intents_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acceptance_funding_intents_payment_fk"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "engagement_escrow_payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acceptance_funding_intents_provider_user_id_fkey"
+            columns: ["provider_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acceptance_funding_intents_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acceptance_funding_intents_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "requests_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acceptance_funding_intents_requester_user_id_fkey"
+            columns: ["requester_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acceptance_funding_intents_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "request_responses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       app_config: {
         Row: {
           allow_cross_asset_responses: boolean
@@ -282,12 +416,13 @@ export type Database = {
       }
       engagement_escrow_payments: {
         Row: {
+          acceptance_intent_id: string | null
           amount: number
           asset_id: string
           chain_id: string
           create_tx_hash: string | null
           created_at: string
-          engagement_id: string
+          engagement_id: string | null
           escrow_contract_id: string
           fund_tx_hash: string | null
           funded_at: string | null
@@ -310,12 +445,13 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          acceptance_intent_id?: string | null
           amount: number
           asset_id: string
           chain_id: string
           create_tx_hash?: string | null
           created_at?: string
-          engagement_id: string
+          engagement_id?: string | null
           escrow_contract_id: string
           fund_tx_hash?: string | null
           funded_at?: string | null
@@ -338,12 +474,13 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          acceptance_intent_id?: string | null
           amount?: number
           asset_id?: string
           chain_id?: string
           create_tx_hash?: string | null
           created_at?: string
-          engagement_id?: string
+          engagement_id?: string | null
           escrow_contract_id?: string
           fund_tx_hash?: string | null
           funded_at?: string | null
@@ -367,6 +504,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "engagement_escrow_payments_acceptance_intent_id_fkey"
+            columns: ["acceptance_intent_id"]
+            isOneToOne: false
+            referencedRelation: "acceptance_funding_intents"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "engagement_escrow_payments_asset_id_fkey"
             columns: ["asset_id"]
             isOneToOne: false
@@ -376,7 +520,7 @@ export type Database = {
           {
             foreignKeyName: "engagement_escrow_payments_engagement_id_fkey"
             columns: ["engagement_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "engagements"
             referencedColumns: ["id"]
           },
@@ -1302,6 +1446,15 @@ export type Database = {
         Args: { p_request_id: string; p_response_id: string }
         Returns: undefined
       }
+      accept_response_with_ids: {
+        Args: {
+          p_assignment_id: string
+          p_engagement_id: string
+          p_request_id: string
+          p_response_id: string
+        }
+        Returns: undefined
+      }
       add_delivery_attachments: {
         Args: {
           p_byte_sizes: number[]
@@ -1356,7 +1509,7 @@ export type Database = {
         Returns: undefined
       }
       create_near_wallet_link_challenge: {
-        Args: { p_near_account_id: string }
+        Args: { p_near_account_id: string; p_network_id?: string }
         Returns: {
           challenge_id: string
           expires_at: string
@@ -1382,6 +1535,46 @@ export type Database = {
           p_title: string
         }
         Returns: string
+      }
+      finalize_acceptance_after_funding: {
+        Args: { p_intent_id: string }
+        Returns: string
+      }
+      get_acceptance_funding_intent: {
+        Args: { p_intent_id: string }
+        Returns: {
+          amount: number
+          asset_id: string
+          auth_expires_at: string
+          auth_nonce: string
+          chain_id: string
+          create_tx_hash: string | null
+          created_at: string
+          escrow_contract_id: string
+          expires_at: string
+          finalized_at: string | null
+          fund_tx_hash: string | null
+          id: string
+          last_error: string | null
+          on_chain_escrow_id: number | null
+          payment_id: string | null
+          planned_assignment_id: string
+          planned_engagement_id: string
+          provider_near_account_id: string
+          provider_user_id: string
+          request_id: string
+          requester_near_account_id: string
+          requester_user_id: string
+          response_id: string
+          status: Database["public"]["Enums"]["acceptance_funding_intent_status"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "acceptance_funding_intents"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       get_conversation_request_context: {
         Args: { p_conversation_id: string }
@@ -1552,6 +1745,49 @@ export type Database = {
         Args: { p_path: string }
         Returns: string
       }
+      prepare_acceptance_funding: {
+        Args: {
+          p_auth_expires_at: string
+          p_auth_nonce: string
+          p_chain_id: string
+          p_escrow_contract_id: string
+          p_request_id: string
+          p_response_id: string
+        }
+        Returns: {
+          amount: number
+          asset_id: string
+          auth_expires_at: string
+          auth_nonce: string
+          chain_id: string
+          create_tx_hash: string | null
+          created_at: string
+          escrow_contract_id: string
+          expires_at: string
+          finalized_at: string | null
+          fund_tx_hash: string | null
+          id: string
+          last_error: string | null
+          on_chain_escrow_id: number | null
+          payment_id: string | null
+          planned_assignment_id: string
+          planned_engagement_id: string
+          provider_near_account_id: string
+          provider_user_id: string
+          request_id: string
+          requester_near_account_id: string
+          requester_user_id: string
+          response_id: string
+          status: Database["public"]["Enums"]["acceptance_funding_intent_status"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "acceptance_funding_intents"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       prepare_engagement_funding: {
         Args: {
           p_chain_id: string
@@ -1559,12 +1795,13 @@ export type Database = {
           p_escrow_contract_id: string
         }
         Returns: {
+          acceptance_intent_id: string | null
           amount: number
           asset_id: string
           chain_id: string
           create_tx_hash: string | null
           created_at: string
-          engagement_id: string
+          engagement_id: string | null
           escrow_contract_id: string
           fund_tx_hash: string | null
           funded_at: string | null
@@ -1594,6 +1831,50 @@ export type Database = {
         }
       }
       profile_has_usable_photo: { Args: { p_id: string }; Returns: boolean }
+      record_acceptance_funding_progress: {
+        Args: {
+          p_create_tx_hash?: string
+          p_fund_tx_hash?: string
+          p_intent_id: string
+          p_intent_status: Database["public"]["Enums"]["acceptance_funding_intent_status"]
+          p_last_error?: string
+          p_on_chain_escrow_id?: number
+          p_payment_status: Database["public"]["Enums"]["engagement_payment_status"]
+        }
+        Returns: {
+          amount: number
+          asset_id: string
+          auth_expires_at: string
+          auth_nonce: string
+          chain_id: string
+          create_tx_hash: string | null
+          created_at: string
+          escrow_contract_id: string
+          expires_at: string
+          finalized_at: string | null
+          fund_tx_hash: string | null
+          id: string
+          last_error: string | null
+          on_chain_escrow_id: number | null
+          payment_id: string | null
+          planned_assignment_id: string
+          planned_engagement_id: string
+          provider_near_account_id: string
+          provider_user_id: string
+          request_id: string
+          requester_near_account_id: string
+          requester_user_id: string
+          response_id: string
+          status: Database["public"]["Enums"]["acceptance_funding_intent_status"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "acceptance_funding_intents"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       record_engagement_payment_progress: {
         Args: {
           p_create_tx_hash?: string
@@ -1604,12 +1885,13 @@ export type Database = {
           p_status: Database["public"]["Enums"]["engagement_payment_status"]
         }
         Returns: {
+          acceptance_intent_id: string | null
           amount: number
           asset_id: string
           chain_id: string
           create_tx_hash: string | null
           created_at: string
-          engagement_id: string
+          engagement_id: string | null
           escrow_contract_id: string
           fund_tx_hash: string | null
           funded_at: string | null
@@ -1646,12 +1928,13 @@ export type Database = {
           p_status: Database["public"]["Enums"]["engagement_settlement_status"]
         }
         Returns: {
+          acceptance_intent_id: string | null
           amount: number
           asset_id: string
           chain_id: string
           create_tx_hash: string | null
           created_at: string
-          engagement_id: string
+          engagement_id: string | null
           escrow_contract_id: string
           fund_tx_hash: string | null
           funded_at: string | null
@@ -1759,6 +2042,14 @@ export type Database = {
       }
     }
     Enums: {
+      acceptance_funding_intent_status:
+        | "awaiting_wallet"
+        | "create_submitted"
+        | "fund_submitted"
+        | "funding_verified"
+        | "finalized"
+        | "failed"
+        | "expired"
       asset_standard: "native" | "nep141"
       conversation_kind: "pre_accept" | "engagement"
       delivery_status: "pending_review" | "revision_requested" | "approved"
@@ -1942,6 +2233,15 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      acceptance_funding_intent_status: [
+        "awaiting_wallet",
+        "create_submitted",
+        "fund_submitted",
+        "funding_verified",
+        "finalized",
+        "failed",
+        "expired",
+      ],
       asset_standard: ["native", "nep141"],
       conversation_kind: ["pre_accept", "engagement"],
       delivery_status: ["pending_review", "revision_requested", "approved"],

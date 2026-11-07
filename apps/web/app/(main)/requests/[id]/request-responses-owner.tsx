@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { DismissDrawerLink } from "../../../../components/dismiss-drawer-link";
 import { createClient } from "../../../../lib/supabase/server";
+import { loadActiveLinkedNearWallet } from "../../../../lib/near/load-linked-wallet";
 import {
   profileHasPhotoForGating,
   resolveProfileDisplayUrl,
@@ -43,6 +44,29 @@ export async function RequestResponsesOwnerList({
 }: Props) {
   const ChatLink = variant === "drawer" ? DismissDrawerLink : Link;
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const linkedRequesterNear =
+    user != null
+      ? (await loadActiveLinkedNearWallet(supabase, user.id))?.nearAccountId ??
+        null
+      : null;
+
+  const { data: inFlightIntent } = await supabase
+    .from("acceptance_funding_intents")
+    .select("response_id")
+    .eq("request_id", requestId)
+    .in("status", [
+      "awaiting_wallet",
+      "create_submitted",
+      "fund_submitted",
+      "funding_verified",
+    ])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const inFlightResponseId = inFlightIntent?.response_id ?? null;
   const { data: preConvs } = await supabase
     .from("conversations")
     .select("id, response_id")
@@ -152,6 +176,14 @@ export async function RequestResponsesOwnerList({
                   <AcceptResponseForm
                     requestId={requestId}
                     responseId={r.id}
+                    providerDisplayName={name}
+                    offerAmountDisplay={amount}
+                    assetSymbol={assetSymbol}
+                    linkedRequesterNearAccountId={linkedRequesterNear}
+                    anotherAcceptanceInProgress={
+                      inFlightResponseId != null &&
+                      inFlightResponseId !== r.id
+                    }
                   />
                 )}
                 {convByResponse.has(r.id) && (

@@ -7,6 +7,7 @@ export type EngagementPaymentStatus =
 export type EngagementFundingPrepareResult = {
   paymentId: string;
   engagementId: string;
+  chainId: string;
   escrowContractId: string;
   assetStandard: AssetStandard;
   tokenContractId: string | null;

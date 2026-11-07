@@ -13,6 +13,8 @@ import {
 } from "./wallet-link";
 import { verifyWalletLinkSignature } from "./verify-wallet-link-signature";
 
+const USER_ID = "00000000-0000-4000-8000-000000000099";
+
 function signNep413TestMessage(input: {
   message: string;
   recipient: string;
@@ -33,17 +35,29 @@ function signNep413TestMessage(input: {
   };
 }
 
-test("buildWalletLinkMessage is stable for verification", () => {
-  const msg = buildWalletLinkMessage("Alice.Sandbox", "00000000-0000-4000-8000-000000000001");
+test("buildWalletLinkMessage binds user, challenge, network, recipient", () => {
+  const msg = buildWalletLinkMessage(
+    "Alice.Sandbox",
+    USER_ID,
+    "00000000-0000-4000-8000-000000000001",
+    "localnet",
+  );
   assert.match(msg, /alice\.sandbox/i);
-  assert.match(msg, /00000000-0000-4000-8000-000000000001/);
+  assert.match(msg, new RegExp(USER_ID));
+  assert.match(msg, /Network localnet/);
+  assert.match(msg, /Recipient paidaid/);
 });
 
 test("verifyWalletLinkSignature accepts a valid NEP-413 signature", () => {
   const challengeId = "11111111-1111-4111-8111-111111111111";
   const account = "alice.sandbox";
   const nonce = randomBytes(32);
-  const message = buildWalletLinkMessage(account, challengeId);
+  const message = buildWalletLinkMessage(
+    account,
+    USER_ID,
+    challengeId,
+    "localnet",
+  );
   const signed = signNep413TestMessage({
     message,
     recipient: WALLET_LINK_RECIPIENT,
@@ -54,8 +68,10 @@ test("verifyWalletLinkSignature accepts a valid NEP-413 signature", () => {
       id: challengeId,
       near_account_id: account,
       nonce_hex: nonce.toString("hex"),
+      user_id: USER_ID,
     },
     signed,
+    { expectedMessage: message, paidAidUserId: USER_ID, networkId: "localnet" },
   );
   assert.equal(result.ok, true);
 });
@@ -63,7 +79,12 @@ test("verifyWalletLinkSignature accepts a valid NEP-413 signature", () => {
 test("verifyWalletLinkSignature rejects account substitution", () => {
   const challengeId = "22222222-2222-4222-8222-222222222222";
   const nonce = randomBytes(32);
-  const message = buildWalletLinkMessage("alice.sandbox", challengeId);
+  const message = buildWalletLinkMessage(
+    "alice.sandbox",
+    USER_ID,
+    challengeId,
+    "localnet",
+  );
   const signed = signNep413TestMessage({
     message,
     recipient: WALLET_LINK_RECIPIENT,
@@ -76,27 +97,39 @@ test("verifyWalletLinkSignature rejects account substitution", () => {
       nonce_hex: nonce.toString("hex"),
     },
     { ...signed, accountId: "bob.sandbox" },
+    { expectedMessage: message },
   );
   assert.equal(result.ok, false);
 });
 
-test("verifyWalletLinkSignature rejects wrong nonce", () => {
+test("verifyWalletLinkSignature rejects wrong user in message", () => {
   const challengeId = "33333333-3333-4333-8333-333333333333";
   const nonce = randomBytes(32);
-  const message = buildWalletLinkMessage("alice.sandbox", challengeId);
+  const message = buildWalletLinkMessage(
+    "alice.sandbox",
+    USER_ID,
+    challengeId,
+    "localnet",
+  );
   const signed = signNep413TestMessage({
     message,
     recipient: WALLET_LINK_RECIPIENT,
     nonce,
   });
-  const other = randomBytes(32);
+  const otherUserMessage = buildWalletLinkMessage(
+    "alice.sandbox",
+    "11111111-1111-4111-8111-1111111111ee",
+    challengeId,
+    "localnet",
+  );
   const result = verifyWalletLinkSignature(
     {
       id: challengeId,
       near_account_id: "alice.sandbox",
-      nonce_hex: other.toString("hex"),
+      nonce_hex: nonce.toString("hex"),
     },
     signed,
+    { expectedMessage: otherUserMessage },
   );
   assert.equal(result.ok, false);
 });

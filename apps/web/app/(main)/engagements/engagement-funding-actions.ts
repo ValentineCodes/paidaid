@@ -3,9 +3,11 @@
 import {
   assertEscrowRecordMatchesFunding,
   assertFundingCompleteOnChain,
+  assertTransactionFinalSuccess,
   fetchTxFinalOutcome,
   findEscrowIdForEngagementByScan,
   resolveEscrowIdAfterCreateTx,
+  TransactionExecutionFailedError,
   viewEscrowRecord,
   type FundingVerificationExpectation,
 } from "@paidaid/near";
@@ -20,16 +22,29 @@ import { createClient } from "../../../lib/supabase/server";
 import { createServiceClient } from "../../../lib/supabase/service";
 import {
   chainIdForCurrentNearNetwork,
+  escrowNearConfigForPayment,
   readEscrowNearRuntimeConfig,
 } from "../../../lib/near/escrow-config";
 import type { Database } from "../../../lib/database.types";
 import type { EngagementFundingPrepareResult } from "../../../lib/engagement/funding-types";
 import { formatEngagementFundingError } from "../../../lib/engagement/funding-errors";
+import {
+  nearNetworkIdForAuth,
+  signEscrowFundingAuthorization,
+  type EscrowCreateAuthorization,
+} from "../../../lib/near/escrow-funding-authorization";
 
 export type { EngagementFundingPrepareResult };
 
 type PaymentRow = Database["public"]["Tables"]["engagement_escrow_payments"]["Row"];
 type AssetRow = Database["public"]["Tables"]["assets"]["Row"];
+
+function nearConfigForPayment(payment: PaymentRow) {
+  return escrowNearConfigForPayment({
+    escrow_contract_id: payment.escrow_contract_id,
+    chain_id: payment.chain_id,
+  });
+}
 
 export type EngagementFundingActionResult =
   | { ok: true; payment: EngagementFundingPrepareResult }
@@ -39,9 +54,13 @@ function mapPaymentRow(
   payment: PaymentRow,
   asset: AssetRow,
 ): EngagementFundingPrepareResult {
+  if (!payment.engagement_id) {
+    throw new Error("Payment is not linked to an engagement.");
+  }
   return {
     paymentId: payment.id,
     engagementId: payment.engagement_id,
+    chainId: payment.chain_id,
     escrowContractId: payment.escrow_contract_id,
     assetStandard: asset.asset_standard,
     tokenContractId: asset.token_contract_id,
@@ -76,6 +95,9 @@ function buildExpectation(
   payment: PaymentRow,
   asset: AssetRow,
 ): FundingVerificationExpectation {
+  if (!payment.engagement_id) {
+    throw new Error("Payment is not linked to an engagement.");
+  }
   return {
     engagementId: payment.engagement_id,
     requesterNearAccountId: payment.requester_near_account_id,
@@ -132,6 +154,42 @@ export async function prepareEngagementFunding(
   }
 
   return { ok: true, payment: mapPaymentRow(payment, asset) };
+}
+
+export async function issueEscrowCreateAuthorization(
+  engagementId: string,
+): Promise<
+  { ok: true; authorization: EscrowCreateAuthorization } | { ok: false; error: string }
+> {
+  const loaded = await prepareEngagementFunding(engagementId);
+  if (!loaded.ok) {
+    return { ok: false, error: loaded.error };
+  }
+  const { payment } = loaded;
+  if (payment.status === "funded") {
+    return { ok: false, error: "Engagement already funded." };
+  }
+
+  try {
+    const config = escrowNearConfigForPayment({
+      escrow_contract_id: payment.escrowContractId,
+      chain_id: payment.chainId,
+    });
+    const authorization = signEscrowFundingAuthorization({
+      contractId: config.escrowContractId,
+      networkId: nearNetworkIdForAuth(config.networkId),
+      engagementId: payment.engagementId,
+      requester: payment.requesterNearAccountId,
+      provider: payment.providerNearAccountId,
+      asset: payment.assetStandard,
+      ftContractId: payment.tokenContractId,
+      amountSmallestUnits: payment.amountSmallestUnits,
+    });
+    return { ok: true, authorization };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Could not sign authorization.";
+    return { ok: false, error: message };
+  }
 }
 
 export type EngagementFundingPrerequisites = {
@@ -277,7 +335,7 @@ export async function syncEngagementEscrowFromChain(
     return { ok: false, error: "Asset metadata missing." };
   }
 
-  const config = readEscrowNearRuntimeConfig();
+  const config = nearConfigForPayment(payment);
   const escrowId = await findEscrowIdForEngagementByScan(config, engagementId);
   if (!escrowId) {
     return { ok: false, error: "No on-chain escrow for this engagement yet." };
@@ -361,7 +419,7 @@ export async function reportEngagementCreateTx(
     return { ok: false, error: "Asset metadata missing." };
   }
 
-  const config = readEscrowNearRuntimeConfig();
+  const config = nearConfigForPayment(payment);
   try {
     const escrowId = await resolveEscrowIdAfterCreateTx(
       config,
@@ -452,18 +510,22 @@ export async function reportEngagementFundTx(
     return { ok: false, error: "Asset metadata missing." };
   }
 
-  const config = readEscrowNearRuntimeConfig();
+  const config = nearConfigForPayment(payment);
   const escrowId = String(payment.on_chain_escrow_id);
 
   try {
     try {
-      await fetchTxFinalOutcome(
+      const rpcOutcome = await fetchTxFinalOutcome(
         config,
         txHash,
         payment.requester_near_account_id,
       );
-    } catch {
-      // Wallet-reported hashes from Intear are not always RPC-visible; escrow state is canonical.
+      assertTransactionFinalSuccess(rpcOutcome);
+    } catch (e) {
+      if (e instanceof TransactionExecutionFailedError) {
+        throw e;
+      }
+      // Some wallet RPC hashes are not indexed; escrow state remains authoritative below.
     }
     const record = await viewEscrowRecord(config, escrowId);
     if (!record) {
@@ -513,7 +575,10 @@ export async function checkRequesterFundingBalance(
     return { ok: true };
   }
 
-  const config = readEscrowNearRuntimeConfig();
+  const config = escrowNearConfigForPayment({
+    escrow_contract_id: payment.escrowContractId,
+    chain_id: payment.chainId,
+  });
   const { readAssetBalance } = await import("@paidaid/near");
   const balance = await readAssetBalance(
     config,

@@ -8,7 +8,7 @@ import {
 } from "@paidaid/near";
 import { normalizeDbNumericAmount } from "@paidaid/shared";
 import type { Database } from "../database.types";
-import { readEscrowNearRuntimeConfig } from "../near/escrow-config";
+import { escrowNearConfigForPayment } from "../near/escrow-config";
 
 type PaymentRow = Database["public"]["Tables"]["engagement_escrow_payments"]["Row"];
 type AssetRow = Database["public"]["Tables"]["assets"]["Row"];
@@ -18,7 +18,7 @@ export type ReconcileOutcome =
   | { changed: true; reason: string };
 
 function buildExpectation(
-  payment: PaymentRow,
+  payment: PaymentRow & { engagement_id: string },
   asset: AssetRow,
 ): FundingVerificationExpectation {
   return {
@@ -57,8 +57,19 @@ export async function reconcileEngagementPaymentFromChain(
     applySettlementProgress: SettlementFn;
   },
 ): Promise<ReconcileOutcome> {
-  const config = readEscrowNearRuntimeConfig();
-  const expectation = buildExpectation(payment, asset);
+  if (!payment.engagement_id) {
+    return { changed: false };
+  }
+  const engagementId = payment.engagement_id;
+
+  const config = escrowNearConfigForPayment({
+    escrow_contract_id: payment.escrow_contract_id,
+    chain_id: payment.chain_id,
+  });
+  const expectation = buildExpectation(
+    { ...payment, engagement_id: engagementId },
+    asset,
+  );
   const isRequester = payment.requester_user_id === userId;
   if (payment.requester_user_id !== userId && payment.provider_user_id !== userId) {
     return { changed: false };
@@ -73,10 +84,10 @@ export async function reconcileEngagementPaymentFromChain(
     if (!escrowId) {
       escrowId = await findEscrowIdForEngagementByScan(
         config,
-        payment.engagement_id,
+        engagementId,
       );
       if (escrowId) {
-        await deps.applyFundingProgress(payment.engagement_id, "create_submitted", {
+        await deps.applyFundingProgress(engagementId, "create_submitted", {
           onChainEscrowId: escrowId,
           createTxHash: payment.create_tx_hash,
           lastError: null,
@@ -94,14 +105,14 @@ export async function reconcileEngagementPaymentFromChain(
     if (record.status === "Funded") {
       try {
         assertFundingCompleteOnChain(record, expectation);
-        await deps.applyFundingProgress(payment.engagement_id, "funded", {
+        await deps.applyFundingProgress(engagementId, "funded", {
           fundTxHash: payment.fund_tx_hash,
           lastError: null,
         });
         return { changed: true, reason: "marked funded from chain" };
       } catch (e) {
         const message = e instanceof Error ? e.message : "Funding verify failed";
-        await deps.applyFundingProgress(payment.engagement_id, "failed", {
+        await deps.applyFundingProgress(engagementId, "failed", {
           lastError: message,
         });
         return { changed: true, reason: message };
@@ -113,20 +124,21 @@ export async function reconcileEngagementPaymentFromChain(
     isRequester &&
     escrowId &&
     payment.status === "funded" &&
-    payment.settlement_status === "release_submitted" &&
+    (payment.settlement_status === "release_submitted" ||
+      payment.settlement_status === "release_failed") &&
     payment.release_tx_hash
   ) {
     try {
       const record = await waitForEscrowReleaseSettlement(config, escrowId);
       assertEscrowReleasedOnChain(record);
-      await deps.applySettlementProgress(payment.engagement_id, "released", {
+      await deps.applySettlementProgress(engagementId, "released", {
         releaseTxHash: payment.release_tx_hash,
         lastError: null,
       });
       return { changed: true, reason: "release confirmed on-chain" };
     } catch (e) {
       const message = e instanceof Error ? e.message : "Release verify failed";
-      await deps.applySettlementProgress(payment.engagement_id, "release_failed", {
+      await deps.applySettlementProgress(engagementId, "release_failed", {
         releaseTxHash: payment.release_tx_hash,
         lastError: message,
       });

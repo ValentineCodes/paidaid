@@ -21,6 +21,10 @@ export {
   type SetMessageCall,
 } from "./core-contract";
 export {
+  assertTransactionFinalSuccess,
+  TransactionExecutionFailedError,
+} from "./transaction-outcome";
+export {
   assertEscrowRecordMatchesFunding,
   assertEscrowReleasedOnChain,
   assertFundingCompleteOnChain,

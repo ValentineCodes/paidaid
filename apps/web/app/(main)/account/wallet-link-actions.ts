@@ -1,16 +1,15 @@
 "use server";
 
-import { verifySignature } from "@near-wallet-selector/core";
 import { revalidatePath } from "next/cache";
 
 import { byteaToHex } from "../../../lib/near/bytea-to-hex";
 import {
   WALLET_LINK_RECIPIENT,
   buildWalletLinkMessage,
-  walletChallengeNonceFromHex,
 } from "../../../lib/near/wallet-link";
 import { assertChallengeUsable } from "../../../lib/near/wallet-link-challenge-guards";
 import { verifyWalletLinkSignature } from "../../../lib/near/verify-wallet-link-signature";
+import { readPublicNearNetworkId } from "../../../wallet/network-config";
 import { createClient } from "../../../lib/supabase/server";
 import { createServiceClient } from "../../../lib/supabase/service";
 import {
@@ -50,8 +49,10 @@ export async function createWalletLinkChallenge(
     return { ok: false, error: "Sign in to link a wallet." };
   }
 
+  const networkId = readPublicNearNetworkId(process.env);
   const { data, error } = await supabase.rpc("create_near_wallet_link_challenge", {
     p_near_account_id: account,
+    p_network_id: networkId,
   });
 
   if (error) {
@@ -84,6 +85,7 @@ export async function createWalletLinkChallenge(
 export async function completeWalletLink(input: {
   challengeId: string;
   nearAccountId: string;
+  message: string;
   recipient: string;
   nonceHex: string;
   signed: {
@@ -127,39 +129,30 @@ export async function completeWalletLink(input: {
   }
 
   const nonceHex = byteaToHex(String(challenge.nonce));
+  const expectedMessage = buildWalletLinkMessage(
+    challenge.near_account_id,
+    user.id,
+    challenge.id,
+    readPublicNearNetworkId(process.env),
+    input.recipient,
+  );
+  if (input.message !== expectedMessage) {
+    return { error: "Challenge message mismatch." };
+  }
+
   const verification = verifyWalletLinkSignature(
     {
       id: challenge.id,
       near_account_id: challenge.near_account_id,
       nonce_hex: nonceHex,
+      user_id: challenge.user_id,
+      expected_message: expectedMessage,
     },
     input.signed,
+    { expectedMessage, paidAidUserId: user.id },
   );
   if (!verification.ok) {
     return { error: verification.reason };
-  }
-
-  const expectedMessage = buildWalletLinkMessage(
-    challenge.near_account_id,
-    challenge.id,
-  );
-  let nonce: Buffer;
-  try {
-    nonce = walletChallengeNonceFromHex(nonceHex);
-  } catch {
-    return { error: "Invalid challenge nonce." };
-  }
-
-  if (
-    !verifySignature({
-      publicKey: input.signed.publicKey,
-      signature: input.signed.signature,
-      message: expectedMessage,
-      nonce,
-      recipient: input.recipient,
-    })
-  ) {
-    return { error: "Signature verification failed." };
   }
 
   try {

@@ -5,6 +5,7 @@ import {
   smallestUnitsStringToBigInt,
 } from "@paidaid/shared";
 import type { EngagementFundingPrepareResult } from "../lib/engagement/funding-types";
+import type { EscrowCreateAuthorization } from "../lib/near/escrow-funding-authorization";
 import { extractTransactionHash } from "@paidaid/near";
 
 const ESCROW_GAS = BigInt("300000000000000");
@@ -18,22 +19,14 @@ export type EscrowTxResult = {
 export async function sendCreateEscrowTransaction(
   wallet: Wallet,
   terms: EngagementFundingPrepareResult,
+  authorization: EscrowCreateAuthorization,
 ): Promise<EscrowTxResult> {
-  const asset =
-    terms.assetStandard === "native" ? "Native" : "Nep141";
-
   const outcome = await wallet.signAndSendTransaction({
     receiverId: terms.escrowContractId,
     actions: [
       actionCreators.functionCall(
-        ESCROW_METHODS.createEscrow,
-        {
-          engagement_id: terms.engagementId,
-          provider: terms.providerNearAccountId,
-          asset,
-          ft_contract: terms.tokenContractId,
-          amount: terms.amountSmallestUnits,
-        },
+        ESCROW_METHODS.createEscrowWithAuthorization,
+        authorization.methodArgs,
         ESCROW_GAS,
         BigInt(0),
       ),

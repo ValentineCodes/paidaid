@@ -13,6 +13,11 @@ import {
   SANDBOX_DIR,
   STATE_FILE,
 } from "./constants.mjs";
+import {
+  authorizedSignerPkB64,
+  loadOrCreateEscrowFundingSigner,
+  FUNDING_SIGNER_FILE,
+} from "./escrow-funding-signer.mjs";
 
 const ESCROW_KEY_FILE = path.join(
   SANDBOX_DIR,
@@ -66,19 +71,26 @@ const root = new Account(
 const contractKey = await loadOrCreateContractKey();
 const wasm = await fs.readFile(ESCROW_WASM_PATH);
 
+const fundingSigner = await loadOrCreateEscrowFundingSigner();
+const authorizedSignerPkB64Value = authorizedSignerPkB64(fundingSigner);
+
 const accountExisted = await accountExists(provider, ESCROW_CONTRACT_ACCOUNT_ID);
 
-async function contractInitialized() {
+async function contractHealthy() {
   try {
     await provider.callFunction(
       ESCROW_CONTRACT_ACCOUNT_ID,
-      "get_escrow",
-      { escrow_id: "1" },
+      "get_authorized_signer_pk_b64",
+      {},
     );
     return true;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    if (msg.includes("not initialized")) {
+    if (
+      msg.includes("not initialized") ||
+      msg.includes("Cannot deserialize") ||
+      msg.includes("deserialize the contract state")
+    ) {
       return false;
     }
     throw e;
@@ -87,30 +99,40 @@ async function contractInitialized() {
 
 let needsInit = !accountExisted;
 
+async function recreateEscrowAccount(label) {
+  console.log(label);
+  const broken = new Account(
+    ESCROW_CONTRACT_ACCOUNT_ID,
+    provider,
+    new KeyPairSigner(contractKey),
+  );
+  await broken.deleteAccount(DEFAULT_ACCOUNT_ID);
+  await new Promise((resolve) => setTimeout(resolve, 800));
+  await root.createAccount(
+    ESCROW_CONTRACT_ACCOUNT_ID,
+    contractKey.getPublicKey(),
+    NEAR.toUnits("100"),
+  );
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+  needsInit = true;
+}
+
 if (accountExisted) {
-  const initialized = await contractInitialized();
-  if (!initialized) {
-    console.log(
-      `Recreating ${ESCROW_CONTRACT_ACCOUNT_ID} (wasm present but never initialized)…`,
+  if (state.escrowAuthSchema !== "v2.2") {
+    await recreateEscrowAccount(
+      `Recreating ${ESCROW_CONTRACT_ACCOUNT_ID} for V2.2 authorization schema…`,
     );
-    const broken = new Account(
-      ESCROW_CONTRACT_ACCOUNT_ID,
-      provider,
-      new KeyPairSigner(contractKey),
-    );
-    await broken.deleteAccount(DEFAULT_ACCOUNT_ID);
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    await root.createAccount(
-      ESCROW_CONTRACT_ACCOUNT_ID,
-      contractKey.getPublicKey(),
-      NEAR.toUnits("100"),
-    );
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    needsInit = true;
   } else {
-    console.log(
-      `Account ${ESCROW_CONTRACT_ACCOUNT_ID} already exists; redeploying wasm…`,
-    );
+    const healthy = await contractHealthy();
+    if (!healthy) {
+      await recreateEscrowAccount(
+        `Recreating ${ESCROW_CONTRACT_ACCOUNT_ID} (broken contract state)…`,
+      );
+    } else {
+      console.log(
+        `Account ${ESCROW_CONTRACT_ACCOUNT_ID} already exists; redeploying wasm…`,
+      );
+    }
   }
 } else {
   console.log(`Creating ${ESCROW_CONTRACT_ACCOUNT_ID}…`);
@@ -131,7 +153,10 @@ const contractAccount = new Account(
 
 const initCall = actionCreators.functionCall(
   "new",
-  { owner: DEFAULT_ACCOUNT_ID },
+  {
+    owner: DEFAULT_ACCOUNT_ID,
+    authorized_signer_pk_b64: authorizedSignerPkB64Value,
+  },
   INIT_GAS,
   BigInt(0),
 );
@@ -149,8 +174,12 @@ console.log("Deploy status:", outcome.final_execution_status ?? outcome.status);
 
 state.escrowContractId = ESCROW_CONTRACT_ACCOUNT_ID;
 state.escrowDeployedAt = new Date().toISOString();
+state.escrowAuthSchema = "v2.2";
 await fs.writeFile(STATE_FILE, `${JSON.stringify(state, null, 2)}\n`);
 
 console.log(
   `PaidAidEscrow deployed to ${ESCROW_CONTRACT_ACCOUNT_ID} on ${rpcUrl}`,
+);
+console.log(
+  `Funding signer: ${FUNDING_SIGNER_FILE} (set NEAR_ESCROW_FUNDING_SIGNER_PRIVATE_KEY in apps/web/.env.development)`,
 );

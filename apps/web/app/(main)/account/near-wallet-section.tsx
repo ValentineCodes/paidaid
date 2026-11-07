@@ -111,6 +111,7 @@ function NearWalletSectionInner({ linked: initialLinked }: Props) {
       const result = await completeWalletLink({
         challengeId: challenge.challengeId,
         nearAccountId: challenge.nearAccountId,
+        message: challenge.message,
         recipient: challenge.recipient,
         nonceHex: challenge.nonceHex,
         signed: {

@@ -10,18 +10,39 @@ export type WalletLinkChallengeRow = {
   id: string;
   near_account_id: string;
   nonce_hex: string;
+  user_id?: string;
+  expected_message?: string;
 };
 
 export function verifyWalletLinkSignature(
   challenge: WalletLinkChallengeRow,
   signed: SignedMessage,
+  options?: { expectedMessage?: string; paidAidUserId?: string; networkId?: string },
 ): { ok: true } | { ok: false; reason: string } {
   const expectedAccount = challenge.near_account_id.toLowerCase();
   if (signed.accountId.toLowerCase() !== expectedAccount) {
     return { ok: false, reason: "Signed account does not match the challenge." };
   }
 
-  const message = buildWalletLinkMessage(expectedAccount, challenge.id);
+  const paidAidUserId = options?.paidAidUserId ?? challenge.user_id;
+  if (!paidAidUserId?.trim()) {
+    return { ok: false, reason: "PaidAid user binding missing." };
+  }
+
+  const canonical = buildWalletLinkMessage(
+    expectedAccount,
+    paidAidUserId,
+    challenge.id,
+    options?.networkId ?? "localnet",
+  );
+  const message =
+    options?.expectedMessage ?? challenge.expected_message ?? canonical;
+  if (message !== canonical) {
+    return {
+      ok: false,
+      reason: "Challenge message does not match bound identity.",
+    };
+  }
   let nonce: Buffer;
   try {
     nonce = walletChallengeNonceFromHex(challenge.nonce_hex);

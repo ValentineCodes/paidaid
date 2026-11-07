@@ -15,6 +15,11 @@ import {
   SANDBOX_DIR,
   STATE_FILE,
 } from "./constants.mjs";
+import {
+  loadOrCreateEscrowFundingSigner,
+  signEscrowFundingAuthorization,
+} from "./escrow-funding-signer.mjs";
+import { randomBytes } from "node:crypto";
 
 const KEYS_DIR = path.join(SANDBOX_DIR, "keys");
 const YOCTO = 1_000_000_000_000_000_000_000_000n;
@@ -111,15 +116,37 @@ const attacker = await createSubaccount(root, provider, attackerId);
 const engagementId = `sb-${suffix}`;
 const amountYocto = 10n * YOCTO;
 
+const fundingSigner = await loadOrCreateEscrowFundingSigner();
+const expiresAtNs = String(
+  BigInt(Date.now() * 1_000_000) + 3_600_000_000_000n,
+);
+const nonce = randomBytes(16).toString("hex") + randomBytes(16).toString("hex");
+const { signatureBase64 } = signEscrowFundingAuthorization(fundingSigner, {
+  contractId: ESCROW_CONTRACT_ACCOUNT_ID,
+  networkId: "localnet",
+  engagementId,
+  requester: requesterId,
+  provider: providerId,
+  asset: "Native",
+  ftContractId: null,
+  amountSmallestUnits: amountYocto.toString(),
+  expiresAtNs,
+  nonce,
+});
+
 const createOut = await requester.callFunction({
   contractId: ESCROW_CONTRACT_ACCOUNT_ID,
-  methodName: "create_escrow",
+  methodName: "create_escrow_with_authorization",
   args: {
     engagement_id: engagementId,
     provider: providerId,
     asset: "Native",
     ft_contract: null,
     amount: amountYocto.toString(),
+    expires_at_ns: expiresAtNs,
+    nonce,
+    signature: signatureBase64,
+    network_id: "localnet",
   },
 });
 const escrowId = parseEscrowId(createOut);
@@ -173,15 +200,37 @@ await expectFailure(
 );
 
 const engagement2 = `sb-refund-${suffix}`;
+const nonce2 =
+  randomBytes(16).toString("hex") + randomBytes(16).toString("hex");
+const amount2 = (2n * YOCTO).toString();
+const { signatureBase64: sig2 } = signEscrowFundingAuthorization(
+  fundingSigner,
+  {
+    contractId: ESCROW_CONTRACT_ACCOUNT_ID,
+    networkId: "localnet",
+    engagementId: engagement2,
+    requester: requesterId,
+    provider: providerId,
+    asset: "Native",
+    ftContractId: null,
+    amountSmallestUnits: amount2,
+    expiresAtNs,
+    nonce: nonce2,
+  },
+);
 const create2 = await requester.callFunction({
   contractId: ESCROW_CONTRACT_ACCOUNT_ID,
-  methodName: "create_escrow",
+  methodName: "create_escrow_with_authorization",
   args: {
     engagement_id: engagement2,
     provider: providerId,
     asset: "Native",
     ft_contract: null,
-    amount: (2n * YOCTO).toString(),
+    amount: amount2,
+    expires_at_ns: expiresAtNs,
+    nonce: nonce2,
+    signature: sig2,
+    network_id: "localnet",
   },
 });
 const escrowId2 = parseEscrowId(create2);

@@ -239,10 +239,11 @@ export default async function EngagementPage({ params }: PageProps) {
       };
     }
 
-    if (paymentRow && paymentAsset) {
+    if (paymentRow && paymentAsset && paymentRow.engagement_id === id) {
       fundingTerms = {
         paymentId: paymentRow.id,
-        engagementId: paymentRow.engagement_id,
+        engagementId: id,
+        chainId: paymentRow.chain_id,
         escrowContractId: paymentRow.escrow_contract_id,
         assetStandard: paymentAsset.asset_standard,
         tokenContractId: paymentAsset.token_contract_id,
