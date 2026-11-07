@@ -66,35 +66,4 @@ export async function getMessage(
   return result;
 }
 
-type OutcomeLike = {
-  transaction_outcome?: { id?: string };
-  transaction?: { hash?: string };
-};
-
-export function extractTransactionHash(outcome: unknown): string | null {
-  if (!outcome || typeof outcome !== "object") {
-    return null;
-  }
-
-  const value = outcome as OutcomeLike;
-  const fromOutcome = value.transaction_outcome?.id;
-  if (typeof fromOutcome === "string" && fromOutcome.length > 0) {
-    return fromOutcome;
-  }
-
-  const fromTransaction = value.transaction?.hash;
-  if (typeof fromTransaction === "string" && fromTransaction.length > 0) {
-    return fromTransaction;
-  }
-
-  if (Array.isArray(outcome)) {
-    for (const entry of outcome) {
-      const hash = extractTransactionHash(entry);
-      if (hash) {
-        return hash;
-      }
-    }
-  }
-
-  return null;
-}
+export { extractTransactionHash } from "./transaction-outcome";

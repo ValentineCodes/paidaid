@@ -37,5 +37,12 @@ test("extractTransactionHash reads NEAR execution outcomes", () => {
     }),
     "abc123",
   );
+  assert.equal(
+    extractTransactionHash({
+      transaction: { hash: "preferred-hash" },
+      transaction_outcome: { id: "abc123" },
+    }),
+    "preferred-hash",
+  );
   assert.equal(extractTransactionHash(null), null);
 });

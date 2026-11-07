@@ -15,6 +15,7 @@ Engagement escrow for **native NEAR** and **allowlisted NEP-141** tokens. See [d
 | `add_allowed_ft(contract_id)` | call | Owner adds FT to allowlist. |
 | `remove_allowed_ft(contract_id)` | call | Owner removes FT. |
 | `get_escrow(escrow_id)` | view | Escrow record. |
+| `get_active_escrow_id_for_engagement(engagement_id)` | view | Active escrow id for engagement. |
 | `is_ft_allowed(contract_id)` | view | Allowlist membership. |
 
 ## Build

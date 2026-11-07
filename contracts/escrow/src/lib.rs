@@ -264,6 +264,14 @@ impl PaidAidEscrow {
         self.escrows.get(&(escrow_id.0)).cloned()
     }
 
+    /// Active escrow id for an engagement (while status is non-terminal).
+    pub fn get_active_escrow_id_for_engagement(&self, engagement_id: String) -> Option<U64> {
+        validate_engagement_id(&engagement_id);
+        self.engagement_active
+            .get(&engagement_id)
+            .map(|id| U64(*id))
+    }
+
     pub fn is_ft_allowed(&self, contract_id: AccountId) -> bool {
         self.allowed_ft.contains(&contract_id)
     }
@@ -409,6 +417,12 @@ mod tests {
         let escrow = c.get_escrow(U64(id)).unwrap();
         assert_eq!(escrow.status, EscrowStatus::Funded);
         assert_eq!(escrow.deposited, escrow.amount);
+
+        assert_eq!(
+            c.get_active_escrow_id_for_engagement("eng-1".to_string())
+                .map(|u| u.0),
+            Some(id)
+        );
     }
 
     #[test]

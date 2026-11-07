@@ -13,6 +13,10 @@ import { assertChallengeUsable } from "../../../lib/near/wallet-link-challenge-g
 import { verifyWalletLinkSignature } from "../../../lib/near/verify-wallet-link-signature";
 import { createClient } from "../../../lib/supabase/server";
 import { createServiceClient } from "../../../lib/supabase/service";
+import {
+  formatWalletLinkError,
+  type NearAccountLinkStatus,
+} from "../../../lib/near/wallet-link-errors";
 
 export type WalletLinkActionState = {
   error: string | null;
@@ -51,7 +55,7 @@ export async function createWalletLinkChallenge(
   });
 
   if (error) {
-    return { ok: false, error: error.message };
+    return { ok: false, error: formatWalletLinkError(error.message) };
   }
 
   const row = data?.[0];
@@ -167,7 +171,7 @@ export async function completeWalletLink(input: {
       p_public_key: input.signed.publicKey,
     });
     if (applyError) {
-      return { error: applyError.message };
+      return { error: formatWalletLinkError(applyError.message) };
     }
   } catch (e) {
     const msg =
@@ -178,6 +182,35 @@ export async function completeWalletLink(input: {
   revalidatePath("/account");
   revalidatePath("/account/edit");
   return { error: null, success: true };
+}
+
+export async function fetchNearAccountLinkStatus(
+  nearAccountId: string,
+): Promise<
+  { ok: true; status: NearAccountLinkStatus } | { ok: false; error: string }
+> {
+  const account = nearAccountId.trim().toLowerCase();
+  if (!account) {
+    return { ok: false, error: "Connect a NEAR wallet first." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: false, error: "Sign in to link a wallet." };
+  }
+
+  const { data, error } = await supabase.rpc("near_account_link_status", {
+    p_near_account_id: account,
+  });
+
+  if (error) {
+    return { ok: false, error: formatWalletLinkError(error.message) };
+  }
+
+  return { ok: true, status: (data ?? "invalid_account") as NearAccountLinkStatus };
 }
 
 export async function unlinkNearWallet(): Promise<WalletLinkActionState> {

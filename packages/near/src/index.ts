@@ -21,6 +21,24 @@ export {
   type SetMessageCall,
 } from "./core-contract";
 export {
+  assertEscrowRecordMatchesFunding,
+  assertFundingCompleteOnChain,
+  explorerTransactionUrl,
+  fetchTxFinalOutcome,
+  findEscrowIdForEngagementByScan,
+  isMapEntryArray,
+  normalizeTransactionOutcome,
+  parseEscrowIdFromCreateOutcome,
+  resolveEscrowIdAfterCreateTx,
+  resolveEscrowIdFromCreateOutcomes,
+  viewActiveEscrowIdForEngagement,
+  parseNearU64ReturnValue,
+  requireEscrowContractId,
+  viewEscrowRecord,
+  type FundingVerificationExpectation,
+  type OnChainEscrowRecord,
+} from "./escrow";
+export {
   normalizeAccountId,
   validateAccountId,
   validateMessage,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useWalletSelector } from "@near-wallet-selector/react-hook";
+import { useNearWalletAccountId } from "../../../wallet/use-near-wallet-account";
 import { useCallback, useEffect, useState } from "react";
 
 import { NearSessionProvider } from "../../../wallet/near-session-provider";
@@ -13,8 +14,13 @@ import { formatWalletConnectionError } from "../../../wallet/errors";
 import {
   completeWalletLink,
   createWalletLinkChallenge,
+  fetchNearAccountLinkStatus,
   unlinkNearWallet,
 } from "./wallet-link-actions";
+import {
+  describeNearAccountLinkStatus,
+  formatWalletLinkError,
+} from "../../../lib/near/wallet-link-errors";
 import { LinkedWalletBalances } from "./linked-wallet-balances";
 
 export type LinkedNearWallet = {
@@ -28,18 +34,17 @@ type Props = {
 };
 
 function NearWalletSectionInner({ linked: initialLinked }: Props) {
-  const {
-    walletSelector,
-    signedAccountId,
-    signIn,
-    signOut,
-    signMessage,
-  } = useWalletSelector();
+  const { walletSelector, signIn, signOut, signMessage } = useWalletSelector();
+  const { accountId: signedAccountId, syncFromSelectorStore } =
+    useNearWalletAccountId();
 
   const [linked, setLinked] = useState(initialLinked);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [linkBlockedReason, setLinkBlockedReason] = useState<string | null>(
+    null,
+  );
 
   const connectWallet = useCallback(async () => {
     setError(null);
@@ -53,12 +58,13 @@ function NearWalletSectionInner({ linked: initialLinked }: Props) {
         NEXT_PUBLIC_NEAR_CONTRACT_ID: process.env.NEXT_PUBLIC_NEAR_CONTRACT_ID,
       });
       await signInWithIntearWallet(selector, contractId);
+      await syncFromSelectorStore();
     } catch (e) {
       setError(formatWalletConnectionError(e));
     } finally {
       setBusy(false);
     }
-  }, [walletSelector]);
+  }, [walletSelector, syncFromSelectorStore]);
 
   const switchAccount = useCallback(() => {
     signIn();
@@ -69,12 +75,13 @@ function NearWalletSectionInner({ linked: initialLinked }: Props) {
     setBusy(true);
     try {
       await signOut();
+      await syncFromSelectorStore();
     } catch (e) {
       setError(formatWalletConnectionError(e));
     } finally {
       setBusy(false);
     }
-  }, [signOut]);
+  }, [signOut, syncFromSelectorStore]);
 
   const linkWallet = useCallback(async () => {
     if (!signedAccountId) {
@@ -87,7 +94,7 @@ function NearWalletSectionInner({ linked: initialLinked }: Props) {
     try {
       const created = await createWalletLinkChallenge(signedAccountId);
       if (!created.ok) {
-        setError(created.error);
+        setError(formatWalletLinkError(created.error));
         return;
       }
       const { challenge } = created;
@@ -113,7 +120,7 @@ function NearWalletSectionInner({ linked: initialLinked }: Props) {
         },
       });
       if (result.error) {
-        setError(result.error);
+        setError(formatWalletLinkError(result.error));
         return;
       }
       setLinked({
@@ -147,6 +154,66 @@ function NearWalletSectionInner({ linked: initialLinked }: Props) {
       setBusy(false);
     }
   }, []);
+
+  useEffect(() => {
+    setLinked(initialLinked);
+    setError(null);
+    setStatus(null);
+    setLinkBlockedReason(null);
+  }, [initialLinked]);
+
+  useEffect(() => {
+    if (!signedAccountId || linked) {
+      setLinkBlockedReason(null);
+      return;
+    }
+    let cancelled = false;
+    void fetchNearAccountLinkStatus(signedAccountId).then((res) => {
+      if (cancelled) {
+        return;
+      }
+      if (!res.ok) {
+        setLinkBlockedReason(null);
+        return;
+      }
+      setLinkBlockedReason(
+        describeNearAccountLinkStatus(res.status, signedAccountId),
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [signedAccountId, linked]);
+
+  useEffect(() => {
+    setLinked(initialLinked);
+    setError(null);
+    setStatus(null);
+    setLinkBlockedReason(null);
+  }, [initialLinked]);
+
+  useEffect(() => {
+    if (!signedAccountId || linked) {
+      setLinkBlockedReason(null);
+      return;
+    }
+    let cancelled = false;
+    void fetchNearAccountLinkStatus(signedAccountId).then((res) => {
+      if (cancelled) {
+        return;
+      }
+      if (!res.ok) {
+        setLinkBlockedReason(null);
+        return;
+      }
+      setLinkBlockedReason(
+        describeNearAccountLinkStatus(res.status, signedAccountId),
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [signedAccountId, linked]);
 
   useEffect(() => {
     void walletSelector?.then((selector) => {
@@ -226,7 +293,15 @@ function NearWalletSectionInner({ linked: initialLinked }: Props) {
               </button>
             )}
           </div>
-          {signedAccountId ? (
+          {linkBlockedReason ? (
+            <p
+              className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950"
+              role="status"
+            >
+              {linkBlockedReason}
+            </p>
+          ) : null}
+          {signedAccountId && !linkBlockedReason ? (
             <button
               type="button"
               className="profile-edit-link w-fit"
@@ -246,7 +321,7 @@ function NearWalletSectionInner({ linked: initialLinked }: Props) {
       ) : null}
       {error ? (
         <p className="mt-3 text-sm text-red-700" role="alert">
-          {error}
+          {formatWalletLinkError(error)}
         </p>
       ) : null}
     </section>

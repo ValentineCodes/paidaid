@@ -1,6 +1,7 @@
 "use client";
 
 import { useWalletSelector } from "@near-wallet-selector/react-hook";
+import { useNearWalletAccountId } from "./use-near-wallet-account";
 import { useCallback, useEffect, useState } from "react";
 import { WALLET_NETWORK_ID } from "./constants";
 import {
@@ -28,7 +29,9 @@ export type PaidAidWalletState = {
 };
 
 export function usePaidAidWallet(): PaidAidWalletState {
-  const { walletSelector, signedAccountId, signOut } = useWalletSelector();
+  const { walletSelector, signOut } = useWalletSelector();
+  const { accountId: signedAccountId, syncFromSelectorStore } =
+    useNearWalletAccountId();
 
   const [initialized, setInitialized] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
@@ -71,24 +74,26 @@ export function usePaidAidWallet(): PaidAidWalletState {
         NEXT_PUBLIC_NEAR_CONTRACT_ID: process.env.NEXT_PUBLIC_NEAR_CONTRACT_ID,
       });
       await signInWithIntearWallet(selector, contractId);
+      await syncFromSelectorStore();
     } catch (error) {
       setActionError(formatWalletConnectionError(error));
     } finally {
       setIsConnecting(false);
     }
-  }, [walletSelector]);
+  }, [walletSelector, syncFromSelectorStore]);
 
   const disconnect = useCallback(async () => {
     setActionError(null);
     setIsDisconnecting(true);
     try {
       await signOut();
+      await syncFromSelectorStore();
     } catch (error) {
       setActionError(formatWalletConnectionError(error));
     } finally {
       setIsDisconnecting(false);
     }
-  }, [signOut]);
+  }, [signOut, syncFromSelectorStore]);
 
   const clearError = useCallback(() => {
     setActionError(null);

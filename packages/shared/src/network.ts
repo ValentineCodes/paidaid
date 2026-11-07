@@ -11,6 +11,7 @@ export const TESTNET_RPC_URL = "https://rpc.testnet.near.org";
 export const MAINNET_RPC_URL = "https://rpc.mainnet.near.org";
 
 export const DEFAULT_LOCALNET_CONTRACT_ID = "paidaid.sandbox";
+export const DEFAULT_LOCALNET_ESCROW_CONTRACT_ID = "paidaid-escrow.sandbox";
 
 const DEFAULT_RPC_BY_NETWORK: Record<NearNetworkId, string> = {
   localnet: LOCALNET_RPC_URL,

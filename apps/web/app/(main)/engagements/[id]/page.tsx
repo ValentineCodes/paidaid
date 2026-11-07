@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { connection } from "next/server";
 import { notFound, redirect } from "next/navigation";
 
 import { createClient } from "../../../../lib/supabase/server";
@@ -7,9 +8,13 @@ import {
   profileHasPhotoForGating,
   resolveProfileDisplayUrl,
 } from "../../../../lib/profiles/resolve-photo";
+import { normalizeDbNumericAmount } from "@paidaid/shared";
 import { formatBudgetSmallestUnits } from "../../../../lib/requests/format-budget";
 import { EngagementWorkflow } from "./engagement-workflow";
+import { EngagementFundingSection } from "./engagement-funding-section";
+import { loadActiveLinkedNearWallet } from "../../../../lib/near/load-linked-wallet";
 import type { Database } from "../../../../lib/database.types";
+import type { EngagementFundingPrepareResult } from "../../../../lib/engagement/funding-types";
 
 type DeliveryAttachmentRow =
   Database["public"]["Tables"]["delivery_attachments"]["Row"];
@@ -28,6 +33,8 @@ export default async function EngagementPage({ params }: PageProps) {
       </main>
     );
   }
+
+  await connection();
 
   const supabase = await createClient();
   const {
@@ -182,6 +189,99 @@ export default async function EngagementPage({ params }: PageProps) {
         )
       : "";
 
+  let fundingTerms: EngagementFundingPrepareResult | null = null;
+  let linkedRequesterNear: string | null = null;
+  let fundingPrerequisites: {
+    requesterWalletLinked: boolean;
+    providerWalletLinked: boolean;
+    requesterDisplayName: string;
+    providerDisplayName: string;
+    requesterNearAccountId: string | null;
+    providerNearAccountId: string | null;
+  } | null = null;
+
+  if (!isProvider) {
+    linkedRequesterNear =
+      (await loadActiveLinkedNearWallet(supabase, user.id))?.nearAccountId ??
+      null;
+
+    const { data: prerequisites } = await supabase.rpc(
+      "get_engagement_funding_prerequisites",
+      { p_engagement_id: id },
+    );
+    const row = Array.isArray(prerequisites)
+      ? prerequisites[0]
+      : prerequisites;
+    if (row) {
+      fundingPrerequisites = {
+        requesterWalletLinked: Boolean(row.requester_wallet_linked),
+        providerWalletLinked: Boolean(row.provider_wallet_linked),
+        requesterDisplayName: row.requester_display_name ?? "Requester",
+        providerDisplayName: row.provider_display_name ?? "Provider",
+        requesterNearAccountId: row.requester_near_account_id ?? null,
+        providerNearAccountId: row.provider_near_account_id ?? null,
+      };
+    }
+
+    const { data: paymentRow } = await supabase
+      .from("engagement_escrow_payments")
+      .select("*")
+      .eq("engagement_id", id)
+      .maybeSingle();
+
+    const { data: paymentAsset } = paymentRow
+      ? await supabase
+          .from("assets")
+          .select("asset_standard, token_contract_id, symbol, decimals")
+          .eq("id", paymentRow.asset_id)
+          .maybeSingle()
+      : { data: null };
+
+    if (paymentRow && paymentAsset) {
+      fundingTerms = {
+        paymentId: paymentRow.id,
+        engagementId: paymentRow.engagement_id,
+        escrowContractId: paymentRow.escrow_contract_id,
+        assetStandard: paymentAsset.asset_standard,
+        tokenContractId: paymentAsset.token_contract_id,
+        amountSmallestUnits: normalizeDbNumericAmount(paymentRow.amount),
+        symbol: paymentAsset.symbol,
+        decimals: paymentAsset.decimals,
+        requesterNearAccountId: paymentRow.requester_near_account_id,
+        providerNearAccountId: paymentRow.provider_near_account_id,
+        onChainEscrowId:
+          paymentRow.on_chain_escrow_id == null
+            ? null
+            : String(paymentRow.on_chain_escrow_id),
+        status: paymentRow.status,
+        createTxHash: paymentRow.create_tx_hash,
+        fundTxHash: paymentRow.fund_tx_hash,
+      };
+    }
+  }
+
+  const paymentFunded = fundingTerms?.status === "funded";
+
+  if (isProvider) {
+    const { data: prerequisites } = await supabase.rpc(
+      "get_engagement_funding_prerequisites",
+      { p_engagement_id: id },
+    );
+    const prow = Array.isArray(prerequisites)
+      ? prerequisites[0]
+      : prerequisites;
+    if (prow) {
+      fundingPrerequisites = {
+        requesterWalletLinked: Boolean(prow.requester_wallet_linked),
+        providerWalletLinked: Boolean(prow.provider_wallet_linked),
+        requesterDisplayName: prow.requester_display_name ?? "Requester",
+        providerDisplayName: prow.provider_display_name ?? "Provider",
+        requesterNearAccountId: prow.requester_near_account_id ?? null,
+        providerNearAccountId: prow.provider_near_account_id ?? null,
+      };
+    }
+  }
+
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-12">
       <p className="text-sm text-stone-500">
@@ -245,9 +345,16 @@ export default async function EngagementPage({ params }: PageProps) {
           <dt className="text-stone-500">Agreed offer</dt>
           <dd className="font-mono">
             {budgetStr} {asset?.symbol ?? ""}
-            <span className="ml-1 font-sans text-xs text-stone-500">
-              (indicative)
-            </span>
+            {!paymentFunded && (
+              <span className="ml-1 font-sans text-xs text-stone-500">
+                (awaiting funding)
+              </span>
+            )}
+            {paymentFunded && (
+              <span className="ml-1 font-sans text-xs text-emerald-700 dark:text-emerald-300">
+                (funded in escrow)
+              </span>
+            )}
           </dd>
         </div>
         <div>
@@ -304,6 +411,31 @@ export default async function EngagementPage({ params }: PageProps) {
             {requestRow.description}
           </p>
         </section>
+      )}
+
+      {isProvider &&
+        engagement.status === "active" &&
+        !paymentFunded &&
+        !(fundingPrerequisites?.providerWalletLinked ?? false) && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+            <p className="font-medium">Link your NEAR wallet</p>
+            <p className="mt-1">
+              The requester cannot fund escrow until you link a NEAR wallet under{" "}
+              <Link href="/account" className="underline">
+                Account → NEAR wallet
+              </Link>
+              .
+            </p>
+          </div>
+        )}
+
+      {!isProvider && engagement.status === "active" && (
+        <EngagementFundingSection
+          engagementId={id}
+          initialTerms={fundingTerms}
+          linkedRequesterNearAccountId={linkedRequesterNear}
+          initialPrerequisites={fundingPrerequisites}
+        />
       )}
 
       <section className="flex flex-col gap-2">

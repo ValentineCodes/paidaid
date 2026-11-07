@@ -16,10 +16,24 @@ export function assertIntearWalletModule(selector: WalletSelector): void {
   }
 }
 
+/** Active NEAR account from Wallet Selector store (source of truth after Intear sign-in). */
+export function readSelectorAccountId(
+  selector: WalletSelector,
+): string | null {
+  const { accounts } = selector.store.getState();
+  if (!accounts?.length) {
+    return null;
+  }
+  const active = accounts.find(
+    (entry) => (entry as { active?: boolean }).active === true,
+  );
+  return active?.accountId ?? accounts[0]?.accountId ?? null;
+}
+
 export async function signInWithIntearWallet(
   selector: WalletSelector,
   contractId: string | undefined,
-): Promise<void> {
+): Promise<string | null> {
   assertIntearWalletModule(selector);
   const intearModule = selector.store
     .getState()
@@ -29,4 +43,5 @@ export async function signInWithIntearWallet(
   }
   const wallet = (await intearModule.wallet()) as InjectedWallet;
   await wallet.signIn({ contractId, methodNames: [] });
+  return readSelectorAccountId(selector);
 }

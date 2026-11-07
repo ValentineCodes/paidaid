@@ -5,6 +5,7 @@ import type { NearNetworkId } from "./network";
 export type { NearNetworkId } from "./network";
 export {
   DEFAULT_LOCALNET_CONTRACT_ID,
+  DEFAULT_LOCALNET_ESCROW_CONTRACT_ID,
   LOCALNET_RPC_URL,
   MAINNET_RPC_URL,
   NEAR_NETWORK_IDS,
@@ -29,7 +30,9 @@ export {
 export {
   bigintToSmallestUnitsString,
   formatSmallestUnits,
+  normalizeDbNumericAmount,
   parseSmallestUnitsString,
+  smallestUnitsStringToBigInt,
 } from "./amounts";
 
 export type NearConfig = {
@@ -44,6 +47,17 @@ export const CORE_METHODS = {
   getMessage: "get_message",
   getTotalMessages: "get_total_messages",
 } as const;
+
+export const ESCROW_METHODS = {
+  createEscrow: "create_escrow",
+  depositNative: "deposit_native",
+  getEscrow: "get_escrow",
+  getActiveEscrowIdForEngagement: "get_active_escrow_id_for_engagement",
+} as const;
+
+export type EscrowNearConfig = NearConfig & {
+  escrowContractId: string;
+};
 
 export type {
   GetMessageArgs,
