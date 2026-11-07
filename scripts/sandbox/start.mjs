@@ -17,10 +17,11 @@ try {
   if (existingState.managerPid) {
     try {
       process.kill(existingState.managerPid, 0);
-      console.error(
+      console.log(
         `Sandbox already running (manager pid ${existingState.managerPid}). RPC: ${existingState.rpcUrl}`,
       );
-      process.exit(1);
+      console.log("To restart: pnpm sandbox:stop, then pnpm sandbox:start.");
+      process.exit(0);
     } catch {
       // Stale state; continue.
     }

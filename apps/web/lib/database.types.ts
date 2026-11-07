@@ -34,6 +34,7 @@ export type Database = {
           chain_id: string;
           created_at: string;
           decimals: number;
+          enabled: boolean;
           id: string;
           native_reference: string | null;
           symbol: string;
@@ -45,6 +46,7 @@ export type Database = {
           chain_id: string;
           created_at?: string;
           decimals: number;
+          enabled?: boolean;
           id?: string;
           native_reference?: string | null;
           symbol: string;
@@ -56,6 +58,7 @@ export type Database = {
           chain_id?: string;
           created_at?: string;
           decimals?: number;
+          enabled?: boolean;
           id?: string;
           native_reference?: string | null;
           symbol?: string;
@@ -373,6 +376,51 @@ export type Database = {
           {
             foreignKeyName: "engagements_provider_user_id_fkey";
             columns: ["provider_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      linked_near_wallets: {
+        Row: {
+          id: string;
+          link_challenge_id: string | null;
+          linked_at: string;
+          near_account_id: string;
+          public_key: string;
+          unlinked_at: string | null;
+          user_id: string;
+        };
+        Insert: {
+          id?: string;
+          link_challenge_id?: string | null;
+          linked_at?: string;
+          near_account_id: string;
+          public_key: string;
+          unlinked_at?: string | null;
+          user_id: string;
+        };
+        Update: {
+          id?: string;
+          link_challenge_id?: string | null;
+          linked_at?: string;
+          near_account_id?: string;
+          public_key?: string;
+          unlinked_at?: string | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "linked_near_wallets_link_challenge_id_fkey";
+            columns: ["link_challenge_id"];
+            isOneToOne: false;
+            referencedRelation: "wallet_link_challenges";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "linked_near_wallets_user_id_fkey";
+            columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "profiles";
             referencedColumns: ["id"];
@@ -1000,6 +1048,44 @@ export type Database = {
         };
         Relationships: [];
       };
+      wallet_link_challenges: {
+        Row: {
+          created_at: string;
+          expires_at: string;
+          id: string;
+          near_account_id: string;
+          nonce: string;
+          used_at: string | null;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          expires_at: string;
+          id?: string;
+          near_account_id: string;
+          nonce: string;
+          used_at?: string | null;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          expires_at?: string;
+          id?: string;
+          near_account_id?: string;
+          nonce?: string;
+          used_at?: string | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "wallet_link_challenges_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       requests_public: {
@@ -1067,6 +1153,15 @@ export type Database = {
         };
         Returns: undefined;
       };
+      apply_near_wallet_link: {
+        Args: {
+          p_challenge_id: string;
+          p_near_account_id: string;
+          p_public_key: string;
+          p_user_id: string;
+        };
+        Returns: string;
+      };
       auto_complete_engagements: { Args: never; Returns: number };
       can_read_private_contact: {
         Args: { p_target_user: string };
@@ -1097,6 +1192,16 @@ export type Database = {
           p_title: string;
         };
         Returns: string;
+      };
+      create_near_wallet_link_challenge: {
+        Args: { p_near_account_id: string };
+        Returns: {
+          challenge_id: string;
+          expires_at: string;
+          message: string;
+          nonce_hex: string;
+          recipient: string;
+        }[];
       };
       is_conversation_participant: {
         Args: { p_conversation_id: string; p_user_id: string };
@@ -1258,6 +1363,7 @@ export type Database = {
         Args: { p_comment?: string; p_engagement_id: string; p_rating: number };
         Returns: string;
       };
+      unlink_near_wallet: { Args: never; Returns: undefined };
       withdraw_request_response: {
         Args: { p_response_id: string };
         Returns: undefined;

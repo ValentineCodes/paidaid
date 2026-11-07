@@ -6,6 +6,8 @@ import { createClient } from "../../../lib/supabase/server";
 import { isSupabaseConfigured } from "../../../lib/supabase/env";
 import { getRequestWallTimeMs } from "../../../lib/datetime/request-wall-time";
 import { resolveProfileDisplayUrl } from "../../../lib/profiles/resolve-photo";
+import { loadActiveLinkedNearWallet } from "../../../lib/near/load-linked-wallet";
+import { NearWalletSectionLoader } from "./near-wallet-section-loader";
 import { ProfileShell } from "./profile-shell";
 
 export default async function AccountPage() {
@@ -106,8 +108,10 @@ export default async function AccountPage() {
   const taskCount = assignmentCount ?? 0;
 
   const photoDisplayUrl = await resolveProfileDisplayUrl(supabase, profile);
+  const linkedWallet = await loadActiveLinkedNearWallet(supabase, user.id);
 
   return (
+    <>
     <ProfileShell
       nowMs={nowMs}
       profile={profile}
@@ -119,5 +123,7 @@ export default async function AccountPage() {
       reviewCount={reviewCount}
       taskCount={taskCount}
     />
+    <NearWalletSectionLoader linked={linkedWallet} />
+    </>
   );
 }

@@ -6,9 +6,31 @@ export type { NearNetworkId } from "./network";
 export {
   DEFAULT_LOCALNET_CONTRACT_ID,
   LOCALNET_RPC_URL,
+  MAINNET_RPC_URL,
+  NEAR_NETWORK_IDS,
+  TESTNET_RPC_URL,
+  assertAssetChainMatchesNetwork,
+  assertSameNearNetwork,
+  chainIdFromNetwork,
   defaultRpcUrlForNetwork,
+  networkFromChainId,
   parseNearNetworkId,
 } from "./network";
+export type { AssetStandard, TrustedAssetRow } from "./assets";
+export {
+  buildCanonicalAssetKey,
+  findTrustedAssetByContract,
+  normalizeNearAccountId,
+  resolveAssetContractId,
+  validateNearAccountId,
+  validateNep141ContractId,
+  validateTrustedAssetRow,
+} from "./assets";
+export {
+  bigintToSmallestUnitsString,
+  formatSmallestUnits,
+  parseSmallestUnitsString,
+} from "./amounts";
 
 export type NearConfig = {
   networkId: NearNetworkId;

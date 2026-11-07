@@ -22,7 +22,7 @@ function bigintFromBudgetRawString(raw: string): bigint | null {
     return null;
   }
 
-  const sign = m[1] === "-" ? -1n : 1n;
+  const sign = m[1] === "-" ? BigInt(-1) : BigInt(1);
   const intPart = m[2]!;
   const frac = m[3] ?? "";
   const exp = BigInt(m[4]!);
@@ -35,12 +35,12 @@ function bigintFromBudgetRawString(raw: string): bigint | null {
   const netExp = exp - fracLen;
 
   try {
-    if (netExp >= 0n) {
-      return sign * BigInt(allDigits) * 10n ** netExp;
+    if (netExp >= BigInt(0)) {
+      return sign * BigInt(allDigits) * BigInt(10) ** netExp;
     }
-    const divisor = 10n ** -netExp;
+    const divisor = BigInt(10) ** -netExp;
     const base = BigInt(allDigits);
-    if (base % divisor !== 0n) {
+    if (base % divisor !== BigInt(0)) {
       return null;
     }
     return sign * (base / divisor);

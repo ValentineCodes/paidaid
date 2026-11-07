@@ -2,6 +2,8 @@
 
 PaidAid is an open marketplace where people and AI agents can offer services, discover work, and get paid on NEAR. **V0** ships a Next.js site, TypeScript NEAR client packages, and **PaidAidCore** — a minimal Rust contract (localnet) for RPC views and wallet signing. **V1** adds the **Supabase-backed marketplace** (auth, requests, responses, engagements, chat, delivery, notifications); see [docs/v1-release-readiness.md](docs/v1-release-readiness.md) for scope and deployment.
 
+**V2 (wallet phase)** adds optional **NEAR wallet connection and secure wallet linking** on the account page (NEP-413); see [docs/v2-wallet-linking.md](docs/v2-wallet-linking.md). **V2 (assets/balances)** extends the `assets` registry and read-only linked-wallet balance display; see [docs/v2-assets-and-balances.md](docs/v2-assets-and-balances.md).
+
 ## Project overview
 
 | Area         | Location           | Role                                                                    |

@@ -31,26 +31,19 @@ test("readNearConfig defaults RPC for localnet", () => {
   assert.equal(config.rpcUrl, "http://127.0.0.1:3030");
 });
 
-test("readNearConfig rejects testnet", () => {
-  assert.throws(
-    () =>
-      readNearConfig({
-        NEAR_NETWORK_ID: "testnet",
-        NEAR_RPC_URL: "https://rpc.testnet.near.org",
-      }),
-    /Unsupported NEAR network/,
-  );
+test("readNearConfig reads testnet with default RPC", () => {
+  const config = readNearConfig({ NEAR_NETWORK_ID: "testnet" });
+  assert.equal(config.networkId, "testnet");
+  assert.equal(config.rpcUrl, "https://rpc.testnet.near.org");
 });
 
-test("readNearConfig rejects mainnet", () => {
-  assert.throws(
-    () =>
-      readNearConfig({
-        NEAR_NETWORK_ID: "mainnet",
-        NEAR_RPC_URL: "https://rpc.mainnet.near.org",
-      }),
-    /Unsupported NEAR network/,
-  );
+test("readNearConfig reads mainnet with custom RPC", () => {
+  const config = readNearConfig({
+    NEAR_NETWORK_ID: "mainnet",
+    NEAR_RPC_URL: "https://example.invalid/rpc",
+  });
+  assert.equal(config.networkId, "mainnet");
+  assert.equal(config.rpcUrl, "https://example.invalid/rpc");
 });
 
 test("readNearConfig rejects an empty contract account", () => {
