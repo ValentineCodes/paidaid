@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
 
@@ -32,5 +33,15 @@ export default async function ActivityPage() {
 
   const data = await loadActivityPageData(supabase, user.id);
 
-  return <ActivityShell data={data} />;
+  return (
+    <Suspense
+      fallback={
+        <main className="inner-page">
+          <p className="text-sm text-[var(--muted)]">Loading activity…</p>
+        </main>
+      }
+    >
+      <ActivityShell data={data} />
+    </Suspense>
+  );
 }

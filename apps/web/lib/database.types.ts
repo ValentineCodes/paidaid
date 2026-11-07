@@ -444,6 +444,82 @@ export type Database = {
           },
         ]
       }
+      engagement_payment_events: {
+        Row: {
+          amount: number
+          asset_id: string
+          chain_id: string
+          confirmed_at: string | null
+          created_at: string
+          engagement_id: string
+          id: string
+          kind: Database["public"]["Enums"]["engagement_payment_event_kind"]
+          last_error: string | null
+          occurred_at: string
+          payment_id: string
+          status: Database["public"]["Enums"]["engagement_payment_event_status"]
+          tx_hash: string | null
+          tx_key: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          asset_id: string
+          chain_id: string
+          confirmed_at?: string | null
+          created_at?: string
+          engagement_id: string
+          id?: string
+          kind: Database["public"]["Enums"]["engagement_payment_event_kind"]
+          last_error?: string | null
+          occurred_at?: string
+          payment_id: string
+          status?: Database["public"]["Enums"]["engagement_payment_event_status"]
+          tx_hash?: string | null
+          tx_key?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          asset_id?: string
+          chain_id?: string
+          confirmed_at?: string | null
+          created_at?: string
+          engagement_id?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["engagement_payment_event_kind"]
+          last_error?: string | null
+          occurred_at?: string
+          payment_id?: string
+          status?: Database["public"]["Enums"]["engagement_payment_event_status"]
+          tx_hash?: string | null
+          tx_key?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "engagement_payment_events_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagement_payment_events_engagement_id_fkey"
+            columns: ["engagement_id"]
+            isOneToOne: false
+            referencedRelation: "engagements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagement_payment_events_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "engagement_escrow_payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       engagements: {
         Row: {
           assignment_id: string
@@ -1347,6 +1423,19 @@ export type Database = {
           settlement_trigger: Database["public"]["Enums"]["engagement_settlement_trigger"]
         }[]
       }
+      get_my_payment_summary: {
+        Args: never
+        Returns: {
+          funded_count: number
+          locked_count: number
+          locked_in_escrow_amount: string
+          received_count: number
+          refund_count: number
+          total_funded_amount: string
+          total_received_amount: string
+          total_refunded_amount: string
+        }[]
+      }
       is_conversation_participant: {
         Args: { p_conversation_id: string; p_user_id: string }
         Returns: boolean
@@ -1373,6 +1462,31 @@ export type Database = {
           message_attachments: Json
           sender_id: string
           updated_at: string
+        }[]
+      }
+      list_my_payment_activity: {
+        Args: {
+          p_kind?: Database["public"]["Enums"]["engagement_payment_event_kind"]
+          p_limit?: number
+          p_offset?: number
+          p_status?: Database["public"]["Enums"]["engagement_payment_event_status"]
+        }
+        Returns: {
+          amount: string
+          asset_decimals: number
+          asset_symbol: string
+          chain_id: string
+          confirmed_at: string
+          engagement_id: string
+          event_id: string
+          kind: Database["public"]["Enums"]["engagement_payment_event_kind"]
+          last_error: string
+          occurred_at: string
+          payment_id: string
+          request_title: string
+          status: Database["public"]["Enums"]["engagement_payment_event_status"]
+          tx_hash: string
+          viewer_role: string
         }[]
       }
       list_requests_public: {
@@ -1630,7 +1744,15 @@ export type Database = {
         Args: { p_comment?: string; p_engagement_id: string; p_rating: number }
         Returns: string
       }
+      sync_engagement_payment_events: {
+        Args: { p_payment_id: string }
+        Returns: undefined
+      }
       unlink_near_wallet: { Args: never; Returns: undefined }
+      user_has_offer_on_request: {
+        Args: { p_request_id: string; p_user_id: string }
+        Returns: boolean
+      }
       withdraw_request_response: {
         Args: { p_response_id: string }
         Returns: undefined
@@ -1640,6 +1762,8 @@ export type Database = {
       asset_standard: "native" | "nep141"
       conversation_kind: "pre_accept" | "engagement"
       delivery_status: "pending_review" | "revision_requested" | "approved"
+      engagement_payment_event_kind: "funding" | "payout" | "refund"
+      engagement_payment_event_status: "pending" | "success" | "failed"
       engagement_payment_status:
         | "prepared"
         | "create_submitted"
@@ -1821,6 +1945,8 @@ export const Constants = {
       asset_standard: ["native", "nep141"],
       conversation_kind: ["pre_accept", "engagement"],
       delivery_status: ["pending_review", "revision_requested", "approved"],
+      engagement_payment_event_kind: ["funding", "payout", "refund"],
+      engagement_payment_event_status: ["pending", "success", "failed"],
       engagement_payment_status: [
         "prepared",
         "create_submitted",

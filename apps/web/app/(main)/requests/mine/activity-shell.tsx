@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import { FigmaIcon } from "../../../../components/figma-icons";
 import type {
@@ -11,8 +12,15 @@ import type {
   ActivityPostedCard,
   ActivityTab,
 } from "./activity-data";
+import { PaymentActivitySection } from "./payment-activity-section";
 
-const TABS: ActivityTab[] = ["Posted", "Offers", "In progress", "Completed"];
+const TABS: ActivityTab[] = [
+  "Posted",
+  "Offers",
+  "In progress",
+  "Completed",
+  "Payments",
+];
 
 function CardButton({
   href,
@@ -83,7 +91,9 @@ function EmptyTab({ tab }: { tab: ActivityTab }) {
       : tab === "Offers"
         ? "You haven’t made any offers yet."
         : tab === "In progress"
-          ? "Nothing in progress right now."
+        ? "Nothing in progress right now."
+        : tab === "Payments"
+          ? "No payment activity yet."
           : "No completed work to show yet.";
   return (
     <p className="py-8 text-sm text-[var(--muted)]" role="status">
@@ -92,8 +102,24 @@ function EmptyTab({ tab }: { tab: ActivityTab }) {
   );
 }
 
+const TAB_FROM_QUERY: Record<string, ActivityTab> = {
+  posted: "Posted",
+  offers: "Offers",
+  progress: "In progress",
+  completed: "Completed",
+  payments: "Payments",
+};
+
 export function ActivityShell({ data }: { data: ActivityData }) {
+  const searchParams = useSearchParams();
   const [tab, setTab] = useState<ActivityTab>("Posted");
+
+  useEffect(() => {
+    const q = searchParams.get("tab")?.toLowerCase();
+    if (q && TAB_FROM_QUERY[q]) {
+      setTab(TAB_FROM_QUERY[q]);
+    }
+  }, [searchParams]);
 
   const list =
     tab === "Posted"
@@ -101,7 +127,9 @@ export function ActivityShell({ data }: { data: ActivityData }) {
       : tab === "Offers"
         ? data.offers
         : tab === "In progress"
-          ? data.inProgress
+        ? data.inProgress
+        : tab === "Payments"
+          ? data.payments.items
           : data.completed;
 
   return (
@@ -164,6 +192,10 @@ export function ActivityShell({ data }: { data: ActivityData }) {
               <EngagementCard key={c.id} c={c} />
             ))
           ))}
+
+        {tab === "Payments" && (
+          <PaymentActivitySection initial={data.payments} />
+        )}
 
         {tab === "Posted" && (
           <Link href="/requests/new" className="new-task-card">

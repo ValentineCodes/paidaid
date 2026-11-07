@@ -1,8 +1,16 @@
 import type { createClient } from "../../../../lib/supabase/server";
 import type { Database } from "../../../../lib/database.types";
 import { formatBudgetSmallestUnits } from "../../../../lib/requests/format-budget";
+import { normalizeDbNumericAmount } from "@paidaid/shared";
+import { normalizeSummaryAmount } from "../../../../lib/payments/payment-activity-format";
+import type { PaymentActivityPageData } from "../../../../lib/payments/payment-activity-types";
 
-export type ActivityTab = "Posted" | "Offers" | "In progress" | "Completed";
+export type ActivityTab =
+  | "Posted"
+  | "Offers"
+  | "In progress"
+  | "Completed"
+  | "Payments";
 
 export type ActivityPostedCard = {
   id: string;
@@ -47,6 +55,7 @@ export type ActivityData = {
   offers: ActivityOfferCard[];
   inProgress: ActivityEngagementCard[];
   completed: ActivityEngagementCard[];
+  payments: PaymentActivityPageData;
 };
 
 function formatDueShort(iso: string | null): string {
@@ -374,11 +383,62 @@ export async function loadActivityPageData(
     (c) => c.statusText === "COMPLETED",
   );
 
+  const { data: summaryRows } = await supabase.rpc("get_my_payment_summary");
+  const summaryRow = summaryRows?.[0];
+  const { data: paymentEvents } = await supabase.rpc("list_my_payment_activity", {
+    p_limit: 21,
+    p_offset: 0,
+  });
+
+  const paymentList = paymentEvents ?? [];
+  const paymentHasMore = paymentList.length > 20;
+  const paymentItems = paymentList.slice(0, 20).map((row) => ({
+    eventId: row.event_id,
+    paymentId: row.payment_id,
+    engagementId: row.engagement_id,
+    requestTitle: row.request_title,
+    viewerRole: row.viewer_role as "requester" | "provider",
+    kind: row.kind,
+    status: row.status,
+    amountSmallestUnits: normalizeDbNumericAmount(row.amount),
+    assetSymbol: row.asset_symbol,
+    assetDecimals: row.asset_decimals,
+    chainId: row.chain_id,
+    txHash: row.tx_hash,
+    occurredAt: row.occurred_at,
+    confirmedAt: row.confirmed_at,
+    lastError: row.last_error,
+  }));
+
+  const payments: PaymentActivityPageData = {
+    summary: {
+      totalFundedSmallestUnits: normalizeSummaryAmount(
+        summaryRow?.total_funded_amount,
+      ),
+      lockedInEscrowSmallestUnits: normalizeSummaryAmount(
+        summaryRow?.locked_in_escrow_amount,
+      ),
+      totalReceivedSmallestUnits: normalizeSummaryAmount(
+        summaryRow?.total_received_amount,
+      ),
+      totalRefundedSmallestUnits: normalizeSummaryAmount(
+        summaryRow?.total_refunded_amount,
+      ),
+      fundedCount: Number(summaryRow?.funded_count ?? 0),
+      lockedCount: Number(summaryRow?.locked_count ?? 0),
+      receivedCount: Number(summaryRow?.received_count ?? 0),
+      refundCount: Number(summaryRow?.refund_count ?? 0),
+    },
+    items: paymentItems,
+    hasMore: paymentHasMore,
+  };
+
   const counts: Record<ActivityTab, number> = {
     Posted: posted.length,
     Offers: offers.length,
     "In progress": inProgress.length,
     Completed: completedEng.length,
+    Payments: paymentItems.length,
   };
 
   return {
@@ -387,5 +447,6 @@ export async function loadActivityPageData(
     offers,
     inProgress,
     completed: completedEng,
+    payments,
   };
 }
