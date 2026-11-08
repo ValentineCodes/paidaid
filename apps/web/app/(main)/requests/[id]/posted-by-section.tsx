@@ -15,25 +15,6 @@ type Props = {
   variant: "drawer" | "page";
 };
 
-function RequesterName({
-  displayName,
-  verified,
-}: {
-  displayName: string;
-  verified: boolean;
-}) {
-  return (
-    <div className="requester-name">
-      <strong>{displayName}</strong>
-      {verified ? (
-        <span className="requester-verified-badge" aria-label="Verified">
-          <FigmaIcon name="check" size={10} />
-        </span>
-      ) : null}
-    </div>
-  );
-}
-
 function RequesterAvatar({
   displayName,
   avatarUrl,
@@ -69,7 +50,14 @@ export function PostedBySection({
       <h4 id="posted-by-heading">Posted by</h4>
       <div className="requester">
         <RequesterAvatar displayName={displayName} avatarUrl={avatarUrl} />
-        <RequesterName displayName={displayName} verified={verified} />
+        <div>
+          <strong>{displayName}</strong>
+        </div>
+        {verified ? (
+          <span className="verified">
+            <FigmaIcon name="check" size={12} /> Verified
+          </span>
+        ) : null}
       </div>
     </>
   );
@@ -95,7 +83,14 @@ export function PostedBySection({
       </h2>
       <div className="requester text-on-light-surface max-w-lg rounded-xl bg-stone-50 p-4 dark:bg-stone-900/40">
         <RequesterAvatar displayName={displayName} avatarUrl={avatarUrl} />
-        <RequesterName displayName={displayName} verified={verified} />
+        <div>
+          <strong>{displayName}</strong>
+        </div>
+        {verified ? (
+          <span className="verified">
+            <FigmaIcon name="check" size={12} /> Verified
+          </span>
+        ) : null}
       </div>
     </section>
   );

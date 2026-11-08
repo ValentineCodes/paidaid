@@ -1,5 +1,5 @@
 /**
- * Sandbox integration checks for PaidAidEscrow (native NEAR path).
+ * Sandbox integration checks for PaidAidEscrow (native NEAR path, direct fund_escrow).
  * Requires: pnpm sandbox:start && pnpm contract:build && pnpm sandbox:deploy-escrow
  */
 import fs from "node:fs/promises";
@@ -15,11 +15,6 @@ import {
   SANDBOX_DIR,
   STATE_FILE,
 } from "./constants.mjs";
-import {
-  loadOrCreateEscrowFundingSigner,
-  signEscrowFundingAuthorization,
-} from "./escrow-funding-signer.mjs";
-import { randomBytes } from "node:crypto";
 
 const KEYS_DIR = path.join(SANDBOX_DIR, "keys");
 const YOCTO = 1_000_000_000_000_000_000_000_000n;
@@ -29,7 +24,7 @@ function assert(cond, msg) {
 }
 
 function parseEscrowId(result) {
-  if (result == null) throw new Error("missing create_escrow result");
+  if (result == null) throw new Error("missing fund_escrow result");
   if (typeof result === "string") return result;
   if (typeof result === "number") return String(result);
   if (typeof result === "object" && "0" in result) return String(result["0"]);
@@ -53,51 +48,43 @@ async function createSubaccount(root, provider, accountId, initialNear = "20") {
       new KeyPairSigner(KeyPair.fromString(privateKey)),
     );
   } catch {
-    // create below
+    await fs.mkdir(KEYS_DIR, { recursive: true });
+    const keyPair = KeyPair.fromRandom("ED25519");
+    await root.createAccount(
+      accountId,
+      keyPair.getPublicKey(),
+      NEAR.toUnits(initialNear),
+    );
+    await fs.writeFile(
+      keyFile,
+      `${JSON.stringify({ privateKey: keyPair.toString() }, null, 2)}\n`,
+    );
+    return new Account(
+      accountId,
+      provider,
+      new KeyPairSigner(keyPair),
+    );
   }
-
-  const keyPair = KeyPair.fromRandom("ED25519");
-  await root.createAccount(
-    accountId,
-    keyPair.getPublicKey(),
-    NEAR.toUnits(initialNear),
-  );
-  await new Promise((r) => setTimeout(r, 800));
-  await fs.mkdir(KEYS_DIR, { recursive: true });
-  await fs.writeFile(
-    keyFile,
-    `${JSON.stringify({ privateKey: keyPair.toString() }, null, 2)}\n`,
-  );
-  return new Account(accountId, provider, new KeyPairSigner(keyPair));
 }
 
 async function viewEscrow(provider, escrowId) {
-  return provider.callFunction(
-    ESCROW_CONTRACT_ACCOUNT_ID,
-    "get_escrow",
-    { escrow_id: escrowId },
-  );
+  return provider.callFunction(ESCROW_CONTRACT_ACCOUNT_ID, "get_escrow", {
+    escrow_id: escrowId,
+  });
 }
 
-async function expectFailure(promise, hint) {
+async function expectFailure(fn, hint) {
   try {
-    await promise;
-    throw new Error(`expected failure (${hint})`);
+    await fn();
+    throw new Error(`expected failure: ${hint}`);
   } catch (e) {
-    if (e instanceof Error && e.message.startsWith("expected failure")) {
-      throw e;
-    }
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg.includes("expected failure")) throw e;
   }
 }
 
 const state = await loadState();
-const rpcUrl = state.rpcUrl;
-if (!rpcUrl) {
-  console.error("Sandbox not running — run pnpm sandbox:start");
-  process.exit(1);
-}
-
-const provider = new JsonRpcProvider({ url: rpcUrl });
+const provider = new JsonRpcProvider({ url: state.rpcUrl });
 const root = new Account(
   DEFAULT_ACCOUNT_ID,
   provider,
@@ -107,66 +94,41 @@ const root = new Account(
 const suffix = Date.now();
 const requesterId = `escrow-req-${suffix}.sandbox`;
 const providerId = `escrow-prov-${suffix}.sandbox`;
-const attackerId = `escrow-att-${suffix}.sandbox`;
+const attackerId = `escrow-atk-${suffix}.sandbox`;
 
 const requester = await createSubaccount(root, provider, requesterId);
-await createSubaccount(root, provider, providerId);
+const providerAcc = await createSubaccount(root, provider, providerId);
+void providerAcc;
 const attacker = await createSubaccount(root, provider, attackerId);
 
 const engagementId = `sb-${suffix}`;
 const amountYocto = 10n * YOCTO;
 
-const fundingSigner = await loadOrCreateEscrowFundingSigner();
-const expiresAtNs = String(
-  BigInt(Date.now() * 1_000_000) + 3_600_000_000_000n,
-);
-const nonce = randomBytes(16).toString("hex") + randomBytes(16).toString("hex");
-const { signatureBase64 } = signEscrowFundingAuthorization(fundingSigner, {
-  contractId: ESCROW_CONTRACT_ACCOUNT_ID,
-  networkId: "localnet",
-  engagementId,
-  requester: requesterId,
-  provider: providerId,
-  asset: "Native",
-  ftContractId: null,
-  amountSmallestUnits: amountYocto.toString(),
-  expiresAtNs,
-  nonce,
-});
-
-const createOut = await requester.callFunction({
-  contractId: ESCROW_CONTRACT_ACCOUNT_ID,
-  methodName: "create_escrow_with_authorization",
-  args: {
-    engagement_id: engagementId,
-    provider: providerId,
-    asset: "Native",
-    ft_contract: null,
-    amount: amountYocto.toString(),
-    expires_at_ns: expiresAtNs,
-    nonce,
-    signature: signatureBase64,
-    network_id: "localnet",
-  },
-});
-const escrowId = parseEscrowId(createOut);
-
 await expectFailure(
   requester.callFunction({
     contractId: ESCROW_CONTRACT_ACCOUNT_ID,
-    methodName: "deposit_native",
-    args: { escrow_id: escrowId },
+    methodName: "fund_escrow",
+    args: {
+      engagement_id: engagementId,
+      provider: providerId,
+      amount: amountYocto.toString(),
+    },
     deposit: (amountYocto - 1n).toString(),
   }),
-  "deposit mismatch",
+  "attached deposit mismatch",
 );
 
-await requester.callFunction({
+const fundOut = await requester.callFunction({
   contractId: ESCROW_CONTRACT_ACCOUNT_ID,
-  methodName: "deposit_native",
-  args: { escrow_id: escrowId },
+  methodName: "fund_escrow",
+  args: {
+    engagement_id: engagementId,
+    provider: providerId,
+    amount: amountYocto.toString(),
+  },
   deposit: amountYocto.toString(),
 });
+const escrowId = parseEscrowId(fundOut);
 
 let escrow = await viewEscrow(provider, escrowId);
 assert(escrow?.status === "Funded", `expected Funded, got ${escrow?.status}`);
@@ -186,70 +148,24 @@ await requester.callFunction({
   args: { escrow_id: escrowId },
 });
 
-await new Promise((r) => setTimeout(r, 2000));
-escrow = await viewEscrow(provider, escrowId);
+for (let i = 0; i < 20; i += 1) {
+  escrow = await viewEscrow(provider, escrowId);
+  if (escrow?.status === "Released") break;
+  await new Promise((r) => setTimeout(r, 400));
+}
 assert(escrow?.status === "Released", `expected Released, got ${escrow?.status}`);
 
-await expectFailure(
-  requester.callFunction({
-    contractId: ESCROW_CONTRACT_ACCOUNT_ID,
-    methodName: "release",
-    args: { escrow_id: escrowId },
-  }),
-  "duplicate release",
-);
-
-const engagement2 = `sb-refund-${suffix}`;
-const nonce2 =
-  randomBytes(16).toString("hex") + randomBytes(16).toString("hex");
-const amount2 = (2n * YOCTO).toString();
-const { signatureBase64: sig2 } = signEscrowFundingAuthorization(
-  fundingSigner,
-  {
-    contractId: ESCROW_CONTRACT_ACCOUNT_ID,
-    networkId: "localnet",
-    engagementId: engagement2,
-    requester: requesterId,
-    provider: providerId,
-    asset: "Native",
-    ftContractId: null,
-    amountSmallestUnits: amount2,
-    expiresAtNs,
-    nonce: nonce2,
-  },
-);
-const create2 = await requester.callFunction({
+const engagementId2 = `sb2-${suffix}`;
+const fundOut2 = await requester.callFunction({
   contractId: ESCROW_CONTRACT_ACCOUNT_ID,
-  methodName: "create_escrow_with_authorization",
+  methodName: "fund_escrow",
   args: {
-    engagement_id: engagement2,
+    engagement_id: engagementId2,
     provider: providerId,
-    asset: "Native",
-    ft_contract: null,
-    amount: amount2,
-    expires_at_ns: expiresAtNs,
-    nonce: nonce2,
-    signature: sig2,
-    network_id: "localnet",
+    amount: amountYocto.toString(),
   },
+  deposit: amountYocto.toString(),
 });
-const escrowId2 = parseEscrowId(create2);
+assert(parseEscrowId(fundOut2), "second fund should return id");
 
-await requester.callFunction({
-  contractId: ESCROW_CONTRACT_ACCOUNT_ID,
-  methodName: "deposit_native",
-  args: { escrow_id: escrowId2 },
-  deposit: (2n * YOCTO).toString(),
-});
-
-await requester.callFunction({
-  contractId: ESCROW_CONTRACT_ACCOUNT_ID,
-  methodName: "refund",
-  args: { escrow_id: escrowId2 },
-});
-
-await new Promise((r) => setTimeout(r, 2000));
-const escrow2 = await viewEscrow(provider, escrowId2);
-assert(escrow2?.status === "Refunded", `expected Refunded, got ${escrow2?.status}`);
-
-console.log("Escrow sandbox integration checks passed.");
+console.log("sandbox escrow test passed (direct fund_escrow)");

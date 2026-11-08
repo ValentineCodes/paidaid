@@ -1,11 +1,8 @@
 //! PaidAid engagement escrow — native NEAR + allowlisted NEP-141 (smallest units only).
+//!
+//! Funding is **requester-direct**: `predecessor_account_id` (native) or NEP-141 `sender_id`
+//! is stored as the escrow requester. No backend attestation signatures.
 
-mod authorization;
-
-use authorization::{
-    build_funding_auth_message, parse_authorized_signer_pk_b64, verify_funding_authorization_signature,
-    EscrowFundingAuthFields,
-};
 use near_contract_standards::fungible_token::receiver::FungibleTokenReceiver;
 use near_sdk::borsh::{BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::{U128, U64};
@@ -19,6 +16,7 @@ use near_sdk::serde::{Deserialize, Serialize};
 pub(crate) const MAX_ENGAGEMENT_ID_LEN: usize = 64;
 const GAS_FT_TRANSFER: Gas = Gas::from_tgas(15);
 const GAS_CALLBACK: Gas = Gas::from_tgas(8);
+const FT_FUND_MSG_VERSION: &str = "v2";
 
 #[derive(BorshStorageKey)]
 #[near]
@@ -26,7 +24,6 @@ enum StorageKey {
     Escrows,
     AllowedFt,
     EngagementActive,
-    UsedAuthNonces,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -75,97 +72,73 @@ pub struct PaidAidEscrow {
     /// engagement_id -> active escrow id (only non-terminal)
     engagement_active: LookupMap<String, u64>,
     allowed_ft: LookupSet<AccountId>,
-    /// Ed25519 public key bytes for backend funding attestations (32 bytes).
-    authorized_signer_pk: [u8; 32],
-    used_auth_nonces: LookupSet<String>,
 }
 
+/// NEP-141 `ft_transfer_call` message: requester is `sender_id` from the token contract.
 #[derive(Deserialize)]
-struct FtDepositMessage {
-    escrow_id: u64,
+struct FtFundEscrowMessage {
+    version: String,
+    engagement_id: String,
+    provider: AccountId,
 }
 
 #[near]
 impl PaidAidEscrow {
     #[init]
-    pub fn new(owner: AccountId, authorized_signer_pk_b64: String) -> Self {
+    pub fn new(owner: AccountId) -> Self {
         require!(!owner.as_str().is_empty(), "owner required");
-        let pk = parse_authorized_signer_pk_b64(&authorized_signer_pk_b64);
         Self {
             owner,
             next_id: 1,
             escrows: LookupMap::new(StorageKey::Escrows),
             engagement_active: LookupMap::new(StorageKey::EngagementActive),
             allowed_ft: LookupSet::new(StorageKey::AllowedFt),
-            authorized_signer_pk: pk,
-            used_auth_nonces: LookupSet::new(StorageKey::UsedAuthNonces),
         }
     }
 
-    pub fn set_authorized_signer(&mut self, authorized_signer_pk_b64: String) {
-        require!(env::predecessor_account_id() == self.owner, "only owner");
-        self.authorized_signer_pk = parse_authorized_signer_pk_b64(&authorized_signer_pk_b64);
-    }
-
-    pub fn get_authorized_signer_pk_b64(&self) -> String {
-        near_sdk::base64::encode(self.authorized_signer_pk)
-    }
-
-    /// Unauthenticated escrow creation is disabled (V2.2). Use `create_escrow_with_authorization`.
-    pub fn create_escrow(
+    /// Requester funds native NEAR: creates the escrow record and locks funds in one call.
+    ///
+    /// Caller (`predecessor_account_id`) becomes the immutable requester on the record.
+    #[payable]
+    pub fn fund_escrow(
         &mut self,
-        _engagement_id: String,
-        _provider: AccountId,
-        _asset: EscrowAsset,
-        _ft_contract: Option<AccountId>,
-        _amount: U128,
+        engagement_id: String,
+        provider: AccountId,
+        amount: U128,
     ) -> U64 {
-        env::panic_str("create_escrow requires backend authorization; use create_escrow_with_authorization");
+        let requester = env::predecessor_account_id();
+        let amount_u128: u128 = amount.into();
+        require!(amount_u128 > 0, "amount must be positive");
+
+        let attached = env::attached_deposit().as_yoctonear();
+        require!(
+            attached == amount_u128,
+            "attached deposit must match amount exactly"
+        );
+
+        self.fund_escrow_direct(
+            requester,
+            engagement_id,
+            provider,
+            EscrowAsset::Native,
+            None,
+            amount_u128,
+        )
     }
 
-    /// Requester (signer) creates an escrow with a valid backend attestation.
-    pub fn create_escrow_with_authorization(
+    fn fund_escrow_direct(
         &mut self,
+        requester: AccountId,
         engagement_id: String,
         provider: AccountId,
         asset: EscrowAsset,
         ft_contract: Option<AccountId>,
-        amount: U128,
-        expires_at_ns: U64,
-        nonce: String,
-        signature: String,
-        network_id: String,
+        amount_u128: u128,
     ) -> U64 {
-        let requester = env::predecessor_account_id();
-        let contract_id = env::current_account_id();
-        let amount_u128: u128 = amount.into();
         require!(amount_u128 > 0, "amount must be positive");
-        require!(
-            env::block_timestamp() <= expires_at_ns.0,
-            "funding authorization expired"
-        );
-        require!(
-            !self.used_auth_nonces.contains(&nonce),
-            "authorization nonce already used"
-        );
-
-        let ft_label = ft_contract.as_ref().map(|a| a.to_string());
-        let fields = EscrowFundingAuthFields {
-            contract_id: contract_id.to_string(),
-            network_id,
-            engagement_id: engagement_id.clone(),
-            requester: requester.to_string(),
-            provider: provider.to_string(),
-            asset: asset.clone(),
-            ft_contract: ft_label,
-            amount: amount_u128.to_string(),
-            expires_at_ns: expires_at_ns.0,
-            nonce: nonce.clone(),
-        };
-        let expected_message = build_funding_auth_message(&fields);
-        verify_funding_authorization_signature(&fields, &signature, &self.authorized_signer_pk);
-
         require!(provider != requester, "provider must differ from requester");
+        validate_engagement_id(&engagement_id);
+
         match asset {
             EscrowAsset::Native => {
                 require!(ft_contract.is_none(), "native escrow cannot set ft_contract");
@@ -178,20 +151,103 @@ impl PaidAidEscrow {
             }
         }
 
-        self.used_auth_nonces.insert(nonce);
+        self.assert_no_conflicting_active_escrow(&engagement_id, &requester);
 
-        self.insert_escrow_record(
+        self.insert_funded_escrow_record(
             engagement_id,
             requester,
             provider,
             asset,
             ft_contract,
             amount_u128,
-            &expected_message,
         )
     }
 
-    fn insert_escrow_record(
+    fn assert_no_conflicting_active_escrow(&self, engagement_id: &str, requester: &AccountId) {
+        validate_engagement_id(engagement_id);
+        let Some(active_id) = self.engagement_active.get(engagement_id) else {
+            return;
+        };
+        let Some(existing) = self.escrows.get(active_id) else {
+            return;
+        };
+        if existing.status.is_terminal() {
+            return;
+        }
+        require!(
+            existing.requester == *requester,
+            "engagement has active escrow owned by another requester"
+        );
+        require!(false, "engagement already has active escrow");
+    }
+
+    fn has_conflicting_active_escrow(
+        &self,
+        engagement_id: &str,
+        requester: &AccountId,
+    ) -> bool {
+        let Some(active_id) = self.engagement_active.get(engagement_id) else {
+            return false;
+        };
+        let Some(existing) = self.escrows.get(active_id) else {
+            return false;
+        };
+        if existing.status.is_terminal() {
+            return false;
+        }
+        if existing.requester != *requester {
+            return true;
+        }
+        true
+    }
+
+    fn try_fund_escrow_from_ft(
+        &mut self,
+        sender_id: AccountId,
+        ft_contract: AccountId,
+        amount_u128: u128,
+        parsed: FtFundEscrowMessage,
+    ) -> bool {
+        if amount_u128 == 0 {
+            return false;
+        }
+        if parsed.version != FT_FUND_MSG_VERSION {
+            return false;
+        }
+        if parsed.provider == sender_id {
+            return false;
+        }
+        if !Self::engagement_id_syntax_valid(&parsed.engagement_id) {
+            return false;
+        }
+        if !self.allowed_ft.contains(&ft_contract) {
+            return false;
+        }
+        if Self::has_conflicting_active_escrow(self, &parsed.engagement_id, &sender_id) {
+            return false;
+        }
+
+        self.fund_escrow_direct(
+            sender_id,
+            parsed.engagement_id,
+            parsed.provider,
+            EscrowAsset::Nep141,
+            Some(ft_contract),
+            amount_u128,
+        );
+        true
+    }
+
+    fn engagement_id_syntax_valid(id: &str) -> bool {
+        let t = id.trim();
+        if t.is_empty() || t.len() > MAX_ENGAGEMENT_ID_LEN {
+            return false;
+        }
+        t.bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+    }
+
+    fn insert_funded_escrow_record(
         &mut self,
         engagement_id: String,
         requester: AccountId,
@@ -199,21 +255,8 @@ impl PaidAidEscrow {
         asset: EscrowAsset,
         ft_contract: Option<AccountId>,
         amount: u128,
-        _auth_message_hint: &str,
     ) -> U64 {
         validate_engagement_id(&engagement_id);
-
-        if let Some(active_id) = self.engagement_active.get(&engagement_id) {
-            if let Some(existing) = self.escrows.get(active_id) {
-                if !existing.status.is_terminal() {
-                    require!(
-                        existing.requester == requester,
-                        "engagement has active escrow owned by another requester"
-                    );
-                    require!(false, "engagement already has active escrow");
-                }
-            }
-        }
 
         let id = self.next_id;
         self.next_id += 1;
@@ -225,36 +268,13 @@ impl PaidAidEscrow {
             asset,
             ft_contract,
             amount,
-            deposited: 0,
-            status: EscrowStatus::Pending,
+            deposited: amount,
+            status: EscrowStatus::Funded,
         };
 
         self.escrows.insert(id, escrow);
         self.engagement_active.insert(engagement_id, id);
         U64(id)
-    }
-
-    #[payable]
-    pub fn deposit_native(&mut self, escrow_id: U64) {
-        let id: u64 = escrow_id.into();
-        let escrow = self
-            .escrows
-            .get_mut(&id)
-            .expect("escrow not found");
-        require!(escrow.asset == EscrowAsset::Native, "escrow is not native");
-        require!(escrow.status == EscrowStatus::Pending, "escrow not pending");
-        require!(
-            env::predecessor_account_id() == escrow.requester,
-            "only requester may fund"
-        );
-
-        let deposit = env::attached_deposit();
-        let deposit_yocto = deposit.as_yoctonear();
-        require!(deposit_yocto == escrow.amount, "deposit must match escrow amount exactly");
-        require!(escrow.deposited == 0, "already deposited");
-
-        escrow.deposited = deposit_yocto;
-        escrow.status = EscrowStatus::Funded;
     }
 
     pub fn release(&mut self, escrow_id: U64) -> Promise {
@@ -299,7 +319,7 @@ impl PaidAidEscrow {
         }
     }
 
-    /// Voluntary requester refund before release. Dispute/issue refunds are not implemented (see design doc).
+    /// Voluntary requester refund before release.
     pub fn refund(&mut self, escrow_id: U64) -> Promise {
         let id: u64 = escrow_id.into();
         let escrow = self
@@ -357,7 +377,6 @@ impl PaidAidEscrow {
         self.escrows.get(&(escrow_id.0)).cloned()
     }
 
-    /// Active escrow id for an engagement (while status is non-terminal).
     pub fn get_active_escrow_id_for_engagement(&self, engagement_id: String) -> Option<U64> {
         validate_engagement_id(&engagement_id);
         self.engagement_active
@@ -370,7 +389,12 @@ impl PaidAidEscrow {
     }
 
     #[private]
-    pub fn on_payout_complete(&mut self, escrow_id: U64, kind: String, #[callback_result] result: Result<(), PromiseError>) {
+    pub fn on_payout_complete(
+        &mut self,
+        escrow_id: U64,
+        kind: String,
+        #[callback_result] result: Result<(), PromiseError>,
+    ) {
         let id: u64 = escrow_id.into();
         let escrow = self
             .escrows
@@ -405,30 +429,18 @@ impl FungibleTokenReceiver for PaidAidEscrow {
         amount: U128,
         msg: String,
     ) -> PromiseOrValue<U128> {
-        let parsed: FtDepositMessage =
-            serde_json::from_str(&msg).unwrap_or_else(|_| env::panic_str("invalid ft msg json"));
-        let id = parsed.escrow_id;
-        let escrow = self.escrows.get_mut(&id).expect("escrow not found");
-
-        require!(escrow.asset == EscrowAsset::Nep141, "escrow is not NEP-141");
-        require!(escrow.status == EscrowStatus::Pending, "escrow not pending");
-        require!(sender_id == escrow.requester, "only requester may fund");
+        let amount_u128: u128 = amount.into();
+        let parsed: FtFundEscrowMessage = match serde_json::from_str(&msg) {
+            Ok(v) => v,
+            Err(_) => return PromiseOrValue::Value(U128(amount_u128)),
+        };
 
         let ft_contract = env::predecessor_account_id();
-        require!(
-            escrow.ft_contract.as_ref() == Some(&ft_contract),
-            "wrong ft contract"
-        );
-        require!(self.allowed_ft.contains(&ft_contract), "FT not allowlisted");
-
-        let amount_u128: u128 = amount.into();
-        if amount_u128 != escrow.amount {
-            return PromiseOrValue::Value(U128(amount_u128));
+        if self.try_fund_escrow_from_ft(sender_id, ft_contract, amount_u128, parsed) {
+            PromiseOrValue::Value(U128(0))
+        } else {
+            PromiseOrValue::Value(U128(amount_u128))
         }
-
-        escrow.deposited = amount_u128;
-        escrow.status = EscrowStatus::Funded;
-        PromiseOrValue::Value(U128(0))
     }
 }
 

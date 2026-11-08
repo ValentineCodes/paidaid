@@ -1,45 +1,32 @@
 # PaidAidEscrow (`contracts/escrow`)
 
-Engagement escrow for **native NEAR** and **allowlisted NEP-141** tokens. See [docs/v2-escrow-design.md](../../docs/v2-escrow-design.md).
+Engagement escrow for **native NEAR** and **allowlisted NEP-141** tokens. One shared contract stores many escrow records (no per-engagement deployment).
+
+Funding is **requester-direct** (wallet signs; no backend attestation).
 
 ## Methods (summary)
 
 | Method | Type | Description |
 | --- | --- | --- |
-| `new(owner)` | init | Set allowlist admin (cannot withdraw escrow funds). |
-| `create_escrow(engagement_id, provider, asset, ft_contract, amount)` | call | Requester opens escrow; returns escrow id. |
-| `deposit_native(escrow_id)` | payable | Requester funds native escrow (exact deposit). |
-| `ft_on_transfer(sender_id, amount, msg)` | call | NEP-141 receiver; `msg` = `{"escrow_id":N}`. |
+| `new(owner)` | init | Set allowlist admin. |
+| `fund_escrow(engagement_id, provider, amount)` | payable | Requester (`predecessor`) creates a **Funded** native record; attached deposit must equal `amount`. |
+| `ft_on_transfer(sender_id, amount, msg)` | call | NEP-141: `msg` JSON `v2` with `engagement_id` + `provider`; `sender_id` is requester. |
 | `release(escrow_id)` | call | Requester pays provider (async promise). |
 | `refund(escrow_id)` | call | Requester voluntary refund while `Funded` only. |
-| `add_allowed_ft(contract_id)` | call | Owner adds FT to allowlist. |
-| `remove_allowed_ft(contract_id)` | call | Owner removes FT. |
 | `get_escrow(escrow_id)` | view | Escrow record. |
 | `get_active_escrow_id_for_engagement(engagement_id)` | view | Active escrow id for engagement. |
-| `is_ft_allowed(contract_id)` | view | Allowlist membership. |
+
+See `docs/escrow-direct-funding.md` for trust boundaries and app reconciliation.
 
 ## Build
 
 ```bash
 pnpm contract:build
-# Wasm: contracts/target/wasm32-unknown-unknown/release/paidaid_escrow.wasm
 ```
 
 ## Tests
 
 ```bash
 cargo test -p paidaid-escrow
-pnpm sandbox:start   # separate terminal
-pnpm contract:build && pnpm sandbox:deploy-escrow && pnpm sandbox:test-escrow
+pnpm sandbox:start && pnpm contract:build && pnpm sandbox:deploy-escrow && pnpm sandbox:test-escrow
 ```
-
-## Sandbox coverage
-
-| Area | Unit (`lib.rs`) | Sandbox (`test-escrow.mjs`) |
-| --- | --- | --- |
-| Native fund / release / refund | yes | yes |
-| NEP-141 exact / wrong amount | partial (`ft_on_transfer`) | not yet (needs mock FT deploy) |
-| Unauthorized release/refund | partial | yes (release) |
-| Duplicate settlement | partial | yes |
-| Failed payout callback | yes (`on_payout_complete`) | not yet |
-| Invalid asset on create | yes | — |

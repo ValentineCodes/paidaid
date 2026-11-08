@@ -1,11 +1,11 @@
 import type { Wallet } from "@near-wallet-selector/core";
 import { actionCreators } from "@near-js/transactions";
-import {
-  ESCROW_METHODS,
-  smallestUnitsStringToBigInt,
-} from "@paidaid/shared";
+import { ESCROW_METHODS, smallestUnitsStringToBigInt } from "@paidaid/shared";
 import type { EngagementFundingPrepareResult } from "../lib/engagement/funding-types";
-import type { EscrowCreateAuthorization } from "../lib/near/escrow-funding-authorization";
+import {
+  buildEscrowFundCallArgs,
+  buildNep141FundEscrowTransferMessage,
+} from "../lib/near/escrow-fund-call";
 import { extractTransactionHash } from "@paidaid/near";
 
 const ESCROW_GAS = BigInt("300000000000000");
@@ -16,42 +16,20 @@ export type EscrowTxResult = {
   outcome: unknown;
 };
 
-export async function sendCreateEscrowTransaction(
+/** Single-transaction native fund (create record + lock NEAR). */
+export async function sendNativeFundEscrowTransaction(
   wallet: Wallet,
   terms: EngagementFundingPrepareResult,
-  authorization: EscrowCreateAuthorization,
-): Promise<EscrowTxResult> {
-  const outcome = await wallet.signAndSendTransaction({
-    receiverId: terms.escrowContractId,
-    actions: [
-      actionCreators.functionCall(
-        ESCROW_METHODS.createEscrowWithAuthorization,
-        authorization.methodArgs,
-        ESCROW_GAS,
-        BigInt(0),
-      ),
-    ],
-  });
-
-  return {
-    outcome,
-    txHash: extractTransactionHash(outcome),
-  };
-}
-
-export async function sendDepositNativeEscrowTransaction(
-  wallet: Wallet,
-  terms: EngagementFundingPrepareResult,
-  onChainEscrowId: string,
 ): Promise<EscrowTxResult> {
   const deposit = smallestUnitsStringToBigInt(terms.amountSmallestUnits);
+  const args = buildEscrowFundCallArgs(terms);
 
   const outcome = await wallet.signAndSendTransaction({
     receiverId: terms.escrowContractId,
     actions: [
       actionCreators.functionCall(
-        ESCROW_METHODS.depositNative,
-        { escrow_id: onChainEscrowId },
+        ESCROW_METHODS.fundEscrow,
+        args,
         ESCROW_GAS,
         deposit,
       ),
@@ -64,16 +42,16 @@ export async function sendDepositNativeEscrowTransaction(
   };
 }
 
-export async function sendNep141EscrowFundingTransaction(
+/** Single-transaction NEP-141 fund via `ft_transfer_call` (record + tokens). */
+export async function sendNep141FundEscrowTransaction(
   wallet: Wallet,
   terms: EngagementFundingPrepareResult,
-  onChainEscrowId: string,
 ): Promise<EscrowTxResult> {
   if (!terms.tokenContractId) {
     throw new Error("Missing token contract for NEP-141 funding.");
   }
 
-  const msg = JSON.stringify({ escrow_id: Number(onChainEscrowId) });
+  const msg = buildNep141FundEscrowTransferMessage(terms);
   const amount = smallestUnitsStringToBigInt(terms.amountSmallestUnits);
 
   const outcome = await wallet.signAndSendTransaction({
@@ -101,10 +79,9 @@ export async function sendNep141EscrowFundingTransaction(
 export async function sendFundEscrowTransaction(
   wallet: Wallet,
   terms: EngagementFundingPrepareResult,
-  onChainEscrowId: string,
 ): Promise<EscrowTxResult> {
   if (terms.assetStandard === "native") {
-    return sendDepositNativeEscrowTransaction(wallet, terms, onChainEscrowId);
+    return sendNativeFundEscrowTransaction(wallet, terms);
   }
-  return sendNep141EscrowFundingTransaction(wallet, terms, onChainEscrowId);
+  return sendNep141FundEscrowTransaction(wallet, terms);
 }

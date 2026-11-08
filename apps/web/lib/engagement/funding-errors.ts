@@ -13,5 +13,14 @@ export function formatEngagementFundingError(raw: string): string {
   if (lower.includes("already funded")) {
     return "This engagement is already funded.";
   }
+  if (lower.includes("methodnotfound") || lower.includes("method resolve error")) {
+    return "Escrow contract is out of date. Run `pnpm sandbox:deploy-escrow` (rebuilds wasm) and try again.";
+  }
+  if (lower.includes("on-chain provider does not match")) {
+    return "On-chain funding does not match the accepted provider. Start acceptance again or contact support.";
+  }
+  if (lower.includes("on-chain amount does not match")) {
+    return "On-chain funding does not match the accepted offer amount.";
+  }
   return raw;
 }

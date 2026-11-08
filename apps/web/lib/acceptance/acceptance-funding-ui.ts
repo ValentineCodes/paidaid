@@ -4,9 +4,6 @@ export type AcceptanceFundingUiPhase =
   | "idle"
   | "confirm"
   | "preparing"
-  | "awaiting_wallet"
-  | "create_submitted"
-  | "verifying_create"
   | "awaiting_fund_wallet"
   | "fund_submitted"
   | "verifying_fund"
@@ -37,18 +34,12 @@ export function acceptanceFundingPhaseLabel(
       return "Review escrow funding";
     case "preparing":
       return "Preparing acceptance…";
-    case "awaiting_wallet":
-      return "Approve in your NEAR wallet";
-    case "create_submitted":
-      return "Escrow create submitted";
-    case "verifying_create":
-      return "Verifying escrow on-chain…";
     case "awaiting_fund_wallet":
-      return "Approve funding in your wallet";
-    case "fund_submitted":
-      return "Funding transaction submitted";
+      return "Approve funding in your NEAR wallet";
     case "verifying_fund":
       return "Verifying funding on-chain…";
+    case "fund_submitted":
+      return "Funding transaction submitted";
     case "succeeded":
       return "Offer accepted";
     case "failed":
@@ -98,10 +89,10 @@ export function deriveAcceptanceFundingUiPhase(
   if (view.busy) {
     const step = view.activeStep?.toLowerCase() ?? "";
     if (step.includes("prepar")) return "preparing";
-    if (step.includes("verify") && step.includes("fund")) return "verifying_fund";
-    if (step.includes("verify")) return "verifying_create";
-    if (step.includes("fund")) return "awaiting_fund_wallet";
-    if (step.includes("creat")) return "awaiting_wallet";
+    if (step.includes("verify")) return "verifying_fund";
+    if (step.includes("fund") || step.includes("wallet")) {
+      return "awaiting_fund_wallet";
+    }
     return "preparing";
   }
 
@@ -111,19 +102,16 @@ export function deriveAcceptanceFundingUiPhase(
 
   switch (intent.status) {
     case "awaiting_wallet":
+    case "fund_submitted":
+    case "funding_verified":
+    case "create_submitted":
+      if (intent.fundTxHash) {
+        return "fund_submitted";
+      }
       if (intent.onChainEscrowId) {
         return "resume";
       }
-      if (intent.createTxHash) {
-        return "create_submitted";
-      }
       return "resume";
-    case "create_submitted":
-      return intent.onChainEscrowId ? "resume" : "create_submitted";
-    case "fund_submitted":
-      return "fund_submitted";
-    case "funding_verified":
-      return "verifying_fund";
     case "failed":
       return "failed";
     case "expired":
@@ -138,7 +126,6 @@ export function canContinueAcceptanceFunding(
 ): boolean {
   return (
     phase === "resume" ||
-    phase === "create_submitted" ||
     phase === "fund_submitted" ||
     phase === "pending_tx" ||
     phase === "verifying_fund"
@@ -162,10 +149,9 @@ export function blocksDuplicateFundingAttempt(
   if (busy) return true;
   return (
     phase === "preparing" ||
-    phase === "awaiting_wallet" ||
-    phase === "verifying_create" ||
     phase === "awaiting_fund_wallet" ||
-    phase === "verifying_fund"
+    phase === "verifying_fund" ||
+    phase === "succeeded"
   );
 }
 
@@ -185,8 +171,6 @@ export function shouldShowContinueFunding(
     return false;
   }
   return (
-    canContinueAcceptanceFunding(phase) ||
-    phase === "create_submitted" ||
-    phase === "fund_submitted"
+    canContinueAcceptanceFunding(phase) || phase === "fund_submitted"
   );
 }

@@ -48,16 +48,10 @@ export const CORE_METHODS = {
   getTotalMessages: "get_total_messages",
 } as const;
 
-export {
-  buildEscrowFundingAuthMessage,
-  ESCROW_FUNDING_AUTH_VERSION,
-  type EscrowFundingAuthPayload,
-} from "./escrow-authorization";
+export const ESCROW_FUND_FT_MSG_VERSION = "v2";
 
 export const ESCROW_METHODS = {
-  createEscrow: "create_escrow",
-  createEscrowWithAuthorization: "create_escrow_with_authorization",
-  depositNative: "deposit_native",
+  fundEscrow: "fund_escrow",
   getEscrow: "get_escrow",
   getActiveEscrowIdForEngagement: "get_active_escrow_id_for_engagement",
   release: "release",

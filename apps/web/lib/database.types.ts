@@ -435,8 +435,10 @@ export type Database = {
           provider_user_id: string
           release_tx_hash: string | null
           released_at: string | null
+          request_id: string | null
           requester_near_account_id: string
           requester_user_id: string
+          response_id: string | null
           settlement_eligible_at: string | null
           settlement_last_error: string | null
           settlement_status: Database["public"]["Enums"]["engagement_settlement_status"]
@@ -464,8 +466,10 @@ export type Database = {
           provider_user_id: string
           release_tx_hash?: string | null
           released_at?: string | null
+          request_id?: string | null
           requester_near_account_id: string
           requester_user_id: string
+          response_id?: string | null
           settlement_eligible_at?: string | null
           settlement_last_error?: string | null
           settlement_status?: Database["public"]["Enums"]["engagement_settlement_status"]
@@ -493,8 +497,10 @@ export type Database = {
           provider_user_id?: string
           release_tx_hash?: string | null
           released_at?: string | null
+          request_id?: string | null
           requester_near_account_id?: string
           requester_user_id?: string
+          response_id?: string | null
           settlement_eligible_at?: string | null
           settlement_last_error?: string | null
           settlement_status?: Database["public"]["Enums"]["engagement_settlement_status"]
@@ -534,10 +540,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "engagement_escrow_payments_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "engagement_escrow_payments_requester_user_id_fkey"
             columns: ["requester_user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagement_escrow_payments_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "request_responses"
             referencedColumns: ["id"]
           },
         ]

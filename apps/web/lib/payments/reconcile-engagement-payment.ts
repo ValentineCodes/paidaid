@@ -87,9 +87,9 @@ export async function reconcileEngagementPaymentFromChain(
         engagementId,
       );
       if (escrowId) {
-        await deps.applyFundingProgress(engagementId, "create_submitted", {
+        await deps.applyFundingProgress(engagementId, "deposit_submitted", {
           onChainEscrowId: escrowId,
-          createTxHash: payment.create_tx_hash,
+          fundTxHash: payment.fund_tx_hash,
           lastError: null,
         });
         return { changed: true, reason: "linked on-chain escrow" };

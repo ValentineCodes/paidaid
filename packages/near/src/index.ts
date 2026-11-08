@@ -35,6 +35,7 @@ export {
   isMapEntryArray,
   normalizeTransactionOutcome,
   parseEscrowIdFromCreateOutcome,
+  parseEscrowIdFromFundOutcome,
   resolveEscrowIdAfterCreateTx,
   resolveEscrowIdFromCreateOutcomes,
   viewActiveEscrowIdForEngagement,

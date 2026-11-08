@@ -2,8 +2,21 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useWalletSelector } from "@near-wallet-selector/react-hook";
 
 import { createClient } from "../../../../lib/supabase/client";
+import { NearSessionProvider } from "../../../../wallet/near-session-provider";
+import { useNearWalletAccountId } from "../../../../wallet/use-near-wallet-account";
+import {
+  assertIntearWalletModule,
+  signInWithIntearWallet,
+} from "../../../../wallet/connect-intear";
+import { readWalletContractId } from "../../../../wallet/config";
+import { formatWalletConnectionError } from "../../../../wallet/errors";
+import {
+  loadEngagementSettlementView,
+  releaseEscrowForEngagement,
+} from "../../../../lib/engagement/release-escrow-client";
 import { DELIVERY_ATTACHMENTS_BUCKET } from "../../../../lib/constants/storage";
 import {
   extensionForDeliveryMime,
@@ -25,6 +38,8 @@ type Props = {
   delivery: DeliveryRow | null;
   deliveryAttachments: DeliveryAttRow[];
   existingReview: ReviewRow | null;
+  paymentFunded: boolean;
+  linkedRequesterNearAccountId: string | null;
 };
 
 function DeliveryMediaLink({ path, mime }: { path: string; mime: string }) {
@@ -73,7 +88,7 @@ function DeliveryMediaLink({ path, mime }: { path: string; mime: string }) {
   );
 }
 
-export function EngagementWorkflow({
+function EngagementWorkflowInner({
   engagementId,
   conversationId,
   isProvider,
@@ -82,11 +97,23 @@ export function EngagementWorkflow({
   delivery,
   deliveryAttachments,
   existingReview,
+  paymentFunded,
+  linkedRequesterNearAccountId,
 }: Props) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
+  const { walletSelector } = useWalletSelector();
+  const { accountId: signedAccountId, syncFromSelectorStore } =
+    useNearWalletAccountId();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [approveStep, setApproveStep] = useState<string | null>(null);
+
+  const walletMatchesLink =
+    !linkedRequesterNearAccountId ||
+    !signedAccountId ||
+    signedAccountId.toLowerCase() ===
+      linkedRequesterNearAccountId.toLowerCase();
 
   const [desc, setDesc] = useState(delivery?.description ?? "");
   const [proofFiles, setProofFiles] = useState<File[]>([]);
@@ -201,20 +228,92 @@ export function EngagementWorkflow({
     refresh();
   }
 
-  async function runApprove() {
-    setBusy(true);
+  const connectWallet = useCallback(async () => {
     setError(null);
-    const { error: rpcErr } = await supabase.rpc("review_delivery", {
-      p_engagement_id: engagementId,
-      p_action: "approve",
+    const selector = await walletSelector;
+    if (!selector) {
+      throw new Error("Wallet is still loading.");
+    }
+    assertIntearWalletModule(selector);
+    const contractId = readWalletContractId({
+      NEXT_PUBLIC_NEAR_CONTRACT_ID:
+        process.env.NEXT_PUBLIC_NEAR_ESCROW_CONTRACT_ID ??
+        process.env.NEXT_PUBLIC_NEAR_CONTRACT_ID,
     });
-    if (rpcErr) {
-      setError(rpcErr.message);
-      setBusy(false);
+    await signInWithIntearWallet(selector, contractId);
+    await syncFromSelectorStore();
+  }, [walletSelector, syncFromSelectorStore]);
+
+  async function runApproveAndRelease() {
+    if (!paymentFunded) {
+      setError("Fund escrow before approving delivery.");
       return;
     }
-    setBusy(false);
-    refresh();
+    setBusy(true);
+    setError(null);
+    setApproveStep(null);
+    try {
+      const selector = await walletSelector;
+      if (!selector) {
+        throw new Error("Wallet unavailable.");
+      }
+      let activeAccountId =
+        selector.store.getState().accounts.find((a) => a.active)?.accountId ??
+        signedAccountId;
+
+      if (!activeAccountId) {
+        setApproveStep("Connect your linked NEAR wallet to approve and pay.");
+        await connectWallet();
+        activeAccountId =
+          selector.store.getState().accounts.find((a) => a.active)?.accountId ??
+          null;
+      }
+      if (
+        !activeAccountId ||
+        (linkedRequesterNearAccountId &&
+          activeAccountId.toLowerCase() !==
+            linkedRequesterNearAccountId.toLowerCase())
+      ) {
+        throw new Error(
+          `Connected wallet must be ${linkedRequesterNearAccountId}.`,
+        );
+      }
+
+      setApproveStep("Recording approval…");
+      const { error: rpcErr } = await supabase.rpc("review_delivery", {
+        p_engagement_id: engagementId,
+        p_action: "approve",
+      });
+      if (rpcErr) {
+        throw new Error(rpcErr.message);
+      }
+
+      setApproveStep("Waiting for wallet approval (release escrow)…");
+      const wallet = await selector.wallet();
+      if (!wallet) {
+        throw new Error("Wallet unavailable.");
+      }
+      const loaded = await loadEngagementSettlementView(engagementId);
+      if (!loaded.ok) {
+        throw new Error(loaded.error);
+      }
+      const settlement = loaded.settlement;
+      const released = await releaseEscrowForEngagement(
+        engagementId,
+        wallet,
+        settlement,
+      );
+      if (!released.ok) {
+        throw new Error(released.error);
+      }
+
+      refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Approval failed.");
+    } finally {
+      setBusy(false);
+      setApproveStep(null);
+    }
   }
 
   async function runSubmitReview() {
@@ -307,9 +406,9 @@ export function EngagementWorkflow({
             </p>
           )}
           {deliveryStatus === "approved" && engagementStatus === "active" && (
-            <p className="mt-3 text-sm text-amber-800 dark:text-amber-200">
-              Delivery approved — the requester must release escrow to finish the
-              engagement.
+            <p className="mt-3 text-sm text-stone-600 dark:text-stone-400">
+              Delivery approved — awaiting on-chain payment release to complete
+              the engagement.
             </p>
           )}
         </section>
@@ -317,6 +416,7 @@ export function EngagementWorkflow({
 
       {/* Requester: review */}
       {isRequester &&
+        paymentFunded &&
         engagementStatus === "active" &&
         deliveryStatus === "pending_review" && (
           <section className="rounded-lg border border-stone-200 p-4 dark:border-stone-800">
@@ -342,14 +442,33 @@ export function EngagementWorkflow({
                 )}
               </div>
             )}
-            <div className="mt-4 flex flex-wrap gap-2">
+            {approveStep && (
+              <p className="mt-3 text-sm text-stone-600 dark:text-stone-400">
+                {approveStep}
+              </p>
+            )}
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              {!signedAccountId && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() =>
+                    void connectWallet().catch((e) =>
+                      setError(formatWalletConnectionError(e)),
+                    )
+                  }
+                  className="btn-ink rounded-lg px-4 py-2 text-sm font-medium"
+                >
+                  Connect wallet
+                </button>
+              )}
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => void runApprove()}
+                onClick={() => void runApproveAndRelease()}
                 className="rounded-lg bg-green-800 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-green-700"
               >
-                Approve delivery
+                {busy ? "Working…" : "Approve and release payment"}
               </button>
             </div>
           </section>
@@ -437,5 +556,13 @@ export function EngagementWorkflow({
         </section>
       )}
     </div>
+  );
+}
+
+export function EngagementWorkflow(props: Props) {
+  return (
+    <NearSessionProvider>
+      <EngagementWorkflowInner {...props} />
+    </NearSessionProvider>
   );
 }

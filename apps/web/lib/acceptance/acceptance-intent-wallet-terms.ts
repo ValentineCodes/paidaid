@@ -20,9 +20,8 @@ export function acceptanceIntentToWalletTerms(
     status:
       intent.status === "finalized" || intent.status === "funding_verified"
         ? "funded"
-        : intent.status === "create_submitted" ||
-            intent.status === "fund_submitted"
-          ? "create_submitted"
+        : intent.status === "fund_submitted"
+          ? "deposit_submitted"
           : "prepared",
     createTxHash: intent.createTxHash,
     fundTxHash: intent.fundTxHash,

@@ -21,7 +21,7 @@
     "sandbox:start": "node scripts/sandbox/start.mjs",
     "sandbox:stop": "node scripts/sandbox/stop.mjs",
     "sandbox:deploy": "node scripts/sandbox/deploy.mjs",
-    "sandbox:deploy-escrow": "node scripts/sandbox/deploy-escrow.mjs",
+    "sandbox:deploy-escrow": "pnpm contract:build && node scripts/sandbox/deploy-escrow.mjs",
     "sandbox:test-escrow": "node scripts/sandbox/test-escrow.mjs",
     "db:start": "supabase start",
     "db:stop": "supabase stop",

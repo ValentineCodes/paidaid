@@ -13,17 +13,13 @@ import {
   SANDBOX_DIR,
   STATE_FILE,
 } from "./constants.mjs";
-import {
-  authorizedSignerPkB64,
-  loadOrCreateEscrowFundingSigner,
-  FUNDING_SIGNER_FILE,
-} from "./escrow-funding-signer.mjs";
 
 const ESCROW_KEY_FILE = path.join(
   SANDBOX_DIR,
   "paidaid-escrow.sandbox.key.json",
 );
 const INIT_GAS = 80_000_000_000_000n;
+const DIRECT_FUND_SCHEMA = "v2.4-direct";
 
 async function loadOrCreateContractKey() {
   try {
@@ -71,25 +67,21 @@ const root = new Account(
 const contractKey = await loadOrCreateContractKey();
 const wasm = await fs.readFile(ESCROW_WASM_PATH);
 
-const fundingSigner = await loadOrCreateEscrowFundingSigner();
-const authorizedSignerPkB64Value = authorizedSignerPkB64(fundingSigner);
-
 const accountExisted = await accountExists(provider, ESCROW_CONTRACT_ACCOUNT_ID);
 
 async function contractHealthy() {
   try {
-    await provider.callFunction(
-      ESCROW_CONTRACT_ACCOUNT_ID,
-      "get_authorized_signer_pk_b64",
-      {},
-    );
+    await provider.callFunction(ESCROW_CONTRACT_ACCOUNT_ID, "is_ft_allowed", {
+      contract_id: "noop.sandbox",
+    });
     return true;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (
       msg.includes("not initialized") ||
       msg.includes("Cannot deserialize") ||
-      msg.includes("deserialize the contract state")
+      msg.includes("deserialize the contract state") ||
+      msg.includes("MethodNotFound")
     ) {
       return false;
     }
@@ -118,9 +110,9 @@ async function recreateEscrowAccount(label) {
 }
 
 if (accountExisted) {
-  if (state.escrowAuthSchema !== "v2.2") {
+  if (state.escrowAuthSchema !== DIRECT_FUND_SCHEMA) {
     await recreateEscrowAccount(
-      `Recreating ${ESCROW_CONTRACT_ACCOUNT_ID} for V2.2 authorization schema…`,
+      `Recreating ${ESCROW_CONTRACT_ACCOUNT_ID} for direct fund_escrow schema…`,
     );
   } else {
     const healthy = await contractHealthy();
@@ -153,10 +145,7 @@ const contractAccount = new Account(
 
 const initCall = actionCreators.functionCall(
   "new",
-  {
-    owner: DEFAULT_ACCOUNT_ID,
-    authorized_signer_pk_b64: authorizedSignerPkB64Value,
-  },
+  { owner: DEFAULT_ACCOUNT_ID },
   INIT_GAS,
   BigInt(0),
 );
@@ -174,12 +163,9 @@ console.log("Deploy status:", outcome.final_execution_status ?? outcome.status);
 
 state.escrowContractId = ESCROW_CONTRACT_ACCOUNT_ID;
 state.escrowDeployedAt = new Date().toISOString();
-state.escrowAuthSchema = "v2.2";
+state.escrowAuthSchema = DIRECT_FUND_SCHEMA;
 await fs.writeFile(STATE_FILE, `${JSON.stringify(state, null, 2)}\n`);
 
 console.log(
-  `PaidAidEscrow deployed to ${ESCROW_CONTRACT_ACCOUNT_ID} on ${rpcUrl}`,
-);
-console.log(
-  `Funding signer: ${FUNDING_SIGNER_FILE} (set NEAR_ESCROW_FUNDING_SIGNER_PRIVATE_KEY in apps/web/.env.development)`,
+  `PaidAidEscrow deployed to ${ESCROW_CONTRACT_ACCOUNT_ID} on ${rpcUrl} (direct fund_escrow; no backend signer)`,
 );

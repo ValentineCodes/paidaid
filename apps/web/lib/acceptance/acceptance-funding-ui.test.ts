@@ -54,7 +54,7 @@ describe("deriveAcceptanceFundingUiPhase", () => {
     assert.equal(phase, "confirm");
   });
 
-  it("maps awaiting_wallet with escrow id to resume", () => {
+  it("maps in-flight intent to resume", () => {
     const phase = deriveAcceptanceFundingUiPhase(
       { ...baseIntent, onChainEscrowId: "7" },
       {
@@ -66,6 +66,31 @@ describe("deriveAcceptanceFundingUiPhase", () => {
       },
     );
     assert.equal(phase, "resume");
+  });
+
+  it("maps busy fund step to single wallet approval", () => {
+    const phase = deriveAcceptanceFundingUiPhase(baseIntent, {
+      confirmOpen: false,
+      busy: true,
+      activeStep: "Waiting for wallet approval (fund escrow)…",
+      lastError: null,
+      finalizedEngagementId: null,
+    });
+    assert.equal(phase, "awaiting_fund_wallet");
+  });
+
+  it("maps submitted fund tx hash to fund_submitted", () => {
+    const phase = deriveAcceptanceFundingUiPhase(
+      { ...baseIntent, fundTxHash: "abc" },
+      {
+        confirmOpen: false,
+        busy: false,
+        activeStep: null,
+        lastError: null,
+        finalizedEngagementId: null,
+      },
+    );
+    assert.equal(phase, "fund_submitted");
   });
 
   it("maps wallet cancel to wallet_rejected", () => {

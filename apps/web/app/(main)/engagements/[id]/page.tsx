@@ -11,7 +11,6 @@ import { EngagementDetailContent } from "./engagement-detail-content";
 import type { EngagementSettlementView } from "../../../../lib/engagement/settlement-types";
 import { loadActiveLinkedNearWallet } from "../../../../lib/near/load-linked-wallet";
 import type { Database } from "../../../../lib/database.types";
-import type { EngagementFundingPrepareResult } from "../../../../lib/engagement/funding-types";
 
 type DeliveryAttachmentRow =
   Database["public"]["Tables"]["delivery_attachments"]["Row"];
@@ -198,7 +197,6 @@ export default async function EngagementPage({ params }: PageProps) {
         .maybeSingle()
     : { data: null };
 
-  let fundingTerms: EngagementFundingPrepareResult | null = null;
   let linkedRequesterNear: string | null = null;
   let fundingPrerequisites: {
     requesterWalletLinked: boolean;
@@ -232,28 +230,6 @@ export default async function EngagementPage({ params }: PageProps) {
       };
     }
 
-    if (paymentRow && paymentAsset && paymentRow.engagement_id === id) {
-      fundingTerms = {
-        paymentId: paymentRow.id,
-        engagementId: id,
-        chainId: paymentRow.chain_id,
-        escrowContractId: paymentRow.escrow_contract_id,
-        assetStandard: paymentAsset.asset_standard,
-        tokenContractId: paymentAsset.token_contract_id,
-        amountSmallestUnits: normalizeDbNumericAmount(paymentRow.amount),
-        symbol: paymentAsset.symbol,
-        decimals: paymentAsset.decimals,
-        requesterNearAccountId: paymentRow.requester_near_account_id,
-        providerNearAccountId: paymentRow.provider_near_account_id,
-        onChainEscrowId:
-          paymentRow.on_chain_escrow_id == null
-            ? null
-            : String(paymentRow.on_chain_escrow_id),
-        status: paymentRow.status,
-        createTxHash: paymentRow.create_tx_hash,
-        fundTxHash: paymentRow.fund_tx_hash,
-      };
-    }
   }
 
   const paymentFunded = paymentRow?.status === "funded";
@@ -323,7 +299,6 @@ export default async function EngagementPage({ params }: PageProps) {
       peerPhone={peerPhone}
       conversationId={conv?.id ?? null}
       linkedRequesterNear={linkedRequesterNear}
-      fundingTerms={fundingTerms}
       fundingPrerequisites={fundingPrerequisites}
       initialSettlement={initialSettlement}
       delivery={delivery}

@@ -3,9 +3,7 @@ import Link from "next/link";
 import { FigmaIcon } from "../../../../components/figma-icons";
 import { formatPostedRelative } from "../../../../lib/datetime/relative-from-now";
 import type { Database } from "../../../../lib/database.types";
-import type { EngagementFundingPrepareResult } from "../../../../lib/engagement/funding-types";
 import type { EngagementSettlementView } from "../../../../lib/engagement/settlement-types";
-import { EngagementFundingSection } from "./engagement-funding-section";
 import { EngagementSettlementSection } from "./engagement-settlement-section";
 import { EngagementWorkflow } from "./engagement-workflow";
 
@@ -34,7 +32,6 @@ export type EngagementDetailContentProps = {
   peerPhone: string | null;
   conversationId: string | null;
   linkedRequesterNear: string | null;
-  fundingTerms: EngagementFundingPrepareResult | null;
   fundingPrerequisites: {
     requesterWalletLinked: boolean;
     providerWalletLinked: boolean;
@@ -176,7 +173,6 @@ export function EngagementDetailContent(props: EngagementDetailContentProps) {
     peerPhotoUrl,
     conversationId,
     linkedRequesterNear,
-    fundingTerms,
     fundingPrerequisites,
     initialSettlement,
     delivery,
@@ -267,7 +263,7 @@ export function EngagementDetailContent(props: EngagementDetailContentProps) {
 
       {showPaymentSecured ? (
         <EngagementCallout tone="info" title="Payment secured">
-          Release payment only after the work is complete.
+          Approving the submission releases escrow to your provider in one step.
         </EngagementCallout>
       ) : null}
 
@@ -282,14 +278,10 @@ export function EngagementDetailContent(props: EngagementDetailContentProps) {
         )}
 
       {!isProvider && engagementStatus === "active" && !paymentFunded && (
-        <div className="detail-section">
-          <EngagementFundingSection
-            engagementId={engagementId}
-            initialTerms={fundingTerms}
-            linkedRequesterNearAccountId={linkedRequesterNear}
-            initialPrerequisites={fundingPrerequisites}
-          />
-        </div>
+        <EngagementCallout tone="warning" title="Escrow not funded">
+          This engagement has no funded escrow. Funding happens when you accept a
+          provider on the request — open the request to complete funding.
+        </EngagementCallout>
       )}
 
       {paymentFunded && (
@@ -299,6 +291,7 @@ export function EngagementDetailContent(props: EngagementDetailContentProps) {
             isRequester={!isProvider}
             linkedRequesterNearAccountId={linkedRequesterNear}
             initialSettlement={initialSettlement}
+            deliveryStatus={delivery?.status ?? null}
           />
         </div>
       )}
@@ -313,6 +306,8 @@ export function EngagementDetailContent(props: EngagementDetailContentProps) {
           delivery={delivery}
           deliveryAttachments={deliveryAttachments}
           existingReview={existingReview}
+          paymentFunded={paymentFunded}
+          linkedRequesterNearAccountId={linkedRequesterNear}
         />
       </div>
     </div>

@@ -12,18 +12,21 @@ import {
 } from "../../../../wallet/connect-intear";
 import { readWalletContractId } from "../../../../wallet/config";
 import { formatWalletConnectionError } from "../../../../wallet/errors";
-import { sendReleaseEscrowTransaction } from "../../../../wallet/send-escrow-release";
 import {
   loadEngagementSettlementView,
-  reportEngagementReleaseTx,
 } from "../engagement-settlement-actions";
 import type { EngagementSettlementView } from "../../../../lib/engagement/settlement-types";
+import { releaseEscrowForEngagement } from "../../../../lib/engagement/release-escrow-client";
+import type { Database } from "../../../../lib/database.types";
+
+type DeliveryStatus = Database["public"]["Enums"]["delivery_status"] | null;
 
 type Props = {
   engagementId: string;
   isRequester: boolean;
   linkedRequesterNearAccountId: string | null;
   initialSettlement: EngagementSettlementView | null;
+  deliveryStatus: DeliveryStatus;
 };
 
 function SettlementSectionInner({
@@ -31,6 +34,7 @@ function SettlementSectionInner({
   isRequester,
   linkedRequesterNearAccountId,
   initialSettlement,
+  deliveryStatus,
 }: Props) {
   const { walletSelector } = useWalletSelector();
   const { accountId: signedAccountId, syncFromSelectorStore } =
@@ -92,16 +96,11 @@ function SettlementSectionInner({
         throw new Error("Wallet unavailable.");
       }
 
-      const tx = await sendReleaseEscrowTransaction(
+      const reported = await releaseEscrowForEngagement(
+        engagementId,
         wallet,
-        settlement.escrowContractId,
-        settlement.onChainEscrowId,
+        settlement,
       );
-      if (!tx.txHash) {
-        throw new Error("Release transaction did not return a hash.");
-      }
-
-      const reported = await reportEngagementReleaseTx(engagementId, tx.txHash);
       if (!reported.ok) {
         throw new Error(reported.error);
       }
@@ -168,6 +167,13 @@ function SettlementSectionInner({
   }
 
   if (
+    settlement.settlementStatus === "eligible" &&
+    deliveryStatus === "pending_review"
+  ) {
+    return null;
+  }
+
+  if (
     settlement.settlementStatus !== "eligible" &&
     settlement.settlementStatus !== "release_failed" &&
     settlement.settlementStatus !== "release_submitted"
@@ -177,10 +183,11 @@ function SettlementSectionInner({
 
   return (
     <div className="rounded-lg border border-stone-200 p-4 text-sm dark:border-stone-800">
-      <p className="font-medium">Release escrow to provider</p>
+      <p className="font-medium">Complete payment release</p>
       <p className="mt-1 text-stone-600 dark:text-stone-400">
-        Delivery is approved. Sign with your linked NEAR wallet to pay the
-        provider and complete this engagement.
+        {settlement.settlementStatus === "release_failed"
+          ? "The last release attempt did not finish. Sign again with your linked NEAR wallet."
+          : "Sign with your linked NEAR wallet to pay the provider and finish this engagement."}
       </p>
       {settlement.settlementLastError && (
         <p className="mt-2 text-red-700 dark:text-red-300">

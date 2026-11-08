@@ -8,7 +8,7 @@ import { parseNearNetworkId } from "@paidaid/shared";
 import {
   explorerTransactionUrl,
   normalizeTransactionOutcome,
-  parseEscrowIdFromCreateOutcome,
+  parseEscrowIdFromFundOutcome,
 } from "@paidaid/near";
 
 import { NearSessionProvider } from "../../../../wallet/near-session-provider";
@@ -19,18 +19,13 @@ import {
   assertIntearWalletModule,
 } from "../../../../wallet/connect-intear";
 import { readWalletContractId } from "../../../../wallet/config";
-import {
-  sendCreateEscrowTransaction,
-  sendFundEscrowTransaction,
-} from "../../../../wallet/send-escrow-funding";
+import { sendFundEscrowTransaction } from "../../../../wallet/send-escrow-funding";
 import {
   checkAcceptanceFundingBalance,
-  issueAcceptanceEscrowCreateAuthorization,
   prepareAcceptanceFunding,
-  reportAcceptanceCreateTx,
+  recoverAcceptanceFundingProgress,
   reportAcceptanceFundTx,
   reconcileAcceptanceFinalization,
-  syncAcceptanceEscrowFromChain,
   loadActiveAcceptanceFundingForResponse,
 } from "../acceptance-funding-actions";
 import { acceptanceIntentToWalletTerms } from "../../../../lib/acceptance/acceptance-intent-wallet-terms";
@@ -207,82 +202,43 @@ function AcceptResponseFormInner({
       }
 
       let current = starting;
-      let onChainEscrowId = current.onChainEscrowId;
 
-      if (!onChainEscrowId) {
-        setActiveStep("Verifying escrow on-chain…");
-        const synced = await syncAcceptanceEscrowFromChain(current.intentId);
-        if (synced.ok) {
-          current = synced.intent;
-          onChainEscrowId = current.onChainEscrowId;
-          setIntent(current);
-          if (current.status === "finalized") {
-            setFinalizedEngagementId(current.plannedEngagementId);
-            return;
+      if (current.status !== "finalized" && current.status !== "funding_verified") {
+        setActiveStep("Verifying funding on-chain…");
+        const recovered = await recoverAcceptanceFundingProgress(current.intentId);
+        if (recovered.ok) {
+          setIntent(recovered.intent);
+          if (recovered.engagementId) {
+            setFinalizedEngagementId(recovered.engagementId);
           }
+          return;
         }
-      }
+        if (recovered.recoverable) {
+          throw new Error(recovered.error);
+        }
 
-      if (!onChainEscrowId) {
-        setActiveStep("Waiting for wallet approval (create escrow)…");
-        const auth = await issueAcceptanceEscrowCreateAuthorization(
-          current.intentId,
-        );
-        if (!auth.ok) {
-          throw new Error(auth.error);
-        }
-        const createTx = await sendCreateEscrowTransaction(
-          wallet,
-          acceptanceIntentToWalletTerms(current),
-          auth.authorization,
-        );
-        if (!createTx.txHash) {
-          throw new Error("Create transaction did not return a hash.");
-        }
-        setActiveStep("Transaction submitted — verifying on-chain…");
-        let claimedEscrowId: string | undefined;
-        try {
-          claimedEscrowId = parseEscrowIdFromCreateOutcome(
-            normalizeTransactionOutcome(createTx.outcome),
-          );
-        } catch {
-          claimedEscrowId = undefined;
-        }
-        const reported = await reportAcceptanceCreateTx(
-          current.intentId,
-          createTx.txHash,
-          claimedEscrowId,
-          signedAccountId ?? undefined,
-        );
-        if (!reported.ok) {
-          throw new Error(reported.error);
-        }
-        current = reported.intent;
-        onChainEscrowId = current.onChainEscrowId;
-        setIntent(current);
-      }
-
-      if (!onChainEscrowId) {
-        throw new Error("Missing on-chain escrow id.");
-      }
-
-      if (
-        current.status !== "finalized" &&
-        current.status !== "funding_verified"
-      ) {
         setActiveStep("Waiting for wallet approval (fund escrow)…");
         const fundTx = await sendFundEscrowTransaction(
           wallet,
           acceptanceIntentToWalletTerms(current),
-          onChainEscrowId,
         );
         if (!fundTx.txHash) {
           throw new Error("Fund transaction did not return a hash.");
         }
         setActiveStep("Verifying funding on-chain…");
+        let claimedEscrowId: string | undefined;
+        try {
+          claimedEscrowId = parseEscrowIdFromFundOutcome(
+            normalizeTransactionOutcome(fundTx.outcome),
+          );
+        } catch {
+          claimedEscrowId = undefined;
+        }
         const verified = await reportAcceptanceFundTx(
           current.intentId,
           fundTx.txHash,
+          claimedEscrowId,
+          signedAccountId ?? undefined,
         );
         if (!verified.ok) {
           throw new Error(verified.error);
@@ -307,7 +263,7 @@ function AcceptResponseFormInner({
   );
 
   const runFundingFlow = useCallback(
-    async (options: { skipPrepare?: boolean }) => {
+    async (options: { skipPrepare?: boolean; continueOnly?: boolean }) => {
       if (runGuard.current) return;
       runGuard.current = true;
       setError(null);
@@ -331,7 +287,21 @@ function AcceptResponseFormInner({
           return;
         }
 
-        await executeWalletFunding(current);
+        if (options.continueOnly) {
+          setActiveStep("Verifying funding on-chain…");
+          const recovered = await recoverAcceptanceFundingProgress(
+            current.intentId,
+          );
+          if (!recovered.ok) {
+            throw new Error(recovered.error);
+          }
+          setIntent(recovered.intent);
+          if (recovered.engagementId) {
+            setFinalizedEngagementId(recovered.engagementId);
+          }
+        } else {
+          await executeWalletFunding(current);
+        }
         setActiveStep(null);
         router.refresh();
       } catch (e) {
@@ -357,11 +327,9 @@ function AcceptResponseFormInner({
   const fundTxExplorer =
     intent?.fundTxHash != null
       ? explorerTransactionUrl(networkId, intent.fundTxHash)
-      : null;
-  const createTxExplorer =
-    intent?.createTxHash != null
-      ? explorerTransactionUrl(networkId, intent.createTxHash)
-      : null;
+      : intent?.createTxHash != null
+        ? explorerTransactionUrl(networkId, intent.createTxHash)
+        : null;
 
   const walletRequired = linkedRequesterNearAccountId == null;
   const blocked =
@@ -512,11 +480,17 @@ function AcceptResponseFormInner({
             type="button"
             disabled={duplicateBlocked || walletRequired}
             onClick={() =>
-              void runFundingFlow({ skipPrepare: Boolean(intent) })
+              void runFundingFlow({
+                skipPrepare: Boolean(intent),
+                continueOnly:
+                  phase === "resume" ||
+                  phase === "fund_submitted" ||
+                  phase === "pending_tx",
+              })
             }
             className="btn-ink w-fit rounded-lg px-3 py-2 text-sm font-medium disabled:opacity-60"
           >
-            {busy ? (activeStep ?? "Working…") : "Continue funding"}
+            {busy ? (activeStep ?? "Working…") : "Continue"}
           </button>
         </div>
       )}
@@ -535,16 +509,6 @@ function AcceptResponseFormInner({
         </button>
       )}
 
-      {createTxExplorer && (
-        <a
-          href={createTxExplorer}
-          target="_blank"
-          rel="noreferrer"
-          className="text-sm underline"
-        >
-          View create escrow transaction
-        </a>
-      )}
       {fundTxExplorer && (
         <a
           href={fundTxExplorer}
@@ -552,7 +516,7 @@ function AcceptResponseFormInner({
           rel="noreferrer"
           className="text-sm underline"
         >
-          View fund transaction
+          View on-chain funding transaction
         </a>
       )}
 

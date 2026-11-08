@@ -31,11 +31,6 @@ import type {
   AcceptanceFundingPrepareResult,
 } from "../../../lib/acceptance/acceptance-funding-types";
 import { formatEngagementFundingError } from "../../../lib/engagement/funding-errors";
-import {
-  nearNetworkIdForAuth,
-  signEscrowFundingAuthorization,
-  type EscrowCreateAuthorization,
-} from "../../../lib/near/escrow-funding-authorization";
 import { randomBytes } from "node:crypto";
 
 export type { AcceptanceFundingPrepareResult };
@@ -241,62 +236,6 @@ export async function prepareAcceptanceFunding(
   };
 }
 
-export async function issueAcceptanceEscrowCreateAuthorization(
-  intentId: string,
-): Promise<
-  { ok: true; authorization: EscrowCreateAuthorization } | { ok: false; error: string }
-> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { ok: false, error: "Sign in required." };
-  }
-
-  const { data: intent, error } = await supabase.rpc("get_acceptance_funding_intent", {
-    p_intent_id: intentId,
-  });
-  if (error || !intent) {
-    return { ok: false, error: error?.message ?? "Intent not found." };
-  }
-  if (intent.status === "finalized") {
-    return { ok: false, error: "Acceptance already finalized." };
-  }
-
-  const { data: asset } = await supabase
-    .from("assets")
-    .select("*")
-    .eq("id", intent.asset_id)
-    .maybeSingle();
-  if (!asset) {
-    return { ok: false, error: "Asset metadata missing." };
-  }
-
-  try {
-    const config = nearConfigForIntent(intent);
-    const expiresAtNs = BigInt(
-      Math.floor(new Date(intent.auth_expires_at).getTime() * 1_000_000),
-    );
-    const authorization = signEscrowFundingAuthorization({
-      contractId: config.escrowContractId,
-      networkId: nearNetworkIdForAuth(config.networkId),
-      engagementId: intent.planned_engagement_id,
-      requester: intent.requester_near_account_id,
-      provider: intent.provider_near_account_id,
-      asset: asset.asset_standard,
-      ftContractId: asset.token_contract_id,
-      amountSmallestUnits: normalizeDbNumericAmount(intent.amount),
-      nonce: intent.auth_nonce,
-      expiresAtNs,
-    });
-    return { ok: true, authorization };
-  } catch (e) {
-    const message = e instanceof Error ? e.message : "Could not sign authorization.";
-    return { ok: false, error: message };
-  }
-}
-
 export async function loadActiveAcceptanceFundingForResponse(
   requestId: string,
   responseId: string,
@@ -391,6 +330,91 @@ export async function loadAcceptanceFundingIntent(
   return { ok: true, intent: mapIntent(intent, loaded.asset, loaded.payment) };
 }
 
+/** Sync chain state, retry fund-tx verification, or finalize — never submits a new wallet transaction. */
+export async function recoverAcceptanceFundingProgress(
+  intentId: string,
+): Promise<
+  | { ok: true; intent: AcceptanceFundingPrepareResult; engagementId?: string }
+  | { ok: false; error: string; recoverable: boolean }
+> {
+  const loaded = await loadAcceptanceFundingIntent(intentId);
+  if (!loaded.ok) {
+    return { ok: false, error: loaded.error, recoverable: false };
+  }
+  const { intent } = loaded;
+  if (intent.status === "finalized") {
+    return {
+      ok: true,
+      intent,
+      engagementId: intent.plannedEngagementId,
+    };
+  }
+
+  const synced = await syncAcceptanceEscrowFromChain(intentId);
+  if (synced.ok) {
+    if (synced.intent.status === "finalized") {
+      return {
+        ok: true,
+        intent: synced.intent,
+        engagementId: synced.intent.plannedEngagementId,
+      };
+    }
+    if (synced.intent.status === "funding_verified") {
+      const recovered = await reconcileAcceptanceFinalization(intentId);
+      if (recovered.ok) {
+        return {
+          ok: true,
+          intent: recovered.intent,
+          engagementId: recovered.engagementId,
+        };
+      }
+      return { ok: false, error: recovered.error, recoverable: true };
+    }
+  }
+
+  const reloaded = await loadAcceptanceFundingIntent(intentId);
+  if (!reloaded.ok) {
+    return { ok: false, error: reloaded.error, recoverable: true };
+  }
+  const current = reloaded.intent;
+  const syncError = synced.ok ? null : synced.error;
+  if (current.onChainEscrowId) {
+    return {
+      ok: false,
+      error:
+        syncError ??
+        "Escrow already exists on-chain. Use Continue to verify funding — do not submit another fund transaction.",
+      recoverable: true,
+    };
+  }
+
+  if (current.fundTxHash) {
+    const verified = await reportAcceptanceFundTx(
+      intentId,
+      current.fundTxHash,
+      current.onChainEscrowId ?? undefined,
+    );
+    if (verified.ok) {
+      return {
+        ok: true,
+        intent: verified.intent,
+        engagementId: verified.engagementId,
+      };
+    }
+    return { ok: false, error: verified.error, recoverable: true };
+  }
+
+  if (!synced.ok && synced.error.includes("No on-chain escrow")) {
+    return { ok: false, error: synced.error, recoverable: false };
+  }
+
+  return {
+    ok: false,
+    error: synced.ok ? "Funding not complete yet." : synced.error,
+    recoverable: !synced.ok,
+  };
+}
+
 export async function syncAcceptanceEscrowFromChain(
   intentId: string,
 ): Promise<AcceptanceFundingActionResult> {
@@ -445,21 +469,23 @@ export async function syncAcceptanceEscrowFromChain(
     const expectation = buildExpectation(intent, loaded.asset);
     assertEscrowRecordMatchesFunding(record, expectation);
 
-    const nextIntentStatus: AcceptanceFundingIntentStatus =
-      record.status === "Funded" ? "funding_verified" : "create_submitted";
-    const nextPaymentStatus =
-      record.status === "Funded" ? ("funded" as const) : ("create_submitted" as const);
+    if (record.status !== "Funded") {
+      return {
+        ok: false,
+        error:
+          "An unfunded on-chain escrow exists for this acceptance. Funding cannot be retried without creating a duplicate — use Continue after a successful fund transaction or contact support.",
+      };
+    }
 
-    await applyIntentProgress(intentId, nextIntentStatus, nextPaymentStatus, {
+    await applyIntentProgress(intentId, "funding_verified", "funded", {
       onChainEscrowId: escrowId,
       lastError: null,
-      createTxHash: intent.create_tx_hash ?? undefined,
+      fundTxHash: intent.fund_tx_hash ?? intent.create_tx_hash ?? undefined,
+      createTxHash: intent.fund_tx_hash ?? intent.create_tx_hash ?? undefined,
     });
 
-    if (nextIntentStatus === "funding_verified") {
-      const engagementId = await finalizeAcceptance(intentId);
-      revalidateAfterAcceptance(intent.request_id, engagementId);
-    }
+    const engagementId = await finalizeAcceptance(intentId);
+    revalidateAfterAcceptance(intent.request_id, engagementId);
 
     const refreshed = await loadAcceptanceFundingIntent(intentId);
     return refreshed.ok
@@ -472,93 +498,11 @@ export async function syncAcceptanceEscrowFromChain(
   }
 }
 
-export async function reportAcceptanceCreateTx(
+export async function reportAcceptanceFundTx(
   intentId: string,
   txHash: string,
   claimedEscrowId?: string,
   txSignerNearAccountId?: string,
-): Promise<AcceptanceFundingActionResult> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { ok: false, error: "Sign in required." };
-  }
-
-  const { data: intent, error: intentErr } = await supabase.rpc(
-    "get_acceptance_funding_intent",
-    { p_intent_id: intentId },
-  );
-  if (intentErr || !intent) {
-    return { ok: false, error: intentErr?.message ?? "Intent not found." };
-  }
-  if (intent.requester_user_id !== user.id) {
-    return { ok: false, error: "Only the requester may report transactions." };
-  }
-  if (intent.status === "finalized") {
-    return { ok: false, error: "Acceptance already finalized." };
-  }
-
-  if (
-    intent.create_tx_hash === txHash &&
-    intent.on_chain_escrow_id != null
-  ) {
-    const loaded = await loadIntentPaymentAsset(supabase, intent);
-    if (loaded) {
-      return { ok: true, intent: mapIntent(intent, loaded.asset, loaded.payment) };
-    }
-  }
-
-  const loaded = await loadIntentPaymentAsset(supabase, intent);
-  if (!loaded) {
-    return { ok: false, error: "Funding record missing." };
-  }
-
-  const config = nearConfigForIntent(intent);
-  try {
-    const escrowId = await resolveEscrowIdAfterCreateTx(
-      config,
-      intent.planned_engagement_id,
-      txHash,
-      [
-        intent.requester_near_account_id,
-        ...(txSignerNearAccountId?.trim()
-          ? [txSignerNearAccountId.trim()]
-          : []),
-      ],
-      claimedEscrowId,
-    );
-    const record = await viewEscrowRecord(config, escrowId);
-    if (!record) {
-      throw new Error("Escrow record not found after create");
-    }
-    const expectation = buildExpectation(intent, loaded.asset);
-    assertEscrowRecordMatchesFunding(record, expectation);
-    if (record.status !== "Pending" && record.status !== "Funded") {
-      throw new Error(`Unexpected escrow status after create: ${record.status}`);
-    }
-
-    await applyIntentProgress(intentId, "create_submitted", "create_submitted", {
-      onChainEscrowId: escrowId,
-      createTxHash: txHash,
-      lastError: null,
-    });
-
-    return await loadAcceptanceFundingIntent(intentId);
-  } catch (e) {
-    const message = e instanceof Error ? e.message : "Create transaction failed.";
-    await applyIntentProgress(intentId, "failed", "failed", {
-      lastError: message,
-      createTxHash: txHash,
-    });
-    return { ok: false, error: message };
-  }
-}
-
-export async function reportAcceptanceFundTx(
-  intentId: string,
-  txHash: string,
 ): Promise<
   | { ok: true; intent: AcceptanceFundingPrepareResult; engagementId: string }
   | { ok: false; error: string }
@@ -593,17 +537,36 @@ export async function reportAcceptanceFundTx(
     }
     return { ok: false, error: "Acceptance already finalized." };
   }
-  if (intent.on_chain_escrow_id == null) {
-    return { ok: false, error: "Create escrow on-chain before funding." };
-  }
-
   const loaded = await loadIntentPaymentAsset(supabase, intent);
   if (!loaded) {
     return { ok: false, error: "Funding record missing." };
   }
 
   const config = nearConfigForIntent(intent);
-  const escrowId = String(intent.on_chain_escrow_id);
+  let escrowId =
+    intent.on_chain_escrow_id == null
+      ? null
+      : String(intent.on_chain_escrow_id);
+
+  if (!escrowId) {
+    try {
+      escrowId = await resolveEscrowIdAfterCreateTx(
+        config,
+        intent.planned_engagement_id,
+        txHash,
+        [
+          intent.requester_near_account_id,
+          ...(txSignerNearAccountId?.trim()
+            ? [txSignerNearAccountId.trim()]
+            : []),
+        ],
+        claimedEscrowId,
+      );
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Could not resolve escrow id.";
+      return { ok: false, error: message };
+    }
+  }
 
   try {
     try {
@@ -627,7 +590,9 @@ export async function reportAcceptanceFundTx(
     assertFundingCompleteOnChain(record, expectation);
 
     await applyIntentProgress(intentId, "funding_verified", "funded", {
+      onChainEscrowId: escrowId,
       fundTxHash: txHash,
+      createTxHash: txHash,
       lastError: null,
     });
 

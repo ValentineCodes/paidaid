@@ -17,6 +17,12 @@ export function formatAcceptanceFundingError(raw: string): string {
   if (lower.includes("funding already in progress")) {
     return "Funding is already in progress. Use Continue below or wait for verification to finish.";
   }
+  if (lower.includes("do not submit another fund")) {
+    return raw;
+  }
+  if (lower.includes("unfunded on-chain escrow")) {
+    return raw;
+  }
   if (
     lower.includes("authorization already expired") ||
     lower.includes("authorization expired") ||
@@ -35,6 +41,9 @@ export function formatAcceptanceFundingError(raw: string): string {
   }
   if (lower.includes("transaction execution failed")) {
     return "The on-chain transaction failed. The offer was not accepted. You can try again.";
+  }
+  if (lower.includes("methodnotfound")) {
+    return formatEngagementFundingError(raw);
   }
   if (
     lower.includes("not indexed") ||

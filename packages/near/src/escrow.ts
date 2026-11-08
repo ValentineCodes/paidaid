@@ -2,6 +2,7 @@ import {
   ESCROW_METHODS,
   type EscrowNearConfig,
   normalizeDbNumericAmount,
+  normalizeNearAccountId,
 } from "@paidaid/shared";
 import { getTransactionLastResult } from "near-api-js";
 import { createProvider } from "./rpc";
@@ -190,7 +191,7 @@ function collectSuccessValueCandidates(outcome: unknown): string[] {
   return candidates;
 }
 
-/** Locate create_escrow return value in a final execution outcome. */
+/** Locate fund_escrow / legacy create return value in a final execution outcome. */
 export function parseEscrowIdFromCreateOutcome(outcome: unknown): string {
   const normalized = normalizeTransactionOutcome(outcome);
   const fromLast = getTransactionLastResult(
@@ -210,6 +211,8 @@ export function parseEscrowIdFromCreateOutcome(outcome: unknown): string {
 
   throw new Error("Could not parse escrow id from transaction outcome");
 }
+
+export const parseEscrowIdFromFundOutcome = parseEscrowIdFromCreateOutcome;
 
 /** Parse escrow id from wallet and/or RPC execution outcomes (first match wins). */
 export function resolveEscrowIdFromCreateOutcomes(
@@ -344,10 +347,16 @@ export function assertEscrowRecordMatchesFunding(
   if (record.engagement_id !== expected.engagementId) {
     throw new Error("On-chain engagement_id does not match");
   }
-  if (record.requester !== expected.requesterNearAccountId) {
+  if (
+    normalizeNearAccountId(record.requester) !==
+    normalizeNearAccountId(expected.requesterNearAccountId)
+  ) {
     throw new Error("On-chain requester does not match linked wallet");
   }
-  if (record.provider !== expected.providerNearAccountId) {
+  if (
+    normalizeNearAccountId(record.provider) !==
+    normalizeNearAccountId(expected.providerNearAccountId)
+  ) {
     throw new Error("On-chain provider does not match");
   }
 
