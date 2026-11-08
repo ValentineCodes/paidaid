@@ -245,7 +245,7 @@ export function RequestDetailContent({ data, variant }: Props) {
             {isOwner && (
               <>
                 {" · "}
-                <Link href="/requests/new" className="underline">
+                <Link href="/?create=1" className="underline">
                   New request
                 </Link>
               </>

@@ -55,9 +55,6 @@ export function PostedBySection({
         <RequesterAvatar displayName={displayName} avatarUrl={avatarUrl} />
         <div>
           <strong>{displayName}</strong>
-          <span>
-            <FigmaIcon name="star" size={14} /> Member on PaidAid
-          </span>
         </div>
         {verified ? (
           <span className="verified">
@@ -102,9 +99,6 @@ export function PostedBySection({
           <strong className="text-stone-900 dark:text-stone-100">
             {displayName}
           </strong>
-          <span className="text-stone-500 dark:text-stone-400">
-            <FigmaIcon name="star" size={14} /> Member on PaidAid
-          </span>
         </div>
         {verified ? (
           <span className="verified">

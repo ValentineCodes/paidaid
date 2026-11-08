@@ -198,7 +198,7 @@ export function ActivityShell({ data }: { data: ActivityData }) {
         )}
 
         {tab === "Posted" && (
-          <Link href="/requests/new" className="new-task-card">
+          <Link href="/?create=1" className="new-task-card">
             <FigmaIcon name="plus" size={24} />
             <span>
               <strong>Post another task</strong>

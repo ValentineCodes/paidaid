@@ -1,5 +1,6 @@
 "use client";
 
+import * as Dialog from "@radix-ui/react-dialog";
 import {
   useActionState,
   useEffect,
@@ -9,8 +10,6 @@ import {
   useTransition,
 } from "react";
 import { format } from "date-fns";
-import { useRouter } from "next/navigation";
-
 import { PaidAidLogo } from "../../../../components/paidaid-logo";
 import { FigmaIcon } from "../../../../components/figma-icons";
 import type { Tables } from "../../../../lib/database.types";
@@ -93,7 +92,6 @@ export function RequestCreateModal({
   defaultAssetId,
   onClose,
 }: RequestCreateModalProps) {
-  const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<Step>(1);
   const [title, setTitle] = useState("");
@@ -246,14 +244,26 @@ export function RequestCreateModal({
       : `Due ${formatDueShort(`${deadlineDate.trim()}T12:00:00`)}`;
 
   return (
-    <div className="overlay modal-overlay">
-      <div className="create-modal">
-        <div className="modal-head">
-          <PaidAidLogo />
-          <button type="button" onClick={onClose} aria-label="Close">
-            <FigmaIcon name="close" size={18} />
-          </button>
-        </div>
+    <Dialog.Root
+      open
+      onOpenChange={(next) => {
+        if (!next) {
+          onClose();
+        }
+      }}
+    >
+      <Dialog.Portal>
+        <Dialog.Overlay className="overlay modal-overlay" />
+        <Dialog.Content className="create-modal" aria-describedby={undefined}>
+          <Dialog.Title className="sr-only">Create a task</Dialog.Title>
+          <div className="modal-head">
+            <PaidAidLogo />
+            <Dialog.Close asChild>
+              <button type="button" aria-label="Close">
+                <FigmaIcon name="close" size={18} />
+              </button>
+            </Dialog.Close>
+          </div>
 
         {!isPublished ? (
           <>
@@ -528,19 +538,13 @@ export function RequestCreateModal({
               People can now discover it and send you offers. We’ll let you know
               when someone responds.
             </p>
-            <button
-              type="button"
-              className="primary"
-              onClick={() => {
-                onClose();
-                router.push("/");
-              }}
-            >
+            <button type="button" className="primary" onClick={onClose}>
               Browse marketplace
             </button>
           </div>
         )}
-      </div>
-    </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

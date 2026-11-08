@@ -291,34 +291,18 @@ function MarketplaceWalletControlInner({
           aria-haspopup="menu"
           aria-controls={menuId}
           onClick={() => setOpen((v) => !v)}
-          className="flex max-w-[min(100%,14rem)] items-center gap-2 rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-left text-xs shadow-sm transition hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-900 dark:hover:bg-stone-800"
+          className="flex max-w-[min(100%,18rem)] flex-nowrap items-center gap-2 rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-left text-xs shadow-sm transition hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-900 dark:hover:bg-stone-800"
         >
-          <span className="font-mono font-medium text-stone-900 dark:text-stone-100">
+          <span className="min-w-0 truncate font-mono font-medium text-stone-900 dark:text-stone-100">
             {truncateNearAccountId(headerAccount)}
           </span>
           {syncState === "aligned" && balanceDisplay ? (
-            <span className="hidden text-stone-500 sm:inline dark:text-stone-400">
+            <span className="hidden shrink-0 whitespace-nowrap text-stone-500 sm:inline dark:text-stone-400">
               {balanceLoading ? "…" : balanceDisplay}
             </span>
           ) : null}
           <ChevronIcon open={open} />
         </button>
-        {hasSession ? (
-          <Link href="/requests/new" className="create-button max-sm:text-[0]">
-            <svg
-              width={18}
-              height={18}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              aria-hidden
-            >
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-            Post a task
-          </Link>
-        ) : null}
       </div>
 
       {open ? (

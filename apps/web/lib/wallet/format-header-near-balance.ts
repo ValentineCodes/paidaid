@@ -39,7 +39,7 @@ export function formatHeaderNearBalanceFromYocto(
       .replace(/\.0+$/, "");
     return {
       status: "ok",
-      display: `${trimmed} NEAR`,
+      display: `${trimmed}\u00a0NEAR`,
       rawYocto: smallestUnits,
     };
   } catch {

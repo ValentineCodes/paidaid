@@ -8,7 +8,7 @@ test("formatHeaderNearBalanceFromYocto formats 1 NEAR", () => {
   const view = formatHeaderNearBalanceFromYocto(yocto);
   assert.equal(view.status, "ok");
   if (view.status === "ok") {
-    assert.match(view.display, /1 NEAR/);
+    assert.equal(view.display, "1\u00a0NEAR");
   }
 });
 
@@ -22,6 +22,6 @@ test("formatHeaderNearBalanceFromYocto truncates to 4 decimal places", () => {
   const view = formatHeaderNearBalanceFromYocto(yocto);
   assert.equal(view.status, "ok");
   if (view.status === "ok") {
-    assert.match(view.display, /^1\.2345 NEAR$/);
+    assert.equal(view.display, "1.2345\u00a0NEAR");
   }
 });

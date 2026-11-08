@@ -9,6 +9,8 @@ import {
   parseDiscoveryParams,
 } from "../../lib/discovery/feed-params";
 import { discoverySearchString } from "../../lib/discovery/build-url";
+import { loadRequestCreateCatalog } from "../../lib/requests/load-create-catalog";
+import { HomePostTask } from "./home-post-task";
 import { RequestFeedCard, type FeedCardRow } from "./request-feed-card";
 
 type PageProps = {
@@ -127,6 +129,13 @@ export default async function MarketplaceHomePage({ searchParams }: PageProps) {
       : null;
 
   const q = typeof sp.q === "string" ? sp.q : "";
+  const openCreate = sp.create === "1" || sp.create === "true";
+  let createCatalog = null;
+  try {
+    createCatalog = await loadRequestCreateCatalog(supabase);
+  } catch {
+    createCatalog = null;
+  }
   const baseQuery = discoverySearchString({ q });
 
   const nextHref =
@@ -181,9 +190,7 @@ export default async function MarketplaceHomePage({ searchParams }: PageProps) {
             <span className="section-kicker">THE MARKETPLACE</span>
             <h2>Work worth doing</h2>
           </div>
-          <Link href="/requests/new" className="text-button">
-            Post what you need <Icon name="arrow" size={17} />
-          </Link>
+          <HomePostTask catalog={createCatalog} initialOpen={openCreate} />
         </div>
 
         {error && (

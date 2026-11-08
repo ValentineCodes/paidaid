@@ -1040,8 +1040,13 @@ a.task-card {
 }
 
 .create-modal {
-  width: min(680px, 100%);
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 61;
+  width: min(680px, calc(100% - 36px));
   max-height: 94vh;
+  transform: translate(-50%, -50%);
   overflow: auto;
   background: var(--surface);
   border-radius: 18px;

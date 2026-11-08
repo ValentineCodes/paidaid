@@ -4,7 +4,6 @@ import { isSupabaseConfigured } from "./lib/supabase/env";
 
 const PROTECTED_PREFIXES = [
   "/account",
-  "/requests/new",
   "/requests/mine",
   "/responses/mine",
   "/notifications",
@@ -20,6 +19,13 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
   const { response, user } = await updateSession(request);
+
+  if (pathname === "/requests/new") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/";
+    url.searchParams.set("create", "1");
+    return NextResponse.redirect(url);
+  }
 
   const isProtected = PROTECTED_PREFIXES.some((p) => pathname.startsWith(p));
   if (isProtected && !user) {
