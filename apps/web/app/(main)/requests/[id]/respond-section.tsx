@@ -50,7 +50,7 @@ export function RespondSection({
       )}
 
       {hasProfilePhoto && pendingResponseId && (
-        <div className="flex flex-col gap-3 border-t border-[var(--line)] pt-5">
+        <div className="flex flex-col gap-3">
           <p className="text-[13px] text-[var(--muted)]">
             You have a pending response on this request. Withdraw it if you
             change your mind.

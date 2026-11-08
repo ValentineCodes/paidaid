@@ -203,8 +203,7 @@ export function RequestDetailContent({ data, variant }: Props) {
           </>
         )}
         {showRespond && budgetAmount != null && (
-          <div className="pt-2">
-            <RespondSection
+          <RespondSection
               requestId={id}
               budgetAmountSmallest={budgetAmountStr}
               assetSymbol={displaySymbol}
@@ -213,7 +212,6 @@ export function RequestDetailContent({ data, variant }: Props) {
               pendingResponseId={pendingResponseId}
               preConversationId={preConversationId}
             />
-          </div>
         )}
         {!user && (
           <div className="detail-section">

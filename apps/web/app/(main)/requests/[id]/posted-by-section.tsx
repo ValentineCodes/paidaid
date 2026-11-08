@@ -1,6 +1,3 @@
-import Link from "next/link";
-
-import { DismissDrawerLink } from "../../../../components/dismiss-drawer-link";
 import { FigmaIcon } from "../../../../components/figma-icons";
 
 function initialsFromDisplayName(name: string) {
@@ -17,6 +14,25 @@ type Props = {
   avatarUrl: string | null;
   variant: "drawer" | "page";
 };
+
+function RequesterName({
+  displayName,
+  verified,
+}: {
+  displayName: string;
+  verified: boolean;
+}) {
+  return (
+    <div className="requester-name">
+      <strong>{displayName}</strong>
+      {verified ? (
+        <span className="requester-verified-badge" aria-label="Verified">
+          <FigmaIcon name="check" size={10} />
+        </span>
+      ) : null}
+    </div>
+  );
+}
 
 function RequesterAvatar({
   displayName,
@@ -53,30 +69,14 @@ export function PostedBySection({
       <h4 id="posted-by-heading">Posted by</h4>
       <div className="requester">
         <RequesterAvatar displayName={displayName} avatarUrl={avatarUrl} />
-        <div>
-          <strong>{displayName}</strong>
-        </div>
-        {verified ? (
-          <span className="verified">
-            <FigmaIcon name="check" size={12} /> Verified
-          </span>
-        ) : null}
+        <RequesterName displayName={displayName} verified={verified} />
       </div>
-      <p className="mt-3 text-[11px] leading-relaxed text-[var(--muted)]">
-        Only a display name is shown on listings.{" "}
-        <DismissDrawerLink
-          href="/account"
-          className="font-semibold text-[var(--ink)] underline"
-        >
-          Edit your profile
-        </DismissDrawerLink>
-      </p>
     </>
   );
 
   if (variant === "drawer") {
     return (
-      <div className="detail-section" aria-labelledby="posted-by-heading">
+      <div className="posted-by-block" aria-labelledby="posted-by-heading">
         {inner}
       </div>
     );
@@ -84,7 +84,7 @@ export function PostedBySection({
 
   return (
     <section
-      className="flex flex-col gap-3 border-t border-stone-200 pt-6 dark:border-stone-800"
+      className="flex flex-col gap-3"
       aria-labelledby="posted-by-heading-page"
     >
       <h2
@@ -93,23 +93,10 @@ export function PostedBySection({
       >
         Posted by
       </h2>
-      <div className="requester text-on-light-surface max-w-lg rounded-xl border border-stone-200 bg-stone-50 p-4 dark:border-stone-700 dark:bg-stone-900/40">
+      <div className="requester text-on-light-surface max-w-lg rounded-xl bg-stone-50 p-4 dark:bg-stone-900/40">
         <RequesterAvatar displayName={displayName} avatarUrl={avatarUrl} />
-        <div>
-          <strong>{displayName}</strong>
-        </div>
-        {verified ? (
-          <span className="verified">
-            <FigmaIcon name="check" size={12} /> Verified
-          </span>
-        ) : null}
+        <RequesterName displayName={displayName} verified={verified} />
       </div>
-      <p className="text-sm text-stone-500 dark:text-stone-400">
-        Only a display name is shown on listings.{" "}
-        <Link href="/account" className="font-medium underline">
-          Edit your profile
-        </Link>
-      </p>
     </section>
   );
 }

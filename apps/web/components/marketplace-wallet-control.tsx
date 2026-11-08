@@ -252,8 +252,7 @@ function MarketplaceWalletControlInner({
             onClick={() => void handleConnect()}
             className="btn-ink rounded-lg px-3 py-2 text-xs font-semibold sm:text-sm"
           >
-            <WalletIcon />
-            {connectBusy ? "Connecting…" : "Connect wallet"}
+            {connectBusy ? "Connecting…" : "Connect"}
           </button>
         </div>
         {(walletError || menuError) && (
@@ -401,7 +400,6 @@ function ConnectWalletOnly({
           disabled={disabled}
           className="btn-ink rounded-lg px-3 py-2 text-xs font-semibold sm:text-sm"
         >
-          <WalletIcon />
           {label}
         </button>
       </div>
@@ -411,23 +409,6 @@ function ConnectWalletOnly({
         </p>
       ) : null}
     </div>
-  );
-}
-
-function WalletIcon() {
-  return (
-    <svg
-      width={18}
-      height={18}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      aria-hidden
-    >
-      <path d="M21 12V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3" />
-      <path d="M16 12h4" />
-    </svg>
   );
 }
 

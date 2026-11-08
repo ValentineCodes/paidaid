@@ -14,11 +14,7 @@ const initial: WithdrawResponseState = { error: null };
 function WithdrawButton() {
   const { pending } = useFormStatus();
   return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="rounded-lg border border-stone-400 px-3 py-1.5 text-sm font-medium text-stone-800 hover:bg-stone-100 disabled:opacity-60 dark:border-stone-500 dark:text-stone-200 dark:hover:bg-stone-800"
-    >
+    <button type="submit" disabled={pending} className="primary-wide">
       {pending ? "Withdrawing…" : "Withdraw response"}
     </button>
   );
@@ -40,7 +36,7 @@ export function WithdrawResponseForm({ responseId, requestId }: Props) {
   }, [state.success, router]);
 
   return (
-    <form action={formAction} className="flex flex-col gap-2">
+    <form action={formAction} className="flex w-full flex-col gap-2">
       <input type="hidden" name="response_id" value={responseId} />
       <input type="hidden" name="request_id" value={requestId} />
       {state.error && (
