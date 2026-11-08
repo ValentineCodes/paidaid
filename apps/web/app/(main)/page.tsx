@@ -82,10 +82,11 @@ export default async function MarketplaceHomePage({ searchParams }: PageProps) {
             <span /> Open marketplace · Built for people
           </div>
           <h1>
-            If you can pay for it,
+            Get help
             <br />
-            <em>someone can do it.</em>
+            <em className="whitespace-nowrap">in minutes</em>
           </h1>
+          <p>If you can pay for it, someone can do it.</p>
           <p>Configure Supabase to load live requests.</p>
           <p className="max-w-xl text-[13px] text-[var(--muted)]">
             Set{" "}
@@ -152,14 +153,11 @@ export default async function MarketplaceHomePage({ searchParams }: PageProps) {
           <span /> Open marketplace · Built for people
         </div>
         <h1>
-          If you can pay for it,
+          Get help
           <br />
-          <em>someone can do it.</em>
+          <em className="whitespace-nowrap">in minutes</em>
         </h1>
-        <p>
-          Real people, useful work, direct connection. Post what you need or find
-          something worth doing.
-        </p>
+        <p>If you can pay for it, someone can do it.</p>
         <form method="get" action="/" className="search-wrap">
           <Icon name="search" />
           <input

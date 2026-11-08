@@ -193,7 +193,7 @@ function SettlementSectionInner({
       {!signedAccountId && (
         <button
           type="button"
-          className="mt-3 rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white dark:bg-[#edf2ed] dark:text-[#101614]"
+          className="btn-ink mt-3 rounded-lg px-4 py-2 text-sm font-medium"
           onClick={() => void connectWallet()}
           disabled={busy}
         >
@@ -203,7 +203,7 @@ function SettlementSectionInner({
       {signedAccountId && (
         <button
           type="button"
-          className="mt-3 rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-[#edf2ed] dark:text-[#101614]"
+          className="btn-ink mt-3 rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
           onClick={() => void runRelease()}
           disabled={busy}
         >

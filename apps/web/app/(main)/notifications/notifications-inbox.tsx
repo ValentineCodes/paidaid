@@ -170,7 +170,7 @@ export function NotificationsInbox({
             href={queryForFilter(f.value, 1)}
             className={`rounded-full border px-3 py-1 text-xs font-medium ${
               category === f.value
-                ? "border-stone-900 bg-stone-900 text-white dark:border-[#edf2ed] dark:bg-[#edf2ed] dark:text-[#101614]"
+                ? "btn-ink border-stone-900"
                 : "border-stone-300 text-stone-700 dark:border-stone-600 dark:text-stone-300"
             }`}
             title={f.hint}
@@ -201,7 +201,7 @@ export function NotificationsInbox({
               key={n.id}
               className={`rounded-lg border px-4 py-3 dark:border-stone-800 ${
                 unread
-                  ? "border-stone-400 bg-stone-50 dark:border-stone-600 dark:bg-stone-900/40"
+                  ? "text-on-light-surface border-stone-400 bg-stone-50 dark:border-stone-600 dark:bg-stone-900/40"
                   : "border-stone-200"
               }`}
             >

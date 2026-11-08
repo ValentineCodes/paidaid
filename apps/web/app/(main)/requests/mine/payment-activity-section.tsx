@@ -231,7 +231,7 @@ export function PaymentActivitySection({ initial }: Props) {
 
       <div className="flex flex-wrap items-center gap-2">
         <select
-          className="rounded border border-stone-300 bg-white px-2 py-1 text-sm dark:border-stone-700 dark:bg-stone-900"
+          className="text-on-light-surface rounded border border-stone-300 bg-white px-2 py-1 text-sm dark:border-stone-700 dark:bg-stone-900"
           value={filter.kind ?? ""}
           onChange={(e) =>
             onFilterChange({
@@ -248,7 +248,7 @@ export function PaymentActivitySection({ initial }: Props) {
           ))}
         </select>
         <select
-          className="rounded border border-stone-300 bg-white px-2 py-1 text-sm dark:border-stone-700 dark:bg-stone-900"
+          className="text-on-light-surface rounded border border-stone-300 bg-white px-2 py-1 text-sm dark:border-stone-700 dark:bg-stone-900"
           value={filter.status ?? ""}
           onChange={(e) =>
             onFilterChange({

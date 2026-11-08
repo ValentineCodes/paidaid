@@ -93,12 +93,10 @@ export function PostedBySection({
       >
         Posted by
       </h2>
-      <div className="requester max-w-lg rounded-xl border border-stone-200 bg-stone-50 p-4 dark:border-stone-700 dark:bg-stone-900/40">
+      <div className="requester text-on-light-surface max-w-lg rounded-xl border border-stone-200 bg-stone-50 p-4 dark:border-stone-700 dark:bg-stone-900/40">
         <RequesterAvatar displayName={displayName} avatarUrl={avatarUrl} />
         <div>
-          <strong className="text-stone-900 dark:text-stone-100">
-            {displayName}
-          </strong>
+          <strong>{displayName}</strong>
         </div>
         {verified ? (
           <span className="verified">
@@ -108,7 +106,7 @@ export function PostedBySection({
       </div>
       <p className="text-sm text-stone-500 dark:text-stone-400">
         Only a display name is shown on listings.{" "}
-        <Link href="/account" className="font-medium text-stone-900 underline dark:text-stone-100">
+        <Link href="/account" className="font-medium underline">
           Edit your profile
         </Link>
       </p>

@@ -40,7 +40,7 @@ export function WalletControls() {
             type="button"
             onClick={() => void connect()}
             disabled={busy}
-            className="rounded-lg bg-stone-900 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-stone-200"
+            className="btn-ink rounded-lg px-3 py-1.5 text-sm font-medium transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {connectButtonLabel(status)}
           </button>
@@ -81,7 +81,7 @@ function StatusBadge({
   const label = statusLabel(status);
   const tone =
     status === "connected"
-      ? "border-stone-200 bg-stone-50 text-stone-700 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300"
+      ? "text-on-light-surface border-stone-200 bg-stone-50 dark:border-stone-700 dark:bg-stone-900"
       : status === "connecting" || status === "initializing"
         ? "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200"
         : "border-stone-200 bg-white text-stone-600 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-400";
@@ -129,7 +129,7 @@ function AccountBadge({ accountId }: { accountId: string }) {
   return (
     <span
       title={accountId}
-      className="max-w-48 truncate rounded-lg border border-stone-200 bg-white px-2.5 py-1 font-mono text-xs text-stone-800 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 sm:max-w-xs"
+      className="text-on-light-surface max-w-48 truncate rounded-lg border border-stone-200 bg-white px-2.5 py-1 font-mono text-xs dark:border-stone-700 dark:bg-stone-900 sm:max-w-xs"
     >
       {accountId}
     </span>

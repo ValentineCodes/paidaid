@@ -2,7 +2,6 @@
 
 import { useWalletSelector } from "@near-wallet-selector/react-hook";
 import { useCallback, useState } from "react";
-import { useSearchParams } from "next/navigation";
 
 import {
   assertIntearWalletModule,
@@ -15,8 +14,6 @@ import {
   completeWalletAuthentication,
   createWalletAuthChallenge,
 } from "../../../auth/wallet-actions";
-import { SignOutForm } from "../../../../components/sign-out-form";
-
 function WalletSignInInner({ nextPath }: { nextPath: string }) {
   const { walletSelector, signOut, signMessage } = useWalletSelector();
   const { accountId, syncFromSelectorStore } = useNearWalletAccountId();
@@ -102,7 +99,7 @@ function WalletSignInInner({ nextPath }: { nextPath: string }) {
             type="button"
             disabled={busy}
             onClick={() => void connectWallet()}
-            className="rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60 dark:bg-stone-100 dark:text-stone-900"
+            className="btn-ink rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-60"
           >
             {busy ? "Connecting…" : "Connect wallet"}
           </button>
@@ -112,7 +109,7 @@ function WalletSignInInner({ nextPath }: { nextPath: string }) {
               type="button"
               disabled={busy}
               onClick={() => void signInWithWallet()}
-              className="rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60 dark:bg-stone-100 dark:text-stone-900"
+              className="btn-ink rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-60"
             >
               {busy ? "Signing in…" : "Sign in"}
             </button>
@@ -136,31 +133,6 @@ function WalletSignInInner({ nextPath }: { nextPath: string }) {
   );
 }
 
-export function WalletSignInForm({
-  alreadySignedIn,
-}: {
-  alreadySignedIn: boolean;
-}) {
-  const params = useSearchParams();
-  const nextPath = params?.get("next")?.trim() || "/";
-
-  return alreadySignedIn ? (
-    <AlreadySignedIn nextPath={nextPath} />
-  ) : (
-    <WalletSignInInner nextPath={nextPath} />
-  );
-}
-
-function AlreadySignedIn({ nextPath }: { nextPath: string }) {
-  return (
-    <div className="mx-auto mt-10 max-w-md space-y-4 rounded-xl border border-stone-200 p-6 dark:border-stone-800">
-      <p className="text-sm text-stone-700 dark:text-stone-300">
-        You are already signed in.
-      </p>
-      <a href={nextPath} className="text-sm font-semibold underline">
-        Continue to {nextPath === "/" ? "home" : "your page"}
-      </a>
-      <SignOutForm />
-    </div>
-  );
+export function WalletSignInForm({ nextPath }: { nextPath: string }) {
+  return <WalletSignInInner nextPath={nextPath} />;
 }

@@ -166,12 +166,12 @@ export async function RequestResponsesOwnerList({
         const chatButtonClass =
           variant === "drawer"
             ? "secondary shrink-0 no-underline"
-            : "inline-flex w-fit shrink-0 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-900 dark:border-stone-600 dark:text-stone-100";
+            : "text-on-light-surface inline-flex w-fit shrink-0 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium dark:border-stone-600";
 
         return (
           <li
             key={r.id}
-            className="flex gap-4 rounded-lg border border-stone-200 p-4 dark:border-stone-700"
+            className="text-on-light-surface flex gap-4 rounded-lg border border-stone-200 p-4 dark:border-stone-700 dark:bg-stone-900/30"
           >
             {r.photoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element -- signed URL

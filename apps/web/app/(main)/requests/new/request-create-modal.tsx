@@ -302,7 +302,7 @@ export function RequestCreateModal({
             {effectiveStep === 1 && (
               <div className="form-fields">
                 <label>
-                  Task title
+                  Title
                   <input
                     placeholder="e.g. Help photograph my new products"
                     value={title}
@@ -316,7 +316,10 @@ export function RequestCreateModal({
                   </p>
                 )}
                 <label>
-                  Description <span className="text-[var(--muted)]">(optional)</span>
+                  <span className="inline-flex items-baseline gap-1">
+                    Description
+                    <span className="font-normal text-[var(--muted)]">(optional)</span>
+                  </span>
                   <textarea
                     placeholder="Describe what needs doing, what success looks like, and any helpful context..."
                     value={description}

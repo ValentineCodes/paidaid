@@ -14,7 +14,6 @@ import {
 } from "../lib/wallet/header-display";
 import { useMarketplaceWalletAuth } from "../lib/wallet/use-marketplace-wallet-auth";
 import { usePaidAidWallet } from "../wallet/use-paidaid-wallet";
-import { WALLET_NETWORK_ID } from "../wallet/constants";
 import { formatWalletConnectionError } from "../wallet/errors";
 import { useWalletShell } from "../wallet/wallet-shell-context";
 
@@ -247,15 +246,14 @@ function MarketplaceWalletControlInner({
     return (
       <div className="flex flex-col items-end gap-1">
         <div className="flex flex-wrap items-center justify-end gap-2">
-          <NetworkPill />
           <button
             type="button"
             disabled={connectBusy}
             onClick={() => void handleConnect()}
-            className="create-button !py-2 text-sm font-semibold max-sm:text-[0]"
+            className="btn-ink rounded-lg px-3 py-2 text-xs font-semibold sm:text-sm"
           >
             <WalletIcon />
-            {connectBusy ? "Connecting…" : "Connect Wallet"}
+            {connectBusy ? "Connecting…" : "Connect wallet"}
           </button>
         </div>
         {(walletError || menuError) && (
@@ -283,7 +281,6 @@ function MarketplaceWalletControlInner({
   return (
     <div className="relative flex flex-col items-end gap-1" ref={menuRef}>
       <div className="flex flex-wrap items-center justify-end gap-2">
-        <NetworkPill />
         <button
           type="button"
           disabled={menuInteractionBusy}
@@ -291,13 +288,13 @@ function MarketplaceWalletControlInner({
           aria-haspopup="menu"
           aria-controls={menuId}
           onClick={() => setOpen((v) => !v)}
-          className="flex max-w-[min(100%,18rem)] flex-nowrap items-center gap-2 rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-left text-xs shadow-sm transition hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-900 dark:hover:bg-stone-800"
+          className="text-on-light-surface flex max-w-[min(100%,18rem)] flex-nowrap items-center gap-2 rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-left text-xs shadow-sm transition hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-900 dark:hover:bg-stone-800"
         >
-          <span className="min-w-0 truncate font-mono font-medium text-stone-900 dark:text-stone-100">
+          <span className="min-w-0 truncate font-mono font-medium">
             {truncateNearAccountId(headerAccount)}
           </span>
           {syncState === "aligned" && balanceDisplay ? (
-            <span className="hidden shrink-0 whitespace-nowrap text-stone-500 sm:inline dark:text-stone-400">
+            <span className="text-on-light-surface-muted hidden shrink-0 whitespace-nowrap sm:inline">
               {balanceLoading ? "…" : balanceDisplay}
             </span>
           ) : null}
@@ -399,11 +396,10 @@ function ConnectWalletOnly({
   return (
     <div className="flex flex-col items-end gap-1">
       <div className="flex flex-wrap items-center justify-end gap-2">
-        <NetworkPill />
         <button
           type="button"
           disabled={disabled}
-          className="create-button !py-2 text-sm font-semibold max-sm:text-[0]"
+          className="btn-ink rounded-lg px-3 py-2 text-xs font-semibold sm:text-sm"
         >
           <WalletIcon />
           {label}
@@ -415,14 +411,6 @@ function ConnectWalletOnly({
         </p>
       ) : null}
     </div>
-  );
-}
-
-function NetworkPill() {
-  return (
-    <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200">
-      {WALLET_NETWORK_ID}
-    </span>
   );
 }
 

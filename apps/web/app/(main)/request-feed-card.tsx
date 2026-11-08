@@ -46,7 +46,7 @@ function Icon({
   name,
   size = 16,
 }: {
-  name: "pin" | "spark" | "clock" | "arrow";
+  name: "pin" | "spark" | "clock";
   size?: number;
 }) {
   const common = {
@@ -76,17 +76,10 @@ function Icon({
       </svg>
     );
   }
-  if (name === "clock") {
-    return (
-      <svg {...common}>
-        <circle cx="12" cy="12" r="9" />
-        <path d="M12 7v5l3 2" />
-      </svg>
-    );
-  }
   return (
     <svg {...common}>
-      <path d="M5 12h14M14 7l5 5-5 5" />
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
     </svg>
   );
 }
@@ -161,12 +154,6 @@ export function RequestFeedCard({
         <span>
           <Icon name="clock" size={16} />
           {due}
-        </span>
-      </div>
-      <div className="card-foot">
-        <span>Open</span>
-        <span className="view-link">
-          View task <Icon name="arrow" size={16} />
         </span>
       </div>
     </Link>

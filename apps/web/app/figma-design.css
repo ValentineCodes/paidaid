@@ -251,8 +251,29 @@ body.app:not(.dark) {
   align-items: center;
 }
 
-.dark .create-button {
-  color: #10201b;
+/* Filled ink actions: light chip in dark theme needs dark label text */
+.btn-ink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--ink);
+  color: var(--surface);
+}
+
+.dark .create-button,
+.dark .btn-ink,
+body.app.dark .create-button,
+body.app.dark .btn-ink {
+  color: #101614;
+}
+
+/* Tailwind dark:bg-stone-900/100 are light surfaces when body.app.dark */
+body.app.dark .text-on-light-surface {
+  color: #15231f;
+}
+
+body.app.dark .text-on-light-surface-muted {
+  color: #4f5c55;
 }
 
 .avatar {
@@ -559,7 +580,6 @@ body.app:not(.dark) {
   border: 1px solid var(--line);
   border-radius: 15px;
   transition: 0.2s ease;
-  min-height: 250px;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -640,7 +660,7 @@ a.task-card {
 .meta-row {
   display: flex;
   gap: 16px;
-  margin: 18px 0;
+  margin: 18px 0 0;
   color: var(--muted);
   font-size: 11px;
   flex-wrap: wrap;
@@ -1948,25 +1968,32 @@ a.update {
     font-size: 18px;
   }
 
-  .theme-toggle,
   .header-actions>.avatar {
     display: none;
   }
 
-  .create-button {
+  /* Post a task only — not header Connect wallet */
+  .section-head .create-button {
     width: 39px;
     height: 39px;
+    min-width: 39px;
     padding: 0;
+    gap: 0;
     justify-content: center;
+    align-items: center;
     border-radius: 50%;
+    flex-shrink: 0;
+    margin-bottom: 2px;
   }
 
-  .create-button svg {
+  .section-head .create-button__label {
+    display: none;
+  }
+
+  .section-head .create-button svg {
+    display: block;
     width: 20px;
-  }
-
-  .create-button {
-    font-size: 0;
+    height: 20px;
   }
 
   .hero {
@@ -2007,7 +2034,9 @@ a.update {
   }
 
   .section-head {
-    align-items: flex-start;
+    flex-wrap: nowrap;
+    align-items: flex-end;
+    gap: 12px;
   }
 
   .section-head h2 {
@@ -2047,7 +2076,6 @@ a.update {
   }
 
   .task-card {
-    min-height: 225px;
     padding: 19px;
   }
 

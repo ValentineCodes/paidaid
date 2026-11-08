@@ -53,12 +53,12 @@ export function HomePostTask({ catalog, initialOpen }: Props) {
       onClick={() => setOpen(true)}
     >
       <PostTaskIcon />
-      Post a task
+      <span className="create-button__label">Post a task</span>
     </button>
   ) : (
     <Link href={`/auth/wallet?next=${AUTH_NEXT}`} className="create-button">
       <PostTaskIcon />
-      Post a task
+      <span className="create-button__label">Post a task</span>
     </Link>
   );
 

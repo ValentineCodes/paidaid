@@ -244,7 +244,7 @@ function ContractInteractionFormInner() {
             <button
               type="button"
               onClick={() => void connect()}
-              className="rounded-lg bg-stone-900 px-3 py-1.5 text-sm font-medium text-white dark:bg-stone-100 dark:text-stone-900"
+              className="btn-ink rounded-lg px-3 py-1.5 text-sm font-medium"
             >
               Connect Intear
             </button>
@@ -253,7 +253,7 @@ function ContractInteractionFormInner() {
           <div className="flex flex-col gap-1 text-sm text-stone-600 dark:text-stone-400">
             <p>
               Signed in as{" "}
-              <span className="font-mono text-stone-900 dark:text-stone-100">
+              <span className="font-mono text-stone-900">
                 {accountId}
               </span>
             </p>
@@ -261,7 +261,7 @@ function ContractInteractionFormInner() {
             balanceYoctoForAccount !== null ? (
               <p>
                 Balance:{" "}
-                <span className="font-mono text-stone-900 dark:text-stone-100">
+                <span className="font-mono text-stone-900">
                   {formatYoctoNearBalance(balanceYoctoForAccount)}
                 </span>
               </p>
@@ -296,7 +296,7 @@ function ContractInteractionFormInner() {
             balanceTooLow
           }
           onClick={() => void submitMessage()}
-          className="w-fit rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-stone-100 dark:text-stone-900"
+          className="btn-ink w-fit rounded-lg px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
         >
           {submitPending ? "Submitting…" : "Submit message"}
         </button>

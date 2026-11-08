@@ -295,7 +295,7 @@ export function EngagementWorkflow({
                 type="button"
                 disabled={busy}
                 onClick={() => void runSubmitDelivery()}
-                className="w-fit rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-[#edf2ed] dark:text-[#101614]"
+                className="btn-ink w-fit rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
               >
                 {busy ? "Saving…" : "I'm done"}
               </button>
@@ -324,7 +324,7 @@ export function EngagementWorkflow({
               Review delivery
             </h2>
             {delivery && deliveryHasVisibleContent && (
-              <div className="mt-3 rounded-lg bg-stone-50 p-3 text-sm dark:bg-stone-900/60">
+              <div className="text-on-light-surface mt-3 rounded-lg bg-stone-50 p-3 text-sm dark:bg-stone-900/60">
                 {delivery.description.trim() ? (
                   <p className="whitespace-pre-wrap">{delivery.description}</p>
                 ) : null}
@@ -413,7 +413,7 @@ export function EngagementWorkflow({
               type="button"
               disabled={busy || rating < 1 || rating > 5}
               onClick={() => void runSubmitReview()}
-              className="w-fit rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-[#edf2ed] dark:text-[#101614]"
+              className="btn-ink w-fit rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
             >
               Submit review
             </button>

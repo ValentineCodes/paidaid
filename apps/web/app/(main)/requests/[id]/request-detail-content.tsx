@@ -270,7 +270,7 @@ export function RequestDetailContent({ data, variant }: Props) {
 
       {isOwner && user && (
         <p
-          className="rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+          className="text-on-light-surface rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-sm dark:border-stone-700 dark:bg-stone-900"
           role="status"
         >
           Your request was saved{publishedAt ? " and published" : " as a draft"}.
@@ -369,7 +369,7 @@ export function RequestDetailContent({ data, variant }: Props) {
           {assignmentRow && engagementRow ? (
             <Link
               href={`/engagements/${engagementRow.id}`}
-              className="inline-flex w-fit rounded-lg bg-stone-900 px-3 py-2 text-sm font-medium text-white dark:bg-[#edf2ed] dark:text-[#101614]"
+              className="btn-ink inline-flex w-fit rounded-lg px-3 py-2 text-sm font-medium"
             >
               Open engagement
             </Link>

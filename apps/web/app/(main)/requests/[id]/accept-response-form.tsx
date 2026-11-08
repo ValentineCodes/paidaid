@@ -73,7 +73,7 @@ function StatusBanner({
           phase === "wallet_rejected" ||
           phase === "expired"
         ? "border-red-200 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950/40 dark:text-red-100"
-        : "border-stone-200 bg-stone-50 text-stone-800 dark:border-stone-700 dark:bg-stone-900/50 dark:text-stone-200";
+        : "text-on-light-surface border-stone-200 bg-stone-50 dark:border-stone-700 dark:bg-stone-900/50";
 
   return (
     <div
@@ -400,7 +400,7 @@ function AcceptResponseFormInner({
           </p>
           <Link
             href={`/engagements/${finalizedEngagementId}`}
-            className="w-fit rounded-lg bg-stone-900 px-3 py-2 text-sm font-medium text-white dark:bg-[#edf2ed] dark:text-[#101614]"
+            className="btn-ink w-fit rounded-lg px-3 py-2 text-sm font-medium"
           >
             Open engagement
           </Link>
@@ -409,7 +409,7 @@ function AcceptResponseFormInner({
 
       {phase === "confirm" && (
         <div className="flex flex-col gap-3 rounded-lg border border-stone-200 p-3 dark:border-stone-700">
-          <p className="text-sm text-stone-800 dark:text-stone-200">
+          <p className="text-on-light-surface text-sm">
             Accepting <strong>{providerDisplayName}</strong> requires funding{" "}
             <strong>
               {offerAmountDisplay} {assetSymbol}
@@ -435,7 +435,7 @@ function AcceptResponseFormInner({
               type="button"
               disabled={busy || walletRequired}
               onClick={() => void runFundingFlow({ skipPrepare: false })}
-              className="rounded-lg bg-stone-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-60 dark:bg-[#edf2ed] dark:text-[#101614]"
+              className="btn-ink rounded-lg px-3 py-2 text-sm font-medium disabled:opacity-60"
             >
               Confirm and fund escrow
             </button>
@@ -466,7 +466,7 @@ function AcceptResponseFormInner({
             className={
               variant === "drawer"
                 ? "primary w-fit shrink-0"
-                : "w-fit shrink-0 rounded-lg bg-stone-900 px-3 py-2 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-60 dark:bg-[#edf2ed] dark:text-[#101614] dark:hover:bg-[#dde5df]"
+                : "btn-ink w-fit shrink-0 rounded-lg px-3 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-60"
             }
           >
             Accept
@@ -514,7 +514,7 @@ function AcceptResponseFormInner({
             onClick={() =>
               void runFundingFlow({ skipPrepare: Boolean(intent) })
             }
-            className="w-fit rounded-lg bg-stone-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-60 dark:bg-[#edf2ed] dark:text-[#101614]"
+            className="btn-ink w-fit rounded-lg px-3 py-2 text-sm font-medium disabled:opacity-60"
           >
             {busy ? (activeStep ?? "Working…") : "Continue funding"}
           </button>
