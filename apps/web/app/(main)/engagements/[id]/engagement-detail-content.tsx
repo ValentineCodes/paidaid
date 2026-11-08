@@ -47,7 +47,6 @@ export type EngagementDetailContentProps = {
   delivery: DeliveryRow | null;
   deliveryAttachments: DeliveryAttachmentRow[];
   existingReview: ReviewRow | null;
-  hasProfilePhoto: boolean;
   tagLabels: string[];
 };
 
@@ -183,7 +182,6 @@ export function EngagementDetailContent(props: EngagementDetailContentProps) {
     delivery,
     deliveryAttachments,
     existingReview,
-    hasProfilePhoto,
     tagLabels,
   } = props;
 
@@ -306,7 +304,6 @@ export function EngagementDetailContent(props: EngagementDetailContentProps) {
       )}
 
       <div className="detail-section engagement-workflow-wrap">
-        <h4>Delivery &amp; completion</h4>
         <EngagementWorkflow
           engagementId={engagementId}
           conversationId={conversationId}
@@ -316,7 +313,6 @@ export function EngagementDetailContent(props: EngagementDetailContentProps) {
           delivery={delivery}
           deliveryAttachments={deliveryAttachments}
           existingReview={existingReview}
-          hasProfilePhoto={hasProfilePhoto}
         />
       </div>
     </div>

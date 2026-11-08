@@ -4,10 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "../../../../lib/supabase/server";
 import { isSupabaseConfigured } from "../../../../lib/supabase/env";
 import { getRequestWallTimeMs } from "../../../../lib/datetime/request-wall-time";
-import {
-  profileHasPhotoForGating,
-  resolveProfileDisplayUrl,
-} from "../../../../lib/profiles/resolve-photo";
+import { resolveProfileDisplayUrl } from "../../../../lib/profiles/resolve-photo";
 import { normalizeDbNumericAmount } from "@paidaid/shared";
 import { formatBudgetSmallestUnits } from "../../../../lib/requests/format-budget";
 import { EngagementDetailContent } from "./engagement-detail-content";
@@ -167,14 +164,6 @@ export default async function EngagementPage({ params }: PageProps) {
     .select("*")
     .eq("engagement_id", id)
     .maybeSingle();
-
-  const { data: myProfile } = await supabase
-    .from("profiles")
-    .select("avatar_url, live_profile_photo_path")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  const hasProfilePhoto = profileHasPhotoForGating(myProfile);
 
   const budgetStr =
     accepted && asset
@@ -340,7 +329,6 @@ export default async function EngagementPage({ params }: PageProps) {
       delivery={delivery}
       deliveryAttachments={deliveryAttachments}
       existingReview={reviewRow}
-      hasProfilePhoto={hasProfilePhoto}
       tagLabels={tagLabels}
     />
   );

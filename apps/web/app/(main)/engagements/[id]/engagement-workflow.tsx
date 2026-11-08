@@ -25,7 +25,6 @@ type Props = {
   delivery: DeliveryRow | null;
   deliveryAttachments: DeliveryAttRow[];
   existingReview: ReviewRow | null;
-  hasProfilePhoto: boolean;
 };
 
 function DeliveryMediaLink({ path, mime }: { path: string; mime: string }) {
@@ -83,7 +82,6 @@ export function EngagementWorkflow({
   delivery,
   deliveryAttachments,
   existingReview,
-  hasProfilePhoto,
 }: Props) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -93,8 +91,6 @@ export function EngagementWorkflow({
   const [desc, setDesc] = useState(delivery?.description ?? "");
   const [proofFiles, setProofFiles] = useState<File[]>([]);
   const [postToChat, setPostToChat] = useState(true);
-
-  const [revisionNote, setRevisionNote] = useState("");
 
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
@@ -133,14 +129,6 @@ export function EngagementWorkflow({
   }, [supabase, engagementId, refresh]);
 
   async function runSubmitDelivery() {
-    if (!hasProfilePhoto) {
-      setError("Add a profile photo in Account settings before submitting.");
-      return;
-    }
-    if (!desc.trim()) {
-      setError("Describe what you completed.");
-      return;
-    }
     setBusy(true);
     setError(null);
     const { data: rows, error: rpcErr } = await supabase.rpc(
@@ -213,21 +201,18 @@ export function EngagementWorkflow({
     refresh();
   }
 
-  async function runReview(action: "approve" | "revision") {
+  async function runApprove() {
     setBusy(true);
     setError(null);
     const { error: rpcErr } = await supabase.rpc("review_delivery", {
       p_engagement_id: engagementId,
-      p_action: action,
-      p_revision_note:
-        action === "revision" ? revisionNote.trim() || undefined : undefined,
+      p_action: "approve",
     });
     if (rpcErr) {
       setError(rpcErr.message);
       setBusy(false);
       return;
     }
-    setRevisionNote("");
     setBusy(false);
     refresh();
   }
@@ -250,6 +235,8 @@ export function EngagementWorkflow({
   }
 
   const deliveryStatus = delivery?.status ?? null;
+  const deliveryHasVisibleContent =
+    Boolean(delivery?.description?.trim()) || deliveryAttachments.length > 0;
 
   return (
     <div className="flex flex-col gap-8">
@@ -260,19 +247,11 @@ export function EngagementWorkflow({
       {/* Provider: submit / resubmit */}
       {isProvider && engagementStatus === "active" && (
         <section className="rounded-lg border border-stone-200 p-4 dark:border-stone-800">
-          <h2 className="text-lg font-medium text-stone-900 dark:text-stone-100">
-            I&apos;m done — submit delivery
-          </h2>
-          {!hasProfilePhoto && (
-            <p className="mt-2 text-sm text-amber-800 dark:text-amber-200">
-              Add a profile photo under Account before submitting.
-            </p>
-          )}
           {(deliveryStatus === null ||
             deliveryStatus === "revision_requested") && (
-            <div className="mt-4 flex flex-col gap-3">
+            <div className="flex flex-col gap-3">
               <label className="text-sm font-medium text-stone-700 dark:text-stone-300">
-                What did you complete?
+                Notes (optional)
                 <textarea
                   value={desc}
                   onChange={(e) => setDesc(e.target.value)}
@@ -289,7 +268,7 @@ export function EngagementWorkflow({
                   onChange={(e) => setPostToChat(e.target.checked)}
                   disabled={!conversationId}
                 />
-                Also post summary to chat
+                Also notify in chat
                 {!conversationId && (
                   <span className="text-stone-500">(no conversation)</span>
                 )}
@@ -314,17 +293,17 @@ export function EngagementWorkflow({
               </div>
               <button
                 type="button"
-                disabled={busy || !hasProfilePhoto}
+                disabled={busy}
                 onClick={() => void runSubmitDelivery()}
                 className="w-fit rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-[#edf2ed] dark:text-[#101614]"
               >
-                {busy ? "Submitting…" : "Submit for review"}
+                {busy ? "Saving…" : "I'm done"}
               </button>
             </div>
           )}
           {deliveryStatus === "pending_review" && (
             <p className="mt-3 text-sm text-stone-600 dark:text-stone-400">
-              Waiting for the requester to approve or request changes.
+              Waiting for the requester to approve.
             </p>
           )}
           {deliveryStatus === "approved" && engagementStatus === "active" && (
@@ -344,9 +323,11 @@ export function EngagementWorkflow({
             <h2 className="text-lg font-medium text-stone-900 dark:text-stone-100">
               Review delivery
             </h2>
-            {delivery && (
+            {delivery && deliveryHasVisibleContent && (
               <div className="mt-3 rounded-lg bg-stone-50 p-3 text-sm dark:bg-stone-900/60">
-                <p className="whitespace-pre-wrap">{delivery.description}</p>
+                {delivery.description.trim() ? (
+                  <p className="whitespace-pre-wrap">{delivery.description}</p>
+                ) : null}
                 {deliveryAttachments.length > 0 && (
                   <ul className="mt-3 space-y-2">
                     {deliveryAttachments.map((a) => (
@@ -365,31 +346,10 @@ export function EngagementWorkflow({
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => void runReview("approve")}
+                onClick={() => void runApprove()}
                 className="rounded-lg bg-green-800 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-green-700"
               >
                 Approve delivery
-              </button>
-            </div>
-            <div className="mt-4">
-              <label className="text-sm font-medium text-stone-700 dark:text-stone-300">
-                Request changes (optional path)
-                <textarea
-                  value={revisionNote}
-                  onChange={(e) => setRevisionNote(e.target.value)}
-                  rows={2}
-                  maxLength={2000}
-                  placeholder="What should be redone or clarified?"
-                  className="mt-1 w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm dark:border-stone-600 dark:bg-stone-950"
-                />
-              </label>
-              <button
-                type="button"
-                disabled={busy || !revisionNote.trim()}
-                onClick={() => void runReview("revision")}
-                className="mt-2 rounded-lg border border-stone-400 px-4 py-2 text-sm dark:border-stone-600"
-              >
-                Request revision
               </button>
             </div>
           </section>
@@ -399,7 +359,8 @@ export function EngagementWorkflow({
       {isProvider &&
         engagementStatus === "active" &&
         delivery &&
-        deliveryStatus === "pending_review" && (
+        deliveryStatus === "pending_review" &&
+        deliveryHasVisibleContent && (
           <section className="rounded-lg border border-stone-200 p-4 dark:border-stone-800">
             <h2 className="text-sm font-medium text-stone-900 dark:text-stone-100">
               Your submission
