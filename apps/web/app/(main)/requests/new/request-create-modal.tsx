@@ -86,6 +86,45 @@ function formatDueShort(isoLocal: string): string {
   });
 }
 
+function validateCreateStep1(title: string, description: string) {
+  const fieldErrors: Record<string, string> = {};
+  const trimmed = title.trim();
+  if (trimmed.length < 3 || trimmed.length > 50) {
+    fieldErrors.title = "Title must be between 3 and 50 characters";
+  }
+  if (description.length > 1000) {
+    fieldErrors.description = "Description must be at most 1000 characters";
+  }
+  return fieldErrors;
+}
+
+function validateCreateStep2(input: {
+  budgetHuman: string;
+  deadlineDate: string;
+  locationKind: "online" | "in_person";
+  locationLabel: string;
+  categoryTagId: string | null;
+}) {
+  const fieldErrors: Record<string, string> = {};
+  const budget = input.budgetHuman.trim();
+  if (!/^\d+$/.test(budget) || budget === "0") {
+    fieldErrors.budgetHuman = "Enter a whole-number budget greater than 0";
+  }
+  if (input.deadlineDate.trim() === "") {
+    fieldErrors.deadlineAt = "Pick a deadline";
+  }
+  if (
+    input.locationKind === "in_person" &&
+    input.locationLabel.trim().length < 1
+  ) {
+    fieldErrors.locationLabel = "Add a short location for in-person tasks";
+  }
+  if (!input.categoryTagId) {
+    fieldErrors.tags = "Choose a category";
+  }
+  return fieldErrors;
+}
+
 export function RequestCreateModal({
   assets,
   tags,
@@ -112,6 +151,9 @@ export function RequestCreateModal({
 
   const [state, formAction] = useActionState(createRequest, initialState);
   const [isPending, startTransition] = useTransition();
+  const [clientFieldErrors, setClientFieldErrors] = useState<
+    Record<string, string>
+  >({});
 
   const selectedCategory = CATEGORY_OPTIONS.find((c) => c.key === categoryKey)!;
   const categoryTagId = tagIdForPick(
@@ -138,6 +180,26 @@ export function RequestCreateModal({
   }, [photoPreviewUrl]);
 
   const isPublished = Boolean(state.success && state.requestId);
+
+  const fieldErrors = useMemo(
+    () => ({ ...clientFieldErrors, ...(state.fieldErrors ?? {}) }),
+    [clientFieldErrors, state.fieldErrors],
+  );
+
+  const clearClientFieldError = (key: string) => {
+    setClientFieldErrors((prev) => {
+      if (!(key in prev)) {
+        return prev;
+      }
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    setClientFieldErrors({});
+  }, [step]);
 
   const effectiveStep = useMemo((): Step => {
     const fe = state.fieldErrors;
@@ -173,27 +235,24 @@ export function RequestCreateModal({
     setPhotoFiles([list[0]!]);
   };
 
-  const step1Ok =
-    title.trim().length >= 3 &&
-    title.trim().length <= 50 &&
-    description.length <= 1000;
-
-  const step2Ok = (() => {
-    const budgetOk = /^\d+$/.test(budgetHuman.trim()) && budgetHuman !== "0";
-    const deadlineOk = deadlineDate.trim() !== "";
-    const inPersonOk =
-      locationKind === "online" || locationLabel.trim().length >= 1;
-    return budgetOk && deadlineOk && inPersonOk;
-  })();
-
-  const canContinue =
-    effectiveStep === 1 ? step1Ok : effectiveStep === 2 ? step2Ok : true;
-
   const handlePrimary = () => {
     if (effectiveStep < 3) {
-      if (canContinue) {
-        setStep((Math.min(3, effectiveStep + 1) as Step));
+      const stepErrors =
+        effectiveStep === 1
+          ? validateCreateStep1(title, description)
+          : validateCreateStep2({
+              budgetHuman,
+              deadlineDate,
+              locationKind,
+              locationLabel,
+              categoryTagId,
+            });
+      if (Object.keys(stepErrors).length > 0) {
+        setClientFieldErrors(stepErrors);
+        return;
       }
+      setClientFieldErrors({});
+      setStep((Math.min(3, effectiveStep + 1) as Step));
       return;
     }
     const deadlineAt =
@@ -306,13 +365,16 @@ export function RequestCreateModal({
                   <input
                     placeholder="e.g. Help photograph my new products"
                     value={title}
-                    onChange={(e) => setTitle(e.target.value)}
+                    onChange={(e) => {
+                      setTitle(e.target.value);
+                      clearClientFieldError("title");
+                    }}
                     maxLength={50}
                   />
                 </label>
-                {state.fieldErrors?.title && (
-                  <p className="-mt-1 text-[11px] text-red-600 dark:text-red-400">
-                    {state.fieldErrors.title}
+                {fieldErrors.title && (
+                  <p className="-mt-1 mb-2 text-[11px] text-red-600 dark:text-red-400">
+                    {fieldErrors.title}
                   </p>
                 )}
                 <label>
@@ -323,13 +385,16 @@ export function RequestCreateModal({
                   <textarea
                     placeholder="Describe what needs doing, what success looks like, and any helpful context..."
                     value={description}
-                    onChange={(e) => setDescription(e.target.value)}
+                    onChange={(e) => {
+                      setDescription(e.target.value);
+                      clearClientFieldError("description");
+                    }}
                     maxLength={1000}
                   />
                 </label>
-                {state.fieldErrors?.description && (
-                  <p className="-mt-1 text-[11px] text-red-600 dark:text-red-400">
-                    {state.fieldErrors.description}
+                {fieldErrors.description && (
+                  <p className="-mt-1 mb-2 text-[11px] text-red-600 dark:text-red-400">
+                    {fieldErrors.description}
                   </p>
                 )}
               </div>
@@ -347,31 +412,35 @@ export function RequestCreateModal({
                         pattern="[0-9]*"
                         autoComplete="off"
                         value={budgetHuman}
-                        onChange={(e) =>
-                          setBudgetHuman(e.target.value.replace(/\D/g, ""))
-                        }
+                        onChange={(e) => {
+                          setBudgetHuman(e.target.value.replace(/\D/g, ""));
+                          clearClientFieldError("budgetHuman");
+                        }}
                       />
                       <span>{budgetAsset?.symbol ?? "—"}</span>
                     </div>
+                    {fieldErrors.budgetHuman ? (
+                      <p className="mb-0 mt-1 text-[11px] text-red-600 dark:text-red-400">
+                        {fieldErrors.budgetHuman}
+                      </p>
+                    ) : null}
                   </label>
-                  {state.fieldErrors?.budgetHuman && (
-                    <p className="col-span-2 -mt-2 text-[11px] text-red-600 dark:text-red-400">
-                      {state.fieldErrors.budgetHuman}
-                    </p>
-                  )}
                   <label>
                     Deadline
                     <input
                       type="date"
                       value={deadlineDate}
-                      onChange={(e) => setDeadlineDate(e.target.value)}
+                      onChange={(e) => {
+                        setDeadlineDate(e.target.value);
+                        clearClientFieldError("deadlineAt");
+                      }}
                     />
+                    {fieldErrors.deadlineAt ? (
+                      <p className="mb-0 mt-1 text-[11px] text-red-600 dark:text-red-400">
+                        {fieldErrors.deadlineAt}
+                      </p>
+                    ) : null}
                   </label>
-                  {state.fieldErrors?.deadlineAt && (
-                    <p className="col-span-2 -mt-2 text-[11px] text-red-600 dark:text-red-400">
-                      {state.fieldErrors.deadlineAt}
-                    </p>
-                  )}
                 </div>
                 <label>
                   How will this happen?
@@ -379,7 +448,10 @@ export function RequestCreateModal({
                     <button
                       type="button"
                       className={locationKind === "online" ? "selected" : ""}
-                      onClick={() => setLocationKind("online")}
+                      onClick={() => {
+                        setLocationKind("online");
+                        clearClientFieldError("locationLabel");
+                      }}
                     >
                       <FigmaIcon name="spark" size={18} />
                       Online
@@ -389,7 +461,10 @@ export function RequestCreateModal({
                       className={
                         locationKind === "in_person" ? "selected" : ""
                       }
-                      onClick={() => setLocationKind("in_person")}
+                      onClick={() => {
+                        setLocationKind("in_person");
+                        clearClientFieldError("locationLabel");
+                      }}
                     >
                       <FigmaIcon name="pin" size={18} />
                       In person
@@ -402,20 +477,26 @@ export function RequestCreateModal({
                     <input
                       placeholder="e.g. Downtown, meet at mall entrance"
                       value={locationLabel}
-                      onChange={(e) => setLocationLabel(e.target.value)}
+                      onChange={(e) => {
+                        setLocationLabel(e.target.value);
+                        clearClientFieldError("locationLabel");
+                      }}
                     />
                   </label>
                 )}
-                {state.fieldErrors?.locationLabel && (
-                  <p className="text-[11px] text-red-600 dark:text-red-400">
-                    {state.fieldErrors.locationLabel}
+                {fieldErrors.locationLabel && (
+                  <p className="mb-2 text-[11px] text-red-600 dark:text-red-400">
+                    {fieldErrors.locationLabel}
                   </p>
                 )}
                 <label>
                   Category
                   <select
                     value={categoryKey}
-                    onChange={(e) => setCategoryKey(e.target.value)}
+                    onChange={(e) => {
+                      setCategoryKey(e.target.value);
+                      clearClientFieldError("tags");
+                    }}
                   >
                     {CATEGORY_OPTIONS.map((c) => (
                       <option key={c.key} value={c.key}>
@@ -424,9 +505,9 @@ export function RequestCreateModal({
                     ))}
                   </select>
                 </label>
-                {state.fieldErrors?.tags && (
-                  <p className="text-[11px] text-red-600 dark:text-red-400">
-                    {state.fieldErrors.tags}
+                {fieldErrors.tags && (
+                  <p className="mb-2 text-[11px] text-red-600 dark:text-red-400">
+                    {fieldErrors.tags}
                   </p>
                 )}
               </div>
@@ -483,9 +564,9 @@ export function RequestCreateModal({
                     </button>
                   ) : null}
                 </div>
-                {state.fieldErrors?.photos && (
+                {fieldErrors.photos && (
                   <p className="-mt-2 mb-2 text-[11px] text-red-600 dark:text-red-400">
-                    {state.fieldErrors.photos}
+                    {fieldErrors.photos}
                   </p>
                 )}
                 <p className="review-card__meta">{reviewMeta}</p>
@@ -524,9 +605,9 @@ export function RequestCreateModal({
                 type="button"
                 className="primary"
                 onClick={handlePrimary}
-                disabled={isPending || (effectiveStep < 3 && !canContinue)}
+                disabled={isPending}
               >
-                {effectiveStep === 3 ? "Publish task" : "Continue"}
+                {effectiveStep === 3 ? "Publish" : "Continue"}
                 <FigmaIcon name="arrow" size={17} />
               </button>
             </div>

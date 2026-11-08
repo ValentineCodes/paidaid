@@ -875,7 +875,8 @@ a.task-card {
   height: 52px;
 }
 
-.primary-wide:disabled {
+.primary-wide:disabled,
+.primary:disabled {
   opacity: 0.35;
   cursor: not-allowed;
 }
