@@ -53,6 +53,7 @@ type Props = {
   linkedRequesterNearAccountId: string | null;
   /** Another provider's acceptance funding is in flight for this request. */
   anotherAcceptanceInProgress: boolean;
+  variant?: "drawer" | "page";
 };
 
 function StatusBanner({
@@ -96,6 +97,7 @@ function AcceptResponseFormInner({
   assetSymbol,
   linkedRequesterNearAccountId,
   anotherAcceptanceInProgress,
+  variant = "page",
 }: Props) {
   const router = useRouter();
   const { walletSelector } = useWalletSelector();
@@ -366,16 +368,26 @@ function AcceptResponseFormInner({
     anotherAcceptanceInProgress && !intent && phase === "idle";
   const duplicateBlocked = blocksDuplicateFundingAttempt(phase, busy);
 
+  const compactIdleBar =
+    (phase === "idle" && !finalizedEngagementId) ||
+    (!hydrated && phase === "idle");
+
   if (!hydrated) {
     return (
-      <p className="mt-3 text-xs text-stone-500 dark:text-stone-400">
+      <p className="text-xs text-stone-500 dark:text-stone-400">
         Loading acceptance status…
       </p>
     );
   }
 
   return (
-    <div className="mt-3 flex w-full max-w-md flex-col gap-2">
+    <div
+      className={
+        compactIdleBar
+          ? "flex w-fit shrink-0 flex-col gap-2"
+          : "flex w-full max-w-md flex-col gap-2"
+      }
+    >
       {phase !== "idle" && phase !== "confirm" && (
         <StatusBanner phase={phase} busy={busy} label={phaseLabel ?? ""} />
       )}
@@ -444,6 +456,21 @@ function AcceptResponseFormInner({
 
       {phase === "idle" && !finalizedEngagementId && (
         <>
+          <button
+            type="button"
+            disabled={blocked || walletRequired}
+            onClick={() => {
+              setError(null);
+              setConfirmOpen(true);
+            }}
+            className={
+              variant === "drawer"
+                ? "primary w-fit shrink-0"
+                : "w-fit shrink-0 rounded-lg bg-stone-900 px-3 py-2 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-60 dark:bg-[#edf2ed] dark:text-[#101614] dark:hover:bg-[#dde5df]"
+            }
+          >
+            Accept
+          </button>
           {blocked && (
             <p className="text-xs text-stone-600 dark:text-stone-400">
               Another acceptance is in progress for this request. Finish or
@@ -458,17 +485,6 @@ function AcceptResponseFormInner({
               to accept with escrow.
             </p>
           )}
-          <button
-            type="button"
-            disabled={blocked || walletRequired}
-            onClick={() => {
-              setError(null);
-              setConfirmOpen(true);
-            }}
-            className="w-fit rounded-lg bg-stone-900 px-3 py-2 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-60 dark:bg-[#edf2ed] dark:text-[#101614] dark:hover:bg-[#dde5df]"
-          >
-            Accept this offer
-          </button>
         </>
       )}
 

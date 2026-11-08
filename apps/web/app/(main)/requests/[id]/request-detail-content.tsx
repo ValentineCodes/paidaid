@@ -210,6 +210,7 @@ export function RequestDetailContent({ data, variant }: Props) {
                 requestId={id}
                 assetDecimals={displayDecimals}
                 assetSymbol={displaySymbol}
+                nowMs={nowMs}
                 canAcceptOffers={canAcceptOffers}
                 variant="drawer"
               />
@@ -433,6 +434,7 @@ export function RequestDetailContent({ data, variant }: Props) {
               requestId={id}
               assetDecimals={displayDecimals}
               assetSymbol={displaySymbol}
+              nowMs={nowMs}
               canAcceptOffers={canAcceptOffers}
             />
           </section>

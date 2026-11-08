@@ -7,6 +7,7 @@ import {
   profileHasPhotoForGating,
   resolveProfileDisplayUrl,
 } from "../../../../lib/profiles/resolve-photo";
+import { formatPostedRelative } from "../../../../lib/datetime/relative-from-now";
 import { formatBudgetSmallestUnits } from "../../../../lib/requests/format-budget";
 import { AcceptResponseForm } from "./accept-response-form";
 
@@ -16,6 +17,7 @@ type Row = {
   proposed_amount: number | string;
   status: string;
   created_at: string;
+  conversations?: { id: string; kind: string }[] | null;
   provider_profiles: {
     headline: string | null;
     profiles: {
@@ -30,6 +32,7 @@ type Props = {
   requestId: string;
   assetDecimals: number;
   assetSymbol: string;
+  nowMs: number;
   /** Owner may accept pending offers when true */
   canAcceptOffers: boolean;
   variant?: "drawer" | "page";
@@ -39,6 +42,7 @@ export async function RequestResponsesOwnerList({
   requestId,
   assetDecimals,
   assetSymbol,
+  nowMs,
   canAcceptOffers,
   variant = "page",
 }: Props) {
@@ -80,8 +84,21 @@ export async function RequestResponsesOwnerList({
     .eq("request_id", requestId)
     .eq("kind", "pre_accept");
   const convByResponse = new Map(
-    (preConvs ?? []).map((c) => [c.response_id, c.id] as const),
+    (preConvs ?? [])
+      .filter(
+        (c): c is { id: string; response_id: string } =>
+          c.response_id != null && c.response_id !== "",
+      )
+      .map((c) => [c.response_id, c.id] as const),
   );
+
+  function preAcceptConversationId(row: Row): string | undefined {
+    const embedded = row.conversations?.find((c) => c.kind === "pre_accept");
+    if (embedded?.id) {
+      return embedded.id;
+    }
+    return convByResponse.get(row.id);
+  }
 
   const { data: rows, error } = await supabase
     .from("request_responses")
@@ -92,6 +109,10 @@ export async function RequestResponsesOwnerList({
       proposed_amount,
       status,
       created_at,
+      conversations (
+        id,
+        kind
+      ),
       provider_profiles (
         headline,
         profiles ( display_name, avatar_url, live_profile_photo_path )
@@ -137,6 +158,15 @@ export async function RequestResponsesOwnerList({
         );
         const name = r.provider_profiles?.profiles?.display_name ?? "Provider";
         const showAccept = canAcceptOffers && r.status === "pending";
+        const createdAt = new Date(r.created_at);
+        const postedLabel = Number.isNaN(createdAt.getTime())
+          ? "—"
+          : formatPostedRelative(createdAt, nowMs);
+        const conversationId = preAcceptConversationId(r);
+        const chatButtonClass =
+          variant === "drawer"
+            ? "secondary shrink-0 no-underline"
+            : "inline-flex w-fit shrink-0 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-900 dark:border-stone-600 dark:text-stone-100";
 
         return (
           <li
@@ -159,14 +189,24 @@ export async function RequestResponsesOwnerList({
               </div>
             )}
             <div className="min-w-0 flex-1">
-              <p className="font-medium text-stone-900 dark:text-stone-100">
-                {name}
-              </p>
-              {r.provider_profiles?.headline && (
-                <p className="text-sm text-stone-600 dark:text-stone-400">
-                  {r.provider_profiles.headline}
-                </p>
-              )}
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-medium text-stone-900 dark:text-stone-100">
+                    {name}
+                  </p>
+                  {r.provider_profiles?.headline ? (
+                    <p className="text-sm text-stone-600 dark:text-stone-400">
+                      {r.provider_profiles.headline}
+                    </p>
+                  ) : null}
+                </div>
+                <time
+                  dateTime={r.created_at}
+                  className="shrink-0 text-xs text-stone-500 dark:text-stone-400"
+                >
+                  {postedLabel}
+                </time>
+              </div>
               <p className="mt-1 font-mono text-sm text-stone-800 dark:text-stone-200">
                 {amount} {assetSymbol} proposed
               </p>
@@ -175,33 +215,35 @@ export async function RequestResponsesOwnerList({
                   {r.message}
                 </p>
               )}
-              <p className="mt-2 text-xs text-stone-500">
-                {new Date(r.created_at).toLocaleString()}
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {showAccept && (
-                  <AcceptResponseForm
-                    requestId={requestId}
-                    responseId={r.id}
-                    providerDisplayName={name}
-                    offerAmountDisplay={amount}
-                    assetSymbol={assetSymbol}
-                    linkedRequesterNearAccountId={linkedRequesterNear}
-                    anotherAcceptanceInProgress={
-                      inFlightResponseId != null &&
-                      inFlightResponseId !== r.id
-                    }
-                  />
-                )}
-                {convByResponse.has(r.id) && (
-                  <ChatLink
-                    href={`/conversations/${convByResponse.get(r.id)}`}
-                    className="text-sm font-medium text-stone-900 underline dark:text-stone-100"
-                  >
-                    Open chat
-                  </ChatLink>
-                )}
-              </div>
+              {showAccept || conversationId ? (
+                <div className="mt-3 flex flex-col gap-2">
+                  <div className="flex flex-wrap items-start gap-2">
+                    {showAccept ? (
+                      <AcceptResponseForm
+                        requestId={requestId}
+                        responseId={r.id}
+                        providerDisplayName={name}
+                        offerAmountDisplay={amount}
+                        assetSymbol={assetSymbol}
+                        linkedRequesterNearAccountId={linkedRequesterNear}
+                        anotherAcceptanceInProgress={
+                          inFlightResponseId != null &&
+                          inFlightResponseId !== r.id
+                        }
+                        variant={variant}
+                      />
+                    ) : null}
+                    {conversationId ? (
+                      <ChatLink
+                        href={`/conversations/${conversationId}`}
+                        className={chatButtonClass}
+                      >
+                        Open chat
+                      </ChatLink>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
             </div>
           </li>
         );
