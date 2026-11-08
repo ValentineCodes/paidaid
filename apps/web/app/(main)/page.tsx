@@ -204,15 +204,6 @@ export default async function MarketplaceHomePage({ searchParams }: PageProps) {
         )}
 
         {!error && feed.length > 0 ? (
-          <div className="result-count">
-            <span>
-              {feed.length} open task{feed.length === 1 ? "" : "s"}
-              {hasMore ? " · more below" : ""}
-            </span>
-          </div>
-        ) : null}
-
-        {!error && feed.length > 0 ? (
           <div className="task-grid">
             {feed.map((row) => (
               <RequestFeedCard key={row.id} row={row} nowMs={nowMs} />

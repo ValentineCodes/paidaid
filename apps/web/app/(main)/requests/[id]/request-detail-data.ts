@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { profileHasUsablePhoto } from "../../../../lib/profiles/photo";
+import { resolveProfileDisplayUrl } from "../../../../lib/profiles/resolve-photo";
 import { createClient } from "../../../../lib/supabase/server";
 import { REQUEST_PHOTOS_BUCKET } from "../../../../lib/constants/storage";
 import { formatBudgetSmallestUnits } from "../../../../lib/requests/format-budget";
@@ -80,6 +81,7 @@ export type RequestDetailPageData = {
   requesterPreview: {
     displayName: string;
     verified: boolean;
+    avatarUrl: string | null;
   } | null;
 };
 
@@ -304,9 +306,11 @@ export async function loadRequestDetailPageData(
   let requesterPreview: RequestDetailPageData["requesterPreview"] = null;
   if (isOwner && user && profileRow) {
     const verified = profileHasUsablePhoto(profileRow);
+    const avatarUrl = await resolveProfileDisplayUrl(supabase, profileRow);
     requesterPreview = {
       displayName: profileRow.display_name.trim() || "Member",
       verified,
+      avatarUrl,
     };
   } else if (pub) {
     const { data: cardRows } = await supabase.rpc("request_requester_public_card", {
@@ -320,9 +324,19 @@ export async function loadRequestDetailPageData(
       typeof (card as { display_name: unknown }).display_name === "string"
     ) {
       const verified = Boolean((card as { verified?: unknown }).verified);
+      const row = card as {
+        display_name: string;
+        avatar_url?: string | null;
+        live_profile_photo_path?: string | null;
+      };
+      const avatarUrl = await resolveProfileDisplayUrl(supabase, {
+        avatar_url: row.avatar_url ?? null,
+        live_profile_photo_path: row.live_profile_photo_path ?? null,
+      });
       requesterPreview = {
-        displayName: (card as { display_name: string }).display_name.trim() || "Member",
+        displayName: row.display_name.trim() || "Member",
         verified,
+        avatarUrl,
       };
     }
   }

@@ -14,17 +14,45 @@ function initialsFromDisplayName(name: string) {
 type Props = {
   displayName: string;
   verified: boolean;
+  avatarUrl: string | null;
   variant: "drawer" | "page";
 };
 
-export function PostedBySection({ displayName, verified, variant }: Props) {
+function RequesterAvatar({
+  displayName,
+  avatarUrl,
+}: {
+  displayName: string;
+  avatarUrl: string | null;
+}) {
   const initials = initialsFromDisplayName(displayName);
+  return (
+    <div className="avatar large shrink-0">
+      {avatarUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={avatarUrl}
+          alt=""
+          className="size-full rounded-full object-cover"
+        />
+      ) : (
+        initials
+      )}
+    </div>
+  );
+}
 
+export function PostedBySection({
+  displayName,
+  verified,
+  avatarUrl,
+  variant,
+}: Props) {
   const inner = (
     <>
       <h4 id="posted-by-heading">Posted by</h4>
       <div className="requester">
-        <div className="avatar large">{initials}</div>
+        <RequesterAvatar displayName={displayName} avatarUrl={avatarUrl} />
         <div>
           <strong>{displayName}</strong>
           <span>
@@ -69,7 +97,7 @@ export function PostedBySection({ displayName, verified, variant }: Props) {
         Posted by
       </h2>
       <div className="requester max-w-lg rounded-xl border border-stone-200 bg-stone-50 p-4 dark:border-stone-700 dark:bg-stone-900/40">
-        <div className="avatar large">{initials}</div>
+        <RequesterAvatar displayName={displayName} avatarUrl={avatarUrl} />
         <div>
           <strong className="text-stone-900 dark:text-stone-100">
             {displayName}

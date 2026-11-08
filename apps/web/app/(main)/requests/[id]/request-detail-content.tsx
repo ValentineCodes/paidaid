@@ -134,25 +134,12 @@ export function RequestDetailContent({ data, variant }: Props) {
             </span>
           </div>
         </div>
-        <div className="detail-section">
-          <h4>About this task</h4>
-          <p className="whitespace-pre-wrap">{description}</p>
-        </div>
-        {tags.length > 0 && (
+        {description.trim() !== "" ? (
           <div className="detail-section">
-            <h4>Tags</h4>
-            <p className="flex flex-wrap gap-2">
-              {tags.map((t) => (
-                <span
-                  key={t.id}
-                  className="rounded-full border border-[var(--line)] bg-[var(--surface)] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--ink)]"
-                >
-                  {t.label}
-                </span>
-              ))}
-            </p>
+            <h4>About this task</h4>
+            <p className="whitespace-pre-wrap">{description}</p>
           </div>
-        )}
+        ) : null}
         {photoUrls.length > 1 && (
           <div className="detail-section">
             <h4>Photos</h4>
@@ -173,6 +160,7 @@ export function RequestDetailContent({ data, variant }: Props) {
           <PostedBySection
             displayName={requesterPreview.displayName}
             verified={requesterPreview.verified}
+            avatarUrl={requesterPreview.avatarUrl}
             variant="drawer"
           />
         ) : null}
@@ -315,37 +303,22 @@ export function RequestDetailContent({ data, variant }: Props) {
         </p>
       )}
 
-      <section className="flex flex-col gap-2">
-        <h2 className="text-lg font-medium text-stone-900 dark:text-stone-100">
-          Description
-        </h2>
-        <p className="whitespace-pre-wrap text-stone-700 dark:text-stone-300">
-          {description}
-        </p>
-      </section>
-
-      {tags.length > 0 && (
-        <section>
+      {description.trim() !== "" ? (
+        <section className="flex flex-col gap-2">
           <h2 className="text-lg font-medium text-stone-900 dark:text-stone-100">
-            Tags
+            Description
           </h2>
-          <ul className="mt-2 flex flex-wrap gap-2">
-            {tags.map((t) => (
-              <li
-                key={t.id}
-                className="rounded-full bg-stone-100 px-3 py-1 text-sm dark:bg-stone-800"
-              >
-                {t.label}
-              </li>
-            ))}
-          </ul>
+          <p className="whitespace-pre-wrap text-stone-700 dark:text-stone-300">
+            {description}
+          </p>
         </section>
-      )}
+      ) : null}
 
       {requesterPreview ? (
         <PostedBySection
           displayName={requesterPreview.displayName}
           verified={requesterPreview.verified}
+          avatarUrl={requesterPreview.avatarUrl}
           variant="page"
         />
       ) : null}

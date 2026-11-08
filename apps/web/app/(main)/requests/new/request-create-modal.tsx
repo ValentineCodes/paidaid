@@ -8,6 +8,7 @@ import {
   useState,
   useTransition,
 } from "react";
+import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 
 import { PaidAidLogo } from "../../../../components/paidaid-logo";
@@ -37,26 +38,26 @@ const CATEGORY_OPTIONS: {
     key: "creative",
     label: "Creative",
     dbCategory: "others",
-    slug: "general-other",
+    slug: "creative",
   },
   {
     key: "design",
     label: "Design",
-    dbCategory: "food_cooking",
-    slug: "meal-prep",
+    dbCategory: "others",
+    slug: "design",
   },
   { key: "home", label: "Home", dbCategory: "home", slug: "cleaning" },
   {
     key: "writing",
     label: "Writing",
-    dbCategory: "errands",
-    slug: "shopping-run",
+    dbCategory: "others",
+    slug: "writing",
   },
   {
     key: "photography",
     label: "Photography",
-    dbCategory: "cars_transport",
-    slug: "car-wash",
+    dbCategory: "others",
+    slug: "photography",
   },
 ];
 
@@ -99,7 +100,9 @@ export function RequestCreateModal({
   const [description, setDescription] = useState("");
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [budgetHuman, setBudgetHuman] = useState("");
-  const [deadlineDate, setDeadlineDate] = useState("");
+  const [deadlineDate, setDeadlineDate] = useState(() =>
+    format(new Date(), "yyyy-MM-dd"),
+  );
   const [locationKind, setLocationKind] = useState<"online" | "in_person">(
     "online",
   );

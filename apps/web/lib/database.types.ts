@@ -2031,6 +2031,8 @@ export type Database = {
         Returns: {
           display_name: string
           verified: boolean
+          avatar_url: string | null
+          live_profile_photo_path: string | null
         }[]
       }
       resolve_engagement_issue: {

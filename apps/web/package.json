@@ -23,6 +23,7 @@
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.86.0",
     "borsh": "2.0.0",
+    "date-fns": "^4.4.0",
     "next": "16.4.5",
     "react": "19.3.0",
     "react-dom": "19.3.0"
