@@ -12,7 +12,6 @@ import { EngagementWorkflow } from "./engagement-workflow";
 type DeliveryAttachmentRow =
   Database["public"]["Tables"]["delivery_attachments"]["Row"];
 type DeliveryRow = Database["public"]["Tables"]["deliveries"]["Row"];
-type IssueRow = Database["public"]["Tables"]["engagement_issues"]["Row"];
 type ReviewRow = Database["public"]["Tables"]["reviews"]["Row"];
 
 export type EngagementDetailContentProps = {
@@ -21,9 +20,6 @@ export type EngagementDetailContentProps = {
   engagementStatus: Database["public"]["Enums"]["engagement_status"];
   scheduledForDay: string;
   createdAt: string;
-  autoCompleteDeadlineAt: string | null;
-  autoCompletedAt: string | null;
-  completedAt: string | null;
   isProvider: boolean;
   title: string;
   description: string | null;
@@ -48,10 +44,8 @@ export type EngagementDetailContentProps = {
     providerNearAccountId: string | null;
   } | null;
   initialSettlement: EngagementSettlementView | null;
-  openIssueCount: number;
   delivery: DeliveryRow | null;
   deliveryAttachments: DeliveryAttachmentRow[];
-  issues: IssueRow[];
   existingReview: ReviewRow | null;
   hasProfilePhoto: boolean;
   tagLabels: string[];
@@ -186,13 +180,8 @@ export function EngagementDetailContent(props: EngagementDetailContentProps) {
     fundingTerms,
     fundingPrerequisites,
     initialSettlement,
-    openIssueCount,
-    autoCompleteDeadlineAt,
-    autoCompletedAt,
-    completedAt,
     delivery,
     deliveryAttachments,
-    issues,
     existingReview,
     hasProfilePhoto,
     tagLabels,
@@ -312,7 +301,6 @@ export function EngagementDetailContent(props: EngagementDetailContentProps) {
             isRequester={!isProvider}
             linkedRequesterNearAccountId={linkedRequesterNear}
             initialSettlement={initialSettlement}
-            openIssueCount={openIssueCount}
           />
         </div>
       )}
@@ -325,12 +313,8 @@ export function EngagementDetailContent(props: EngagementDetailContentProps) {
           isProvider={isProvider}
           isRequester={!isProvider}
           engagementStatus={engagementStatus}
-          autoCompleteDeadlineAt={autoCompleteDeadlineAt}
-          autoCompletedAt={autoCompletedAt}
-          completedAt={completedAt}
           delivery={delivery}
           deliveryAttachments={deliveryAttachments}
-          issues={issues}
           existingReview={existingReview}
           hasProfilePhoto={hasProfilePhoto}
         />

@@ -93,23 +93,6 @@ function buildExpectation(
   };
 }
 
-async function assertNoOpenIssues(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  engagementId: string,
-): Promise<void> {
-  const { count, error } = await supabase
-    .from("engagement_issues")
-    .select("id", { count: "exact", head: true })
-    .eq("engagement_id", engagementId)
-    .eq("status", "open");
-  if (error) {
-    throw new Error(error.message);
-  }
-  if ((count ?? 0) > 0) {
-    throw new Error("Resolve open issues before releasing payment.");
-  }
-}
-
 async function applySettlementProgress(
   engagementId: string,
   status: PaymentRow["settlement_status"],
@@ -235,13 +218,6 @@ export async function reportEngagementReleaseTx(
       ok: false,
       error: "Delivery must be approved before releasing payment.",
     };
-  }
-
-  try {
-    await assertNoOpenIssues(supabase, engagementId);
-  } catch (e) {
-    const message = e instanceof Error ? e.message : "Issue check failed.";
-    return { ok: false, error: message };
   }
 
   const asset = await loadPaymentAsset(supabase, payment);

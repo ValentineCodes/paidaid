@@ -162,12 +162,6 @@ export default async function EngagementPage({ params }: PageProps) {
     deliveryAttachments = att ?? [];
   }
 
-  const { data: issueRows } = await supabase
-    .from("engagement_issues")
-    .select("*")
-    .eq("engagement_id", id)
-    .order("created_at", { ascending: false });
-
   const { data: reviewRow } = await supabase
     .from("reviews")
     .select("*")
@@ -299,9 +293,6 @@ export default async function EngagementPage({ params }: PageProps) {
     };
   }
 
-  const openIssueCount =
-    issueRows?.filter((i) => i.status === "open").length ?? 0;
-
   if (isProvider) {
     const { data: prerequisites } = await supabase.rpc(
       "get_engagement_funding_prerequisites",
@@ -329,9 +320,6 @@ export default async function EngagementPage({ params }: PageProps) {
       engagementStatus={engagement.status}
       scheduledForDay={engagement.scheduled_for_day}
       createdAt={engagement.created_at}
-      autoCompleteDeadlineAt={engagement.auto_complete_deadline_at}
-      autoCompletedAt={engagement.auto_completed_at}
-      completedAt={engagement.completed_at}
       isProvider={isProvider}
       title={requestRow?.title ?? "Engagement"}
       description={requestRow?.description ?? null}
@@ -349,10 +337,8 @@ export default async function EngagementPage({ params }: PageProps) {
       fundingTerms={fundingTerms}
       fundingPrerequisites={fundingPrerequisites}
       initialSettlement={initialSettlement}
-      openIssueCount={openIssueCount}
       delivery={delivery}
       deliveryAttachments={deliveryAttachments}
-      issues={issueRows ?? []}
       existingReview={reviewRow}
       hasProfilePhoto={hasProfilePhoto}
       tagLabels={tagLabels}

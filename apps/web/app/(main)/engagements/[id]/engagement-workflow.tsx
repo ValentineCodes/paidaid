@@ -14,16 +14,7 @@ import type { Database } from "../../../../lib/database.types";
 type DeliveryRow = Database["public"]["Tables"]["deliveries"]["Row"];
 type DeliveryAttRow =
   Database["public"]["Tables"]["delivery_attachments"]["Row"];
-type IssueRow = Database["public"]["Tables"]["engagement_issues"]["Row"];
 type ReviewRow = Database["public"]["Tables"]["reviews"]["Row"];
-
-const ISSUE_CATEGORIES: { value: string; label: string }[] = [
-  { value: "no_show", label: "Provider no-show" },
-  { value: "work_not_done", label: "Work not performed" },
-  { value: "incomplete_work", label: "Incomplete work" },
-  { value: "delivery_disagreement", label: "Disagreement about delivery" },
-  { value: "other", label: "Other" },
-];
 
 type Props = {
   engagementId: string;
@@ -31,12 +22,8 @@ type Props = {
   isProvider: boolean;
   isRequester: boolean;
   engagementStatus: Database["public"]["Enums"]["engagement_status"];
-  autoCompleteDeadlineAt: string | null;
-  autoCompletedAt: string | null;
-  completedAt: string | null;
   delivery: DeliveryRow | null;
   deliveryAttachments: DeliveryAttRow[];
-  issues: IssueRow[];
   existingReview: ReviewRow | null;
   hasProfilePhoto: boolean;
 };
@@ -93,12 +80,8 @@ export function EngagementWorkflow({
   isProvider,
   isRequester,
   engagementStatus,
-  autoCompleteDeadlineAt,
-  autoCompletedAt,
-  completedAt,
   delivery,
   deliveryAttachments,
-  issues,
   existingReview,
   hasProfilePhoto,
 }: Props) {
@@ -112,9 +95,6 @@ export function EngagementWorkflow({
   const [postToChat, setPostToChat] = useState(true);
 
   const [revisionNote, setRevisionNote] = useState("");
-
-  const [issueCategory, setIssueCategory] = useState("other");
-  const [issueBody, setIssueBody] = useState("");
 
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
@@ -143,16 +123,6 @@ export function EngagementWorkflow({
           schema: "public",
           table: "engagements",
           filter: `id=eq.${engagementId}`,
-        },
-        () => refresh(),
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "engagement_issues",
-          filter: `engagement_id=eq.${engagementId}`,
         },
         () => refresh(),
       )
@@ -262,43 +232,6 @@ export function EngagementWorkflow({
     refresh();
   }
 
-  async function runReportIssue() {
-    if (!issueBody.trim()) {
-      setError("Describe the issue.");
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    const { error: rpcErr } = await supabase.rpc("report_engagement_issue", {
-      p_engagement_id: engagementId,
-      p_category: issueCategory,
-      p_body: issueBody.trim(),
-    });
-    if (rpcErr) {
-      setError(rpcErr.message);
-      setBusy(false);
-      return;
-    }
-    setIssueBody("");
-    setBusy(false);
-    refresh();
-  }
-
-  async function runResolveIssue(issueId: string) {
-    setBusy(true);
-    setError(null);
-    const { error: rpcErr } = await supabase.rpc("resolve_engagement_issue", {
-      p_issue_id: issueId,
-    });
-    if (rpcErr) {
-      setError(rpcErr.message);
-      setBusy(false);
-      return;
-    }
-    setBusy(false);
-    refresh();
-  }
-
   async function runSubmitReview() {
     setBusy(true);
     setError(null);
@@ -316,71 +249,13 @@ export function EngagementWorkflow({
     refresh();
   }
 
-  const openIssues = issues.filter((i) => i.status === "open");
   const deliveryStatus = delivery?.status ?? null;
 
   return (
     <div className="flex flex-col gap-8">
-      <section className="rounded-lg border border-stone-200 p-4 dark:border-stone-800">
-        <h2 className="text-lg font-medium text-stone-900 dark:text-stone-100">
-          Completion &amp; delivery
-        </h2>
-        <p className="mt-1 text-sm text-stone-500">
-          Fund escrow before approving delivery when this engagement uses
-          on-chain payment.
-        </p>
-
-        {engagementStatus === "active" && deliveryStatus && (
-          <div className="mt-3 space-y-1 text-sm">
-            <p>
-              <span className="text-stone-500">Delivery status:</span>{" "}
-              <span className="font-medium capitalize">
-                {deliveryStatus.replace(/_/g, " ")}
-              </span>
-            </p>
-            {delivery?.submitted_at && (
-              <p className="text-stone-600 dark:text-stone-400">
-                Submitted: {new Date(delivery.submitted_at).toLocaleString()}
-              </p>
-            )}
-            {autoCompleteDeadlineAt &&
-              deliveryStatus === "pending_review" &&
-              openIssues.length === 0 && (
-                <p className="text-amber-800 dark:text-amber-200">
-                  After 72 hours, delivery is treated as approved for payment
-                  release (you still sign NEAR to release escrow). Deadline:{" "}
-                  {new Date(autoCompleteDeadlineAt).toLocaleString()} (unless an
-                  open issue blocks it).
-                </p>
-              )}
-            {openIssues.length > 0 && deliveryStatus === "pending_review" && (
-              <p className="text-amber-800 dark:text-amber-200">
-                Auto-completion is paused while {openIssues.length} issue(s) are
-                open.
-              </p>
-            )}
-          </div>
-        )}
-
-        {engagementStatus === "completed" && (
-          <div className="mt-3 text-sm text-stone-600 dark:text-stone-400">
-            <p>
-              Engagement completed
-              {autoCompletedAt
-                ? " automatically (72h)"
-                : completedAt
-                  ? " after approval"
-                  : ""}
-              .
-            </p>
-            {completedAt && <p>{new Date(completedAt).toLocaleString()}</p>}
-          </div>
-        )}
-
-        {error && (
-          <p className="mt-3 text-sm text-red-700 dark:text-red-300">{error}</p>
-        )}
-      </section>
+      {error && (
+        <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+      )}
 
       {/* Provider: submit / resubmit */}
       {isProvider && engagementStatus === "active" && (
@@ -546,82 +421,6 @@ export function EngagementWorkflow({
             )}
           </section>
         )}
-
-      {/* Issues */}
-      {engagementStatus === "active" && (
-        <section className="rounded-lg border border-stone-200 p-4 dark:border-stone-800">
-          <h2 className="text-lg font-medium text-stone-900 dark:text-stone-100">
-            Report an issue
-          </h2>
-          <p className="mt-1 text-sm text-stone-500">
-            There is no cancel button in V1 — use issues for problems with this
-            engagement. Open issues pause automatic completion.
-          </p>
-          <div className="mt-4 flex flex-col gap-2">
-            <select
-              value={issueCategory}
-              onChange={(e) => setIssueCategory(e.target.value)}
-              className="rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm dark:border-stone-600 dark:bg-stone-950"
-            >
-              {ISSUE_CATEGORIES.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-            <textarea
-              value={issueBody}
-              onChange={(e) => setIssueBody(e.target.value)}
-              rows={3}
-              maxLength={2000}
-              placeholder="Describe what went wrong…"
-              className="rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm dark:border-stone-600 dark:bg-stone-950"
-            />
-            <button
-              type="button"
-              disabled={busy || !issueBody.trim()}
-              onClick={() => void runReportIssue()}
-              className="w-fit rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-[#edf2ed] dark:text-[#101614]"
-            >
-              Submit issue
-            </button>
-          </div>
-
-          {issues.length > 0 && (
-            <ul className="mt-6 space-y-3 border-t border-stone-200 pt-4 dark:border-stone-700">
-              {issues.map((iss) => (
-                <li
-                  key={iss.id}
-                  className="rounded border border-stone-200 px-3 py-2 text-sm dark:border-stone-700"
-                >
-                  <p className="font-medium capitalize">
-                    {iss.category.replace(/_/g, " ")} · {iss.status}
-                  </p>
-                  <p className="mt-1 whitespace-pre-wrap text-stone-700 dark:text-stone-300">
-                    {iss.body}
-                  </p>
-                  <p className="mt-1 text-xs text-stone-500">
-                    {new Date(iss.created_at).toLocaleString()}
-                    {iss.resolved_at
-                      ? ` · Resolved ${new Date(iss.resolved_at).toLocaleString()}`
-                      : ""}
-                  </p>
-                  {iss.status === "open" && (
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => void runResolveIssue(iss.id)}
-                      className="mt-2 text-sm underline"
-                    >
-                      Mark resolved
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      )}
 
       {/* Review after complete */}
       {engagementStatus === "completed" && isRequester && !existingReview && (

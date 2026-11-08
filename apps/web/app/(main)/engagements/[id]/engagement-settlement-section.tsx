@@ -24,7 +24,6 @@ type Props = {
   isRequester: boolean;
   linkedRequesterNearAccountId: string | null;
   initialSettlement: EngagementSettlementView | null;
-  openIssueCount: number;
 };
 
 function SettlementSectionInner({
@@ -32,7 +31,6 @@ function SettlementSectionInner({
   isRequester,
   linkedRequesterNearAccountId,
   initialSettlement,
-  openIssueCount,
 }: Props) {
   const { walletSelector } = useWalletSelector();
   const { accountId: signedAccountId, syncFromSelectorStore } =
@@ -78,9 +76,6 @@ function SettlementSectionInner({
     setError(null);
     setBusy(true);
     try {
-      if (openIssueCount > 0) {
-        throw new Error("Resolve open issues before releasing payment.");
-      }
       const selector = await walletSelector;
       if (!selector || !signedAccountId) {
         throw new Error("Connect your linked NEAR wallet first.");
@@ -118,7 +113,6 @@ function SettlementSectionInner({
     }
   }, [
     engagementId,
-    openIssueCount,
     settlement,
     signedAccountId,
     walletMatchesLink,
@@ -188,11 +182,6 @@ function SettlementSectionInner({
         Delivery is approved. Sign with your linked NEAR wallet to pay the
         provider and complete this engagement.
       </p>
-      {openIssueCount > 0 && (
-        <p className="mt-2 text-amber-800 dark:text-amber-200">
-          Resolve {openIssueCount} open issue(s) before releasing funds.
-        </p>
-      )}
       {settlement.settlementLastError && (
         <p className="mt-2 text-red-700 dark:text-red-300">
           {settlement.settlementLastError}
@@ -216,7 +205,7 @@ function SettlementSectionInner({
           type="button"
           className="mt-3 rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-[#edf2ed] dark:text-[#101614]"
           onClick={() => void runRelease()}
-          disabled={busy || openIssueCount > 0}
+          disabled={busy}
         >
           {busy ? "Releasing…" : "Release payment"}
         </button>
