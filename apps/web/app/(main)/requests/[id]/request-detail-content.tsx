@@ -166,31 +166,16 @@ export function RequestDetailContent({ data, variant }: Props) {
         ) : null}
         {isOwner && user && (
           <>
-            {assignmentRow && engagementRow && (
-              <section
-                className="detail-section rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-900 dark:bg-emerald-950/40"
-                aria-labelledby="assigned-heading-drawer"
-              >
-                <h4 id="assigned-heading-drawer">Assignment</h4>
-                <p className="text-sm text-emerald-900 dark:text-emerald-200">
-                  Engagement is{" "}
-                  <span className="capitalize">{engagementRow.status}</span>.
-                  Scheduled day (UTC):{" "}
-                  <span className="font-mono">
-                    {engagementRow.scheduled_for_day}
-                  </span>
-                  .
-                </p>
-                <p className="mt-2">
-                  <DismissDrawerLink
-                    href={`/engagements/${engagementRow.id}`}
-                    className="text-sm font-medium underline"
-                  >
-                    Open engagement overview
-                  </DismissDrawerLink>
-                </p>
+            {assignmentRow && engagementRow ? (
+              <section className="detail-section">
+                <DismissDrawerLink
+                  href={`/engagements/${engagementRow.id}`}
+                  className="primary-wide"
+                >
+                  Open engagement
+                </DismissDrawerLink>
               </section>
-            )}
+            ) : null}
             <section className="detail-section flex flex-col gap-3">
               <h4>Responses</h4>
               {!canAcceptOffers && status !== "open" && (
@@ -381,36 +366,14 @@ export function RequestDetailContent({ data, variant }: Props) {
 
       {isOwner && user && (
         <>
-          {assignmentRow && engagementRow && (
-            <section
-              className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-900 dark:bg-emerald-950/40"
-              aria-labelledby="assigned-heading"
+          {assignmentRow && engagementRow ? (
+            <Link
+              href={`/engagements/${engagementRow.id}`}
+              className="inline-flex w-fit rounded-lg bg-stone-900 px-3 py-2 text-sm font-medium text-white dark:bg-[#edf2ed] dark:text-[#101614]"
             >
-              <h2
-                id="assigned-heading"
-                className="text-sm font-medium text-emerald-950 dark:text-emerald-100"
-              >
-                This request is assigned
-              </h2>
-              <p className="mt-1 text-sm text-emerald-900 dark:text-emerald-200">
-                Engagement is{" "}
-                <span className="capitalize">{engagementRow.status}</span>.
-                Scheduled day (UTC):{" "}
-                <span className="font-mono">
-                  {engagementRow.scheduled_for_day}
-                </span>
-                .
-              </p>
-              <p className="mt-2">
-                <Link
-                  href={`/engagements/${engagementRow.id}`}
-                  className="text-sm font-medium underline"
-                >
-                  Open engagement overview
-                </Link>
-              </p>
-            </section>
-          )}
+              Open engagement
+            </Link>
+          ) : null}
           <section className="flex flex-col gap-3">
             <h2 className="text-lg font-medium text-stone-900 dark:text-stone-100">
               Responses

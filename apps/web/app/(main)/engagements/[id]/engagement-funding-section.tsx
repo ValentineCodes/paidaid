@@ -90,9 +90,6 @@ function FundingSectionInner({
     return formatSmallestUnits(terms.amountSmallestUnits, terms.decimals);
   }, [terms]);
 
-  const fundTxExplorer = terms?.fundTxHash
-    ? explorerTransactionUrl(networkId, terms.fundTxHash)
-    : null;
   const createTxExplorer = terms?.createTxHash
     ? explorerTransactionUrl(networkId, terms.createTxHash)
     : null;
@@ -303,26 +300,7 @@ function FundingSectionInner({
   }
 
   if (terms?.status === "funded") {
-    return (
-      <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm dark:border-emerald-900 dark:bg-emerald-950/40">
-        <p className="font-medium text-emerald-900 dark:text-emerald-100">
-          Funded — {displayAmount} {terms.symbol}
-        </p>
-        {fundTxExplorer && (
-          <a
-            href={fundTxExplorer}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-2 inline-block underline"
-          >
-            View funding transaction
-          </a>
-        )}
-        {terms.fundTxHash && !fundTxExplorer && (
-          <p className="mt-2 font-mono text-xs">{terms.fundTxHash}</p>
-        )}
-      </div>
-    );
+    return null;
   }
 
   return (

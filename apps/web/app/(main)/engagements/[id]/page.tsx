@@ -1,18 +1,16 @@
-import Link from "next/link";
 import { connection } from "next/server";
 import { notFound, redirect } from "next/navigation";
 
 import { createClient } from "../../../../lib/supabase/server";
 import { isSupabaseConfigured } from "../../../../lib/supabase/env";
+import { getRequestWallTimeMs } from "../../../../lib/datetime/request-wall-time";
 import {
   profileHasPhotoForGating,
   resolveProfileDisplayUrl,
 } from "../../../../lib/profiles/resolve-photo";
 import { normalizeDbNumericAmount } from "@paidaid/shared";
 import { formatBudgetSmallestUnits } from "../../../../lib/requests/format-budget";
-import { EngagementWorkflow } from "./engagement-workflow";
-import { EngagementFundingSection } from "./engagement-funding-section";
-import { EngagementSettlementSection } from "./engagement-settlement-section";
+import { EngagementDetailContent } from "./engagement-detail-content";
 import type { EngagementSettlementView } from "../../../../lib/engagement/settlement-types";
 import { loadActiveLinkedNearWallet } from "../../../../lib/near/load-linked-wallet";
 import type { Database } from "../../../../lib/database.types";
@@ -37,6 +35,7 @@ export default async function EngagementPage({ params }: PageProps) {
   }
 
   await connection();
+  const nowMs = getRequestWallTimeMs();
 
   const supabase = await createClient();
   const {
@@ -191,6 +190,17 @@ export default async function EngagementPage({ params }: PageProps) {
         )
       : "";
 
+  const { data: tagRows } = await supabase
+    .from("request_tags")
+    .select("tags ( label )")
+    .eq("request_id", assignment.request_id);
+  const tagLabels = (tagRows ?? [])
+    .map((row) => {
+      const tags = row.tags as { label: string } | null;
+      return tags?.label?.trim() ?? "";
+    })
+    .filter((label) => label.length > 0);
+
   const { data: paymentRow } = await supabase
     .from("engagement_escrow_payments")
     .select("*")
@@ -313,198 +323,39 @@ export default async function EngagementPage({ params }: PageProps) {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-12">
-      <p className="text-sm text-stone-500">
-        <Link href="/responses/mine" className="underline">
-          My responses
-        </Link>
-        {" · "}
-        <Link href="/requests/mine" className="underline">
-          My requests
-        </Link>
-      </p>
-
-      <h1 className="text-3xl font-semibold tracking-tight">
-        {requestRow?.title ?? "Engagement"}
-      </h1>
-
-      <p className="text-sm capitalize text-stone-600 dark:text-stone-400">
-        Status: {engagement.status}
-      </p>
-
-      <section className="rounded-lg border border-stone-200 p-4 dark:border-stone-800">
-        <h2 className="text-sm font-medium text-stone-900 dark:text-stone-100">
-          {isProvider ? "Requester" : "Provider"}
-        </h2>
-        <div className="mt-2 flex gap-3">
-          {peerPhotoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={peerPhotoUrl}
-              alt=""
-              className="h-14 w-14 rounded-full object-cover"
-            />
-          ) : (
-            <div
-              className="flex h-14 w-14 items-center justify-center rounded-full bg-stone-200 text-xs dark:bg-stone-800"
-              aria-hidden
-            >
-              —
-            </div>
-          )}
-          <div>
-            <p className="font-medium">{peerProfile?.display_name ?? "User"}</p>
-            {peerPhone && (
-              <p className="text-sm">
-                <a href={`tel:${peerPhone}`} className="underline">
-                  {peerPhone}
-                </a>
-              </p>
-            )}
-            {!peerPhone && (
-              <p className="text-xs text-stone-500">
-                Phone appears here when your partner adds one under Account.
-              </p>
-            )}
-          </div>
-        </div>
-      </section>
-
-      <dl className="grid gap-3 text-sm">
-        <div>
-          <dt className="text-stone-500">Agreed offer</dt>
-          <dd className="font-mono">
-            {budgetStr} {asset?.symbol ?? ""}
-            {!paymentFunded && (
-              <span className="ml-1 font-sans text-xs text-stone-500">
-                (awaiting funding)
-              </span>
-            )}
-            {paymentFunded && (
-              <span className="ml-1 font-sans text-xs text-emerald-700 dark:text-emerald-300">
-                (funded in escrow)
-              </span>
-            )}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-stone-500">Scheduled day (UTC)</dt>
-          <dd className="font-mono">{engagement.scheduled_for_day}</dd>
-        </div>
-        {requestRow?.timing_type && (
-          <div>
-            <dt className="text-stone-500">Timing</dt>
-            <dd className="capitalize">
-              {requestRow.timing_type}
-              {requestRow.timing_type === "scheduled" && requestRow.scheduled_at
-                ? ` — ${new Date(requestRow.scheduled_at).toLocaleString()}`
-                : null}
-            </dd>
-          </div>
-        )}
-        {requestRow?.deadline_at && (
-          <div>
-            <dt className="text-stone-500">Expected completion</dt>
-            <dd>{new Date(requestRow.deadline_at).toLocaleString()}</dd>
-          </div>
-        )}
-        <div>
-          <dt className="text-stone-500">Task location</dt>
-          <dd>
-            {requestRow?.location_kind === "unspecified" && "Not specified"}
-            {requestRow?.location_kind === "online" && "Online"}
-            {requestRow?.location_kind === "in_person" &&
-              (requestRow.location_label
-                ? `${requestRow.location_label} · `
-                : "")}
-            {requestRow?.location_kind === "in_person" &&
-              requestRow.location_label && (
-                <a
-                  href={`https://www.openstreetmap.org/search?query=${encodeURIComponent(requestRow.location_label)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline"
-                >
-                  Search map
-                </a>
-              )}
-          </dd>
-        </div>
-      </dl>
-
-      {requestRow?.description && (
-        <section>
-          <h2 className="text-lg font-medium text-stone-900 dark:text-stone-100">
-            Description
-          </h2>
-          <p className="mt-2 whitespace-pre-wrap text-sm text-stone-700 dark:text-stone-300">
-            {requestRow.description}
-          </p>
-        </section>
-      )}
-
-      {isProvider &&
-        engagement.status === "active" &&
-        !paymentFunded &&
-        !(fundingPrerequisites?.providerWalletLinked ?? false) && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
-            <p className="font-medium">Sign in with your NEAR wallet</p>
-            <p className="mt-1">
-              The requester cannot fund escrow until you sign in with your NEAR wallet.
-            </p>
-          </div>
-        )}
-
-      {!isProvider && engagement.status === "active" && (
-        <EngagementFundingSection
-          engagementId={id}
-          initialTerms={fundingTerms}
-          linkedRequesterNearAccountId={linkedRequesterNear}
-          initialPrerequisites={fundingPrerequisites}
-        />
-      )}
-
-      {paymentFunded && (
-        <EngagementSettlementSection
-          engagementId={id}
-          isRequester={!isProvider}
-          linkedRequesterNearAccountId={linkedRequesterNear}
-          initialSettlement={initialSettlement}
-          openIssueCount={openIssueCount}
-        />
-      )}
-
-      <section className="flex flex-col gap-2">
-        <h2 className="text-lg font-medium text-stone-900 dark:text-stone-100">
-          Chat
-        </h2>
-        {conv?.id ? (
-          <Link
-            href={`/conversations/${conv.id}`}
-            className="w-fit rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white dark:bg-[#edf2ed] dark:text-[#101614]"
-          >
-            Open conversation
-          </Link>
-        ) : (
-          <p className="text-sm text-stone-500">No conversation linked yet.</p>
-        )}
-      </section>
-
-      <EngagementWorkflow
-        engagementId={id}
-        conversationId={conv?.id ?? null}
-        isProvider={isProvider}
-        isRequester={!isProvider}
-        engagementStatus={engagement.status}
-        autoCompleteDeadlineAt={engagement.auto_complete_deadline_at}
-        autoCompletedAt={engagement.auto_completed_at}
-        completedAt={engagement.completed_at}
-        delivery={delivery}
-        deliveryAttachments={deliveryAttachments}
-        issues={issueRows ?? []}
-        existingReview={reviewRow}
-        hasProfilePhoto={hasProfilePhoto}
-      />
-    </main>
+    <EngagementDetailContent
+      nowMs={nowMs}
+      engagementId={id}
+      engagementStatus={engagement.status}
+      scheduledForDay={engagement.scheduled_for_day}
+      createdAt={engagement.created_at}
+      autoCompleteDeadlineAt={engagement.auto_complete_deadline_at}
+      autoCompletedAt={engagement.auto_completed_at}
+      completedAt={engagement.completed_at}
+      isProvider={isProvider}
+      title={requestRow?.title ?? "Engagement"}
+      description={requestRow?.description ?? null}
+      budgetHuman={budgetStr}
+      assetSymbol={asset?.symbol ?? ""}
+      paymentFunded={paymentFunded}
+      locationKind={requestRow?.location_kind ?? null}
+      locationLabel={requestRow?.location_label ?? null}
+      deadlineAt={requestRow?.deadline_at ?? null}
+      peerDisplayName={peerProfile?.display_name ?? "Member"}
+      peerPhotoUrl={peerPhotoUrl}
+      peerPhone={peerPhone}
+      conversationId={conv?.id ?? null}
+      linkedRequesterNear={linkedRequesterNear}
+      fundingTerms={fundingTerms}
+      fundingPrerequisites={fundingPrerequisites}
+      initialSettlement={initialSettlement}
+      openIssueCount={openIssueCount}
+      delivery={delivery}
+      deliveryAttachments={deliveryAttachments}
+      issues={issueRows ?? []}
+      existingReview={reviewRow}
+      hasProfilePhoto={hasProfilePhoto}
+      tagLabels={tagLabels}
+    />
   );
 }

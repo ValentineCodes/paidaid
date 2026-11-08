@@ -2251,3 +2251,278 @@ a.update {
 .dark .filter-panel .tag-pill.active {
   color: #111916;
 }
+
+/* Engagement flow (mirrors mobile request/engagement screen) */
+.engagement-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  max-width: 640px;
+}
+
+.engagement-flow__back {
+  font-size: 13px;
+}
+
+.engagement-flow__back a {
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.engagement-flow__back a:hover {
+  text-decoration: underline;
+}
+
+.engagement-flow__back-sep {
+  color: var(--muted);
+}
+
+.engagement-flow__eyebrow {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.engagement-flow__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.engagement-flow__meta time {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.engagement-status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #e6f6ed;
+  color: #378c62;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.engagement-status-pill--done {
+  background: var(--line);
+  color: var(--muted);
+}
+
+.engagement-flow__title {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.engagement-flow__description {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--muted);
+  white-space: pre-wrap;
+}
+
+.engagement-flow__tags {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.engagement-offer-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.engagement-offer-card__offer {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.engagement-offer-card__offer small {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.engagement-offer-card__offer strong {
+  font-size: 28px;
+  font-weight: 700;
+  color: #378c62;
+}
+
+.engagement-offer-card__funded,
+.engagement-offer-card__pending {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.engagement-offer-card__funded {
+  color: #378c62;
+}
+
+.engagement-offer-card__divider {
+  height: 1px;
+  background: var(--line);
+}
+
+.engagement-offer-card__cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.engagement-offer-card__cols > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.engagement-offer-card__cols small {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.engagement-offer-card__cols span {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.engagement-person-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  padding: 16px;
+}
+
+.engagement-person-card__body {
+  min-width: 0;
+  flex: 1;
+}
+
+.engagement-person-card__name {
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.engagement-person-card__chat {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  color: var(--ink);
+}
+
+.engagement-person-card__chat--disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.engagement-connect-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  padding: 14px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: none;
+  text-align: center;
+}
+
+.engagement-connect-tile--disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.engagement-connect-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #e6f6ed;
+  color: #378c62;
+}
+
+.engagement-callout {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  padding: 14px 16px;
+}
+
+.engagement-callout strong {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.engagement-callout p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.engagement-callout--info {
+  border-color: #b9d9f5;
+  background: #edf6ff;
+}
+
+.engagement-callout--info strong {
+  color: #2c6ea8;
+}
+
+.engagement-callout--warning {
+  border-color: #f0d9a8;
+  background: #fff8eb;
+}
+
+.engagement-callout--warning strong {
+  color: #9a6b1c;
+}
+
+.engagement-workflow-wrap {
+  max-width: 100%;
+}
