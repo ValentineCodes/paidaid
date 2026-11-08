@@ -64,7 +64,7 @@ export default async function MessagesPage() {
               Select a conversation on the left
             </p>
             <Link
-              href={`/conversations/${sidebarRows[0]!.id}`}
+              href={`/messages/${sidebarRows[0]!.id}`}
               className="text-button !pb-0 !text-[12px]"
             >
               Open latest

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
 
@@ -9,12 +8,12 @@ import { getRequestWallTimeMs } from "../../../../lib/datetime/request-wall-time
 import { loadConversationThreadData } from "../../../../lib/messages/load-conversation-thread";
 import { loadMessagesSidebarData } from "../../../../lib/messages/load-messages-sidebar";
 
-import { ConversationChat } from "./conversation-chat";
-import { MessagesShell } from "../../messages/messages-shell";
+import { ConversationChat } from "../conversation-chat";
+import { MessagesShell } from "../messages-shell";
 
 type PageProps = { params: Promise<{ id: string }> };
 
-export default async function ConversationPage({ params }: PageProps) {
+export default async function MessageThreadPage({ params }: PageProps) {
   const { id } = await params;
 
   if (!isSupabaseConfigured()) {
@@ -34,7 +33,7 @@ export default async function ConversationPage({ params }: PageProps) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect(`/auth/wallet?next=/conversations/${id}`);
+    redirect(`/auth/wallet?next=/messages/${id}`);
   }
 
   const thread = await loadConversationThreadData(supabase, user.id, id);
@@ -51,32 +50,32 @@ export default async function ConversationPage({ params }: PageProps) {
 
   return (
     <main className="inner-page">
-      <p className="mb-4 text-sm text-[var(--muted)]">
-        <Link href={thread.backHref} className="underline">
-          ← Back
-        </Link>
-      </p>
+      <div className="page-heading">
+        <span>CONVERSATIONS</span>
+        <h1>Messages</h1>
+        <p>Keep every task moving.</p>
+      </div>
 
       <MessagesShell
         sidebarRows={sidebarRows}
         activeConversationId={id}
         nowMs={nowMs}
       >
-        <div className="chat min-h-0 min-w-0 flex h-full flex-col overflow-hidden">
-        <ConversationChat
-          conversationId={id}
-          initialMessages={thread.initialMessages}
-          currentUserId={user.id}
-          peerUserId={thread.peerId}
-          peerDisplayName={thread.peerDisplayName}
-          peerAvatarClass={thread.peerAvatarClass}
-          chatSubtitle={thread.chatSubtitle}
-          peerPhone={thread.peerPhone}
-          hasProfilePhoto={hasProfilePhoto}
-          requestLocationLabel={thread.reqRow.location_label}
-          requestLocationKind={thread.reqRow.location_kind}
-          hideChatHead={false}
-        />
+        <div className="chat flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+          <ConversationChat
+            conversationId={id}
+            initialMessages={thread.initialMessages}
+            currentUserId={user.id}
+            peerUserId={thread.peerId}
+            peerDisplayName={thread.peerDisplayName}
+            peerAvatarClass={thread.peerAvatarClass}
+            chatSubtitle={thread.chatSubtitle}
+            peerPhone={thread.peerPhone}
+            hasProfilePhoto={hasProfilePhoto}
+            requestLocationLabel={thread.reqRow.location_label}
+            requestLocationKind={thread.reqRow.location_kind}
+            hideChatHead={false}
+          />
         </div>
       </MessagesShell>
     </main>

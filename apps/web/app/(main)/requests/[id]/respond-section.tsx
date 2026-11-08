@@ -57,7 +57,7 @@ export function RespondSection({
           </p>
           {preConversationId && (
             <DismissDrawerLink
-              href={`/conversations/${preConversationId}`}
+              href={`/messages/${preConversationId}`}
               className="text-[13px] font-bold text-[var(--ink)] underline"
             >
               Open chat with requester

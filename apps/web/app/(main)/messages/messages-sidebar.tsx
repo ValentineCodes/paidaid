@@ -29,7 +29,7 @@ export function MessagesSidebar({ rows, activeConversationId, nowMs }: Props) {
         return (
           <Link
             key={r.id}
-            href={`/conversations/${r.id}`}
+            href={`/messages/${r.id}`}
             className={`conversation${active ? " active" : ""}`}
           >
             <div className={`avatar ${r.avatarClass}`}>

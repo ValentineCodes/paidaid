@@ -235,7 +235,7 @@ export async function RequestResponsesOwnerList({
                     ) : null}
                     {conversationId ? (
                       <ChatLink
-                        href={`/conversations/${conversationId}`}
+                        href={`/messages/${conversationId}`}
                         className={chatButtonClass}
                       >
                         Open chat

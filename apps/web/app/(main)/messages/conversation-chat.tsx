@@ -4,18 +4,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { User } from "@supabase/supabase-js";
 
-import { FigmaIcon } from "../../../../components/figma-icons";
-import { createClient } from "../../../../lib/supabase/client";
-import { CONVERSATION_ATTACHMENTS_BUCKET } from "../../../../lib/constants/storage";
+import { FigmaIcon } from "../../../components/figma-icons";
+import { createClient } from "../../../lib/supabase/client";
+import { CONVERSATION_ATTACHMENTS_BUCKET } from "../../../lib/constants/storage";
 import {
   extensionForAttachmentMime,
   validateChatFiles,
-} from "../../../../lib/chat/allowed-attachment";
-import type { Database } from "../../../../lib/database.types";
-import { fetchConversationMessages } from "../../../../lib/messages/fetch-conversation-messages";
-import type { ChatMessagePayload } from "../../../../lib/messages/chat-types";
+} from "../../../lib/chat/allowed-attachment";
+import type { Database } from "../../../lib/database.types";
+import { fetchConversationMessages } from "../../../lib/messages/fetch-conversation-messages";
+import type { ChatMessagePayload } from "../../../lib/messages/chat-types";
 
-export type { ChatMessagePayload } from "../../../../lib/messages/chat-types";
+export type { ChatMessagePayload } from "../../../lib/messages/chat-types";
 
 type MessageRow = Database["public"]["Tables"]["messages"]["Row"];
 type AttachmentRow = Database["public"]["Tables"]["message_attachments"]["Row"];

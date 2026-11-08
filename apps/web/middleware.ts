@@ -8,7 +8,6 @@ const PROTECTED_PREFIXES = [
   "/responses/mine",
   "/notifications",
   "/engagements",
-  "/conversations",
   "/messages",
 ];
 
@@ -19,6 +18,15 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
   const { response, user } = await updateSession(request);
+
+  if (pathname === "/conversations" || pathname.startsWith("/conversations/")) {
+    const url = request.nextUrl.clone();
+    url.pathname =
+      pathname === "/conversations"
+        ? "/messages"
+        : pathname.replace(/^\/conversations/, "/messages");
+    return NextResponse.redirect(url);
+  }
 
   if (pathname === "/requests/new") {
     const url = request.nextUrl.clone();

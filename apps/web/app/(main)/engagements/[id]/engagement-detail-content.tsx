@@ -244,7 +244,7 @@ export function EngagementDetailContent(props: EngagementDetailContentProps) {
           </div>
           {conversationId ? (
             <Link
-              href={`/conversations/${conversationId}`}
+              href={`/messages/${conversationId}`}
               className="engagement-person-card__chat"
               aria-label={`Chat with ${peerDisplayName}`}
             >

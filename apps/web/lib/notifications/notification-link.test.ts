@@ -12,7 +12,7 @@ test("notificationHref new_message uses conversation", () => {
       engagement_id: null,
       conversation_id: "c1",
     }),
-    "/conversations/c1",
+    "/messages/c1",
   );
 });
 

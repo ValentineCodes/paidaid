@@ -12,7 +12,7 @@ export function notificationHref(
 ): string | null {
   switch (n.kind) {
     case "new_message":
-      return n.conversation_id ? `/conversations/${n.conversation_id}` : null;
+      return n.conversation_id ? `/messages/${n.conversation_id}` : null;
     case "request_new_response":
     case "response_withdrawn":
       return n.request_id ? `/requests/${n.request_id}` : null;
