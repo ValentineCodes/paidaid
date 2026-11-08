@@ -110,7 +110,6 @@ export default async function AccountPage() {
   const linkedWallet = await loadActiveLinkedNearWallet(supabase, user.id);
 
   return (
-    <>
     <ProfileShell
       nowMs={nowMs}
       profile={profile}
@@ -122,20 +121,5 @@ export default async function AccountPage() {
       reviewCount={reviewCount}
       taskCount={taskCount}
     />
-    <section className="inner-page mt-2 border-t border-stone-200 pt-6 dark:border-stone-800">
-      <h2 className="text-lg font-medium text-stone-900 dark:text-stone-100">
-        Payments
-      </h2>
-      <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
-        Funded escrow, locked balances, and payout history for your engagements.
-      </p>
-      <Link
-        href="/requests/mine?tab=payments"
-        className="mt-3 inline-block text-sm font-bold underline"
-      >
-        Open payment activity
-      </Link>
-    </section>
-    </>
   );
 }
