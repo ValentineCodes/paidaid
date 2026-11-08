@@ -11,7 +11,7 @@ export function createServiceClient() {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   if (!serviceKey) {
     throw new Error(
-      "SUPABASE_SERVICE_ROLE_KEY is required for wallet linking on the server.",
+      "SUPABASE_SERVICE_ROLE_KEY is required for wallet authentication on the server.",
     );
   }
   const { url } = readServerSupabaseEnv({

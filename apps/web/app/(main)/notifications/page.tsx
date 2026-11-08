@@ -69,7 +69,7 @@ export default async function NotificationsPage({ searchParams }: PageProps) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/auth/login?next=/notifications");
+    redirect("/auth/wallet?next=/notifications");
   }
 
   const from = (page - 1) * PAGE_SIZE;

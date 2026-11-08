@@ -1,4 +1,5 @@
 import { formatEngagementFundingError } from "../engagement/funding-errors";
+import { formatWalletSnapshotRpcError } from "../requests/wallet-snapshot-errors";
 
 /** Requester-facing copy for fund-on-acceptance errors and RPC messages. */
 export function formatAcceptanceFundingError(raw: string): string {
@@ -43,10 +44,16 @@ export function formatAcceptanceFundingError(raw: string): string {
     return "Transaction is still pending on the network. Wait for confirmation, then use Continue to verify funding.";
   }
   if (lower.includes("both parties need linked")) {
-    return "You and the provider must each link a NEAR wallet under Account before accepting with escrow.";
+    return "You and the provider must each sign in with a NEAR wallet before accepting with escrow.";
   }
   if (lower.includes("connected wallet must be")) {
     return raw;
+  }
+  if (
+    lower.includes("requester wallet must match") ||
+    lower.includes("missing wallet snapshots")
+  ) {
+    return formatWalletSnapshotRpcError(raw);
   }
 
   return formatEngagementFundingError(raw);

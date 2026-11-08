@@ -31,7 +31,7 @@ export default async function MessagesPage() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/auth/login?next=/messages");
+    redirect("/auth/wallet?next=/messages");
   }
 
   const sidebarRows = await loadMessagesSidebarData(supabase, user.id, nowMs);

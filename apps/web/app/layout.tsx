@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { DM_Sans, JetBrains_Mono, Manrope } from "next/font/google";
 import { AppShell } from "../components/app-shell";
+import { THEME_INIT_SCRIPT } from "../components/theme-script";
 import "./globals.css";
 
 const dmSans = DM_Sans({
@@ -34,6 +36,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${dmSans.variable} ${manrope.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col font-sans">
+        <Script id="paidaid-theme-init" strategy="beforeInteractive">
+          {THEME_INIT_SCRIPT}
+        </Script>
         <AppShell>{children}</AppShell>
       </body>
     </html>

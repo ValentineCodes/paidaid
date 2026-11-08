@@ -7,7 +7,6 @@ import { isSupabaseConfigured } from "../../../lib/supabase/env";
 import { getRequestWallTimeMs } from "../../../lib/datetime/request-wall-time";
 import { resolveProfileDisplayUrl } from "../../../lib/profiles/resolve-photo";
 import { loadActiveLinkedNearWallet } from "../../../lib/near/load-linked-wallet";
-import { NearWalletSectionLoader } from "./near-wallet-section-loader";
 import { ProfileShell } from "./profile-shell";
 
 export default async function AccountPage() {
@@ -46,7 +45,7 @@ export default async function AccountPage() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/auth/login?next=/account");
+    redirect("/auth/wallet?next=/account");
   }
 
   const { data: profile, error } = await supabase
@@ -69,7 +68,7 @@ export default async function AccountPage() {
         <div className="page-heading">
           <span>YOUR IDENTITY</span>
           <h1>Profile</h1>
-          <p>Your profile row is missing. Run migrations and sign up again.</p>
+          <p>Your profile row is missing. Run migrations and sign in with your wallet again.</p>
         </div>
       </main>
     );
@@ -116,14 +115,13 @@ export default async function AccountPage() {
       nowMs={nowMs}
       profile={profile}
       photoDisplayUrl={photoDisplayUrl}
-      userEmail={user.email ?? ""}
+      nearAccountId={linkedWallet?.nearAccountId ?? null}
       reviews={reviews.slice(0, 10)}
       requesterNames={requesterNames}
       avgRating={avgRating}
       reviewCount={reviewCount}
       taskCount={taskCount}
     />
-    <NearWalletSectionLoader linked={linkedWallet} />
     <section className="inner-page mt-2 border-t border-stone-200 pt-6 dark:border-stone-800">
       <h2 className="text-lg font-medium text-stone-900 dark:text-stone-100">
         Payments

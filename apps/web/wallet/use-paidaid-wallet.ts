@@ -71,7 +71,9 @@ export function usePaidAidWallet(): PaidAidWalletState {
         throw new Error("Wallet is still loading. Try again in a moment.");
       }
       const contractId = readWalletContractId({
-        NEXT_PUBLIC_NEAR_CONTRACT_ID: process.env.NEXT_PUBLIC_NEAR_CONTRACT_ID,
+        NEXT_PUBLIC_NEAR_CONTRACT_ID:
+          process.env.NEXT_PUBLIC_NEAR_ESCROW_CONTRACT_ID ??
+          process.env.NEXT_PUBLIC_NEAR_CONTRACT_ID,
       });
       await signInWithIntearWallet(selector, contractId);
       await syncFromSelectorStore();

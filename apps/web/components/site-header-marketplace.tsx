@@ -4,8 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { PaidAidLogo } from "./paidaid-logo";
-import { SignOutForm } from "./sign-out-form";
 import { ThemeToggle } from "./theme-toggle";
+import { MarketplaceWalletControl } from "./marketplace-wallet-control";
 
 type SiteHeaderMarketplaceProps = {
   user: {
@@ -15,32 +15,9 @@ type SiteHeaderMarketplaceProps = {
     avatarUrl: string | null;
     avatarKey: string;
   } | null;
+  linkedNearAccountId: string | null;
   unreadNotifications?: number;
 };
-
-function initialsFromName(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) {
-    return (parts[0]![0]! + parts[1]![0]!).toUpperCase();
-  }
-  return name.slice(0, 2).toUpperCase() || "?";
-}
-
-function initialsFromEmail(email: string) {
-  const local = email.split("@")[0] ?? "?";
-  const parts = local.split(/[.\s_-]+/).filter(Boolean);
-  if (parts.length >= 2) {
-    return (parts[0]![0]! + parts[1]![0]!).toUpperCase();
-  }
-  return local.slice(0, 2).toUpperCase() || "?";
-}
-
-function headerInitials(user: NonNullable<SiteHeaderMarketplaceProps["user"]>) {
-  if (user.displayName) {
-    return initialsFromName(user.displayName);
-  }
-  return initialsFromEmail(user.email);
-}
 
 function DesktopNavLink({
   href,
@@ -67,6 +44,7 @@ function DesktopNavLink({
 
 export function SiteHeaderMarketplace({
   user,
+  linkedNearAccountId,
   unreadNotifications = 0,
 }: SiteHeaderMarketplaceProps) {
   return (
@@ -83,68 +61,10 @@ export function SiteHeaderMarketplace({
         </nav>
         <div className="header-actions">
           <ThemeToggle />
-          {user ? (
-            <>
-              <Link href="/requests/new" className="create-button max-sm:text-[0]">
-                <svg
-                  width={18}
-                  height={18}
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  aria-hidden
-                >
-                  <path d="M12 5v14M5 12h14" />
-                </svg>
-                Post a task
-              </Link>
-              <Link
-                href="/account"
-                className="avatar max-sm:hidden"
-                aria-label="Open profile"
-              >
-                {user.avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- signed storage URL
-                  <img
-                    key={user.avatarKey}
-                    src={user.avatarUrl}
-                    alt=""
-                    className="size-full rounded-full object-cover"
-                  />
-                ) : (
-                  headerInitials(user)
-                )}
-                <span />
-              </Link>
-              <div className="max-lg:hidden">
-                <SignOutForm />
-              </div>
-            </>
-          ) : (
-            <>
-              <Link
-                href="/auth/login"
-                className="hidden text-sm font-semibold text-[var(--muted)] hover:text-[var(--ink)] sm:inline"
-              >
-                Sign in
-              </Link>
-              <Link href="/auth/sign-up" className="create-button max-sm:text-[0]">
-                <svg
-                  width={18}
-                  height={18}
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  aria-hidden
-                >
-                  <path d="M12 5v14M5 12h14" />
-                </svg>
-                Sign up
-              </Link>
-            </>
-          )}
+          <MarketplaceWalletControl
+            hasSession={Boolean(user)}
+            sessionNearAccountId={linkedNearAccountId}
+          />
         </div>
       </div>
     </header>

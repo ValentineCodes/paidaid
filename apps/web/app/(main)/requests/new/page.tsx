@@ -27,7 +27,7 @@ export default async function NewRequestPage() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/auth/login?next=/requests/new");
+    redirect("/auth/wallet?next=/requests/new");
   }
 
   const [

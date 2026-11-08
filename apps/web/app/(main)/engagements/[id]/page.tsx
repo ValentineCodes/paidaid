@@ -44,7 +44,7 @@ export default async function EngagementPage({ params }: PageProps) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect(`/auth/login?next=/engagements/${id}`);
+    redirect(`/auth/wallet?next=/engagements/${id}`);
   }
 
   const { data: engagement, error: eErr } = await supabase
@@ -448,13 +448,9 @@ export default async function EngagementPage({ params }: PageProps) {
         !paymentFunded &&
         !(fundingPrerequisites?.providerWalletLinked ?? false) && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
-            <p className="font-medium">Link your NEAR wallet</p>
+            <p className="font-medium">Sign in with your NEAR wallet</p>
             <p className="mt-1">
-              The requester cannot fund escrow until you link a NEAR wallet under{" "}
-              <Link href="/account" className="underline">
-                Account → NEAR wallet
-              </Link>
-              .
+              The requester cannot fund escrow until you sign in with your NEAR wallet.
             </p>
           </div>
         )}

@@ -47,11 +47,18 @@ export async function RequestResponsesOwnerList({
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const linkedRequesterNear =
+  const { data: requestMeta } = await supabase
+    .from("requests")
+    .select("requester_near_account_id")
+    .eq("id", requestId)
+    .maybeSingle();
+  const sessionLinked =
     user != null
       ? (await loadActiveLinkedNearWallet(supabase, user.id))?.nearAccountId ??
         null
       : null;
+  const linkedRequesterNear =
+    requestMeta?.requester_near_account_id?.trim() || sessionLinked;
 
   const { data: inFlightIntent } = await supabase
     .from("acceptance_funding_intents")

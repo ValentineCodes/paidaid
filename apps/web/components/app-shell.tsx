@@ -1,18 +1,8 @@
-import { ThemeScript } from "./theme-script";
-
 type AppShellProps = {
   children: React.ReactNode;
 };
 
-/**
- * Root shell: `body` gets `.app` (+ optional `.dark`) from {@link ThemeScript}.
- * Main routes wrap content in Figma `.app` styles via `body` class.
- */
+/** Root shell wrapper (theme bootstrap runs via `next/script` in `app/layout.tsx`). */
 export function AppShell({ children }: AppShellProps) {
-  return (
-    <>
-      <ThemeScript />
-      {children}
-    </>
-  );
+  return children;
 }

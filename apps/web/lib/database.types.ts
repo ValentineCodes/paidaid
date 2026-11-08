@@ -205,9 +205,11 @@ export type Database = {
           accepted_response_id: string
           created_at: string
           id: string
+          provider_near_account_id: string | null
           provider_user_id: string
           request_id: string
           requester_id: string
+          requester_near_account_id: string | null
         }
         Insert: {
           accepted_response_id: string
@@ -1130,6 +1132,7 @@ export type Database = {
           proposed_asset_id: string
           provider_profile_id: string
           request_id: string
+          responder_near_account_id: string | null
           status: Database["public"]["Enums"]["response_status"]
           updated_at: string
         }
@@ -1238,6 +1241,7 @@ export type Database = {
           location_structured: Json | null
           published_at: string | null
           requester_id: string
+          requester_near_account_id: string | null
           scheduled_at: string | null
           status: Database["public"]["Enums"]["request_status"]
           timing_type: Database["public"]["Enums"]["timing_type"]
@@ -1377,6 +1381,36 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_auth_challenges: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          near_account_id: string
+          network_id: string
+          nonce: string
+          used_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          near_account_id: string
+          network_id: string
+          nonce: string
+          used_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          near_account_id?: string
+          network_id?: string
+          nonce?: string
+          used_at?: string | null
+        }
+        Relationships: []
+      }
       wallet_link_challenges: {
         Row: {
           created_at: string
@@ -1489,6 +1523,31 @@ export type Database = {
           p_public_key: string
           p_user_id: string
         }
+        Returns: string
+      }
+      complete_wallet_authentication: {
+        Args: {
+          p_challenge_id: string
+          p_near_account_id: string
+          p_network_id: string
+          p_public_key: string
+          p_user_id: string
+        }
+        Returns: string
+      }
+      create_wallet_auth_challenge: {
+        Args: { p_near_account_id: string; p_network_id?: string }
+        Returns: {
+          challenge_id: string
+          expires_at: string
+          issued_at: string
+          message: string
+          nonce_hex: string
+          recipient: string
+        }[]
+      }
+      lookup_user_id_by_near_wallet: {
+        Args: { p_near_account_id: string }
         Returns: string
       }
       auto_complete_engagements: { Args: never; Returns: number }

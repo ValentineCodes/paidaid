@@ -13,6 +13,7 @@ import {
   type RequestComposerValues,
 } from "../../../lib/validation/request";
 import { validateCreateRequestFormForTests } from "../../../lib/requests/validate-create-input";
+import { formatWalletSnapshotRpcError } from "../../../lib/requests/wallet-snapshot-errors";
 export type CreateRequestState = {
   error: string | null;
   fieldErrors?: Record<string, string>;
@@ -157,7 +158,11 @@ export async function createRequest(
   );
 
   if (rpcError || !requestId) {
-    return { error: rpcError?.message ?? "Could not create request" };
+    return {
+      error: formatWalletSnapshotRpcError(
+        rpcError?.message ?? "Could not create request",
+      ),
+    };
   }
 
   const requestIdStr = requestId as string;

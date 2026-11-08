@@ -2,6 +2,8 @@ import { connection } from "next/server";
 
 import { createClient } from "../../lib/supabase/server";
 import { SiteHeaderMarketplace } from "../../components/site-header-marketplace";
+import { NearSessionProvider } from "../../wallet/near-session-provider";
+import { loadActiveLinkedNearWallet } from "../../lib/near/load-linked-wallet";
 import { MobileNav } from "../../components/mobile-nav";
 import { ModalSlotGate } from "../../components/modal-slot-gate";
 import { loadHeaderUser } from "../../lib/profiles/header-user";
@@ -21,6 +23,7 @@ export default async function MainLayout({
   await connection();
 
   let user: HeaderUser | null = null;
+  let linkedNearAccountId: string | null = null;
   let unreadNotifications = 0;
   if (isSupabaseConfigured()) {
     try {
@@ -30,6 +33,8 @@ export default async function MainLayout({
       } = await supabase.auth.getUser();
       if (authUser) {
         user = await loadHeaderUser(supabase, authUser);
+        const linked = await loadActiveLinkedNearWallet(supabase, authUser.id);
+        linkedNearAccountId = linked?.nearAccountId ?? null;
         const { count } = await supabase
           .from("notifications")
           .select("*", { count: "exact", head: true })
@@ -43,9 +48,10 @@ export default async function MainLayout({
   }
 
   return (
-    <>
+    <NearSessionProvider>
       <SiteHeaderMarketplace
         user={user}
+        linkedNearAccountId={linkedNearAccountId}
         unreadNotifications={unreadNotifications}
       />
       <div className="relative flex min-w-0 w-full flex-1 flex-col">
@@ -53,6 +59,6 @@ export default async function MainLayout({
         <ModalSlotGate>{modal}</ModalSlotGate>
       </div>
       <MobileNav unreadNotifications={unreadNotifications} />
-    </>
+    </NearSessionProvider>
   );
 }

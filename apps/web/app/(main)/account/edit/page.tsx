@@ -5,8 +5,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "../../../../lib/supabase/server";
 import { isSupabaseConfigured } from "../../../../lib/supabase/env";
 import { resolveProfileDisplayUrl } from "../../../../lib/profiles/resolve-photo";
-import { loadActiveLinkedNearWallet } from "../../../../lib/near/load-linked-wallet";
-import { NearWalletSectionLoader } from "../near-wallet-section-loader";
 import { ProfileForm } from "../profile-form";
 
 export default async function EditProfilePage() {
@@ -33,7 +31,7 @@ export default async function EditProfilePage() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/auth/login?next=/account/edit");
+    redirect("/auth/wallet?next=/account/edit");
   }
 
   const { data: profile, error } = await supabase
@@ -55,7 +53,6 @@ export default async function EditProfilePage() {
   }
 
   const photoDisplayUrl = await resolveProfileDisplayUrl(supabase, profile);
-  const linkedWallet = await loadActiveLinkedNearWallet(supabase, user.id);
 
   return (
     <main className="inner-page">
@@ -75,9 +72,6 @@ export default async function EditProfilePage() {
         <ProfileForm profile={profile} photoDisplayUrl={photoDisplayUrl} />
       </div>
 
-      <div className="mx-auto max-w-[680px]">
-        <NearWalletSectionLoader linked={linkedWallet} />
-      </div>
     </main>
   );
 }

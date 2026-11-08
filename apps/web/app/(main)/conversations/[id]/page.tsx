@@ -34,7 +34,7 @@ export default async function ConversationPage({ params }: PageProps) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect(`/auth/login?next=/conversations/${id}`);
+    redirect(`/auth/wallet?next=/conversations/${id}`);
   }
 
   const thread = await loadConversationThreadData(supabase, user.id, id);

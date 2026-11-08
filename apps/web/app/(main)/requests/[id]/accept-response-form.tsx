@@ -415,7 +415,7 @@ function AcceptResponseFormInner({
             </p>
           ) : (
             <p className="text-xs text-stone-600 dark:text-stone-400">
-              Linked wallet: {linkedRequesterNearAccountId}
+              Funding wallet (request snapshot): {linkedRequesterNearAccountId}
             </p>
           )}
           <div className="flex flex-wrap gap-2">

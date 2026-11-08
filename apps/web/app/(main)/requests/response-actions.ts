@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { createClient } from "../../../lib/supabase/server";
+import { formatWalletSnapshotRpcError } from "../../../lib/requests/wallet-snapshot-errors";
 import {
   HEADLINE_MAX,
   MESSAGE_MAX,
@@ -117,7 +118,11 @@ export async function submitRequestResponse(
   );
 
   if (rpcError || !responseId) {
-    return { error: rpcError?.message ?? "Could not submit response" };
+    return {
+      error: formatWalletSnapshotRpcError(
+        rpcError?.message ?? "Could not submit response",
+      ),
+    };
   }
 
   revalidatePath(`/requests/${requestId}`);

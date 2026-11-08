@@ -24,7 +24,7 @@ export async function middleware(request: NextRequest) {
   const isProtected = PROTECTED_PREFIXES.some((p) => pathname.startsWith(p));
   if (isProtected && !user) {
     const url = request.nextUrl.clone();
-    url.pathname = "/auth/login";
+    url.pathname = "/auth/wallet";
     url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
   }

@@ -244,7 +244,7 @@ export function RequestDetailContent({ data, variant }: Props) {
         )}
         {!user && (
           <div className="detail-section">
-            <DismissDrawerLink href="/auth/login" className="primary-wide">
+            <DismissDrawerLink href="/auth/wallet" className="primary-wide">
               Sign in to respond
             </DismissDrawerLink>
           </div>
@@ -312,7 +312,7 @@ export function RequestDetailContent({ data, variant }: Props) {
           role="note"
         >
           Budget shown is indicative — not deposited or escrowed.{" "}
-          <Link href="/auth/login" className="font-medium underline">
+          <Link href="/auth/wallet" className="font-medium underline">
             Sign in
           </Link>{" "}
           to respond to requests or post your own.

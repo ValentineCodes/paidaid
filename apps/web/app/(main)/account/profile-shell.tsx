@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { CopyableNearAddress } from "../../../components/copyable-near-address";
 import type { Tables } from "../../../lib/database.types";
 import { formatReviewAgo } from "../../../lib/datetime/relative-from-now";
 
@@ -16,7 +17,7 @@ type Props = {
   profile: Tables<"profiles">;
   /** Signed URL or external avatar — prefer uploaded file over stale `avatar_url` in parent. */
   photoDisplayUrl: string | null;
-  userEmail: string;
+  nearAccountId: string | null;
   reviews: ReviewRow[];
   requesterNames: Map<string, string>;
   avgRating: number | null;
@@ -40,7 +41,7 @@ export function ProfileShell({
   nowMs,
   profile,
   photoDisplayUrl,
-  userEmail,
+  nearAccountId,
   reviews,
   requesterNames,
   avgRating,
@@ -91,7 +92,9 @@ export function ProfileShell({
             {profile.bio?.trim() ||
               "Add a short bio so people know who you are."}
           </p>
-          <p className="text-[11px] text-[var(--muted)]">{userEmail}</p>
+          {nearAccountId ? (
+            <CopyableNearAddress accountId={nearAccountId} className="mt-1" />
+          ) : null}
           <div className="profile-stats">
             <span>
               <strong>{ratingLabel}</strong>

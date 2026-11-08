@@ -28,7 +28,7 @@ export default async function ActivityPage() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/auth/login?next=/requests/mine");
+    redirect("/auth/wallet?next=/requests/mine");
   }
 
   const data = await loadActivityPageData(supabase, user.id);

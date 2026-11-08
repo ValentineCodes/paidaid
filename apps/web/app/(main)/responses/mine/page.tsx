@@ -24,7 +24,7 @@ export default async function MyResponsesPage() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/auth/login?next=/responses/mine");
+    redirect("/auth/wallet?next=/responses/mine");
   }
 
   const { data: pp } = await supabase

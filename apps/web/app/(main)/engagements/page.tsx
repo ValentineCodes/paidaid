@@ -21,7 +21,7 @@ export default async function EngagementsListPage() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/auth/login?next=/engagements");
+    redirect("/auth/wallet?next=/engagements");
   }
 
   const { data: rows, error } = await supabase
