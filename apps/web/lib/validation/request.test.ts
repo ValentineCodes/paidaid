@@ -98,12 +98,12 @@ test("title length", () => {
   assert(fieldErrors?.title);
 });
 
-test("description required and max", () => {
+test("description optional but has max length", () => {
   const { fieldErrors } = validateRequestComposer(
     { ...baseValues, description: "" },
     sampleAssets,
   );
-  assert(fieldErrors?.description);
+  assert.equal(fieldErrors, null);
   const long = "x".repeat(1001);
   const { fieldErrors: e2 } = validateRequestComposer(
     { ...baseValues, description: long },
@@ -113,7 +113,7 @@ test("description required and max", () => {
 });
 
 test("photo count and mime", () => {
-  const many = Array.from({ length: 6 }, () => ({
+  const many = Array.from({ length: 2 }, () => ({
     size: 100,
     type: "image/jpeg",
   }));

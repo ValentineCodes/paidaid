@@ -84,10 +84,7 @@ export default async function MarketplaceHomePage({ searchParams }: PageProps) {
             <br />
             <em>someone can do it.</em>
           </h1>
-          <p>
-            Configure Supabase to load live requests. Budgets are indicative only —
-            not deposited or escrowed.
-          </p>
+          <p>Configure Supabase to load live requests.</p>
           <p className="max-w-xl text-[13px] text-[var(--muted)]">
             Set{" "}
             <code className="font-mono text-sm text-[var(--ink)]">
@@ -152,8 +149,7 @@ export default async function MarketplaceHomePage({ searchParams }: PageProps) {
         </h1>
         <p>
           Real people, useful work, direct connection. Post what you need or find
-          something worth doing. Budgets are indicative only — not deposited or
-          escrowed.
+          something worth doing.
         </p>
         <form method="get" action="/" className="search-wrap">
           <Icon name="search" />

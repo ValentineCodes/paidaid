@@ -143,8 +143,11 @@ export function RequestCreateModal({
     if (!fe) {
       return step;
     }
-    if (fe.title || fe.description || fe.photos) {
+    if (fe.title || fe.description) {
       return 1;
+    }
+    if (fe.photos) {
+      return 3;
     }
     if (
       fe.budgetHuman ||
@@ -166,13 +169,12 @@ export function RequestCreateModal({
       setPhotoFiles([]);
       return;
     }
-    setPhotoFiles(Array.from(list).slice(0, 5));
+    setPhotoFiles([list[0]!]);
   };
 
   const step1Ok =
     title.trim().length >= 3 &&
     title.trim().length <= 50 &&
-    description.trim().length >= 1 &&
     description.length <= 1000;
 
   const step2Ok = (() => {
@@ -301,7 +303,7 @@ export function RequestCreateModal({
                   </p>
                 )}
                 <label>
-                  Description
+                  Description <span className="text-[var(--muted)]">(optional)</span>
                   <textarea
                     placeholder="Describe what needs doing, what success looks like, and any helpful context..."
                     value={description}
@@ -312,32 +314,6 @@ export function RequestCreateModal({
                 {state.fieldErrors?.description && (
                   <p className="-mt-1 text-[11px] text-red-600 dark:text-red-400">
                     {state.fieldErrors.description}
-                  </p>
-                )}
-                <div className="photo-upload">
-                  <FigmaIcon name="camera" size={22} />
-                  <div>
-                    <strong>Add photos</strong>
-                    <span>Up to 5 · JPG or PNG</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    Choose files
-                  </button>
-                  <input
-                    ref={fileInputRef}
-                    className="sr-only"
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/gif"
-                    multiple
-                    onChange={(e) => onFilesChange(e.target.files)}
-                  />
-                </div>
-                {state.fieldErrors?.photos && (
-                  <p className="text-[11px] text-red-600 dark:text-red-400">
-                    {state.fieldErrors.photos}
                   </p>
                 )}
               </div>
@@ -440,40 +416,71 @@ export function RequestCreateModal({
               </div>
             )}
 
+            <input
+              ref={fileInputRef}
+              className="sr-only"
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              onChange={(e) => {
+                onFilesChange(e.target.files);
+                e.target.value = "";
+              }}
+            />
+
             {effectiveStep === 3 && (
               <div className="review-card">
-                <div
-                  className="review-image overflow-hidden"
-                  style={
-                    photoPreviewUrl
-                      ? { padding: 0, background: "transparent" }
-                      : undefined
-                  }
-                >
+                <div className="review-image-wrap">
+                  <button
+                    type="button"
+                    className={`review-image review-image--selectable overflow-hidden${
+                      photoPreviewUrl ? " !p-0 !bg-transparent" : ""
+                    }`}
+                    onClick={() => fileInputRef.current?.click()}
+                    aria-label={
+                      photoPreviewUrl ? "Change task photo" : "Add task photo"
+                    }
+                  >
+                    {photoPreviewUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={photoPreviewUrl}
+                        alt=""
+                        className="size-full object-cover"
+                      />
+                    ) : (
+                      <FigmaIcon name="camera" size={30} />
+                    )}
+                  </button>
                   {photoPreviewUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={photoPreviewUrl}
-                      alt=""
-                      className="size-full object-cover"
-                    />
-                  ) : (
-                    <FigmaIcon name="briefcase" size={30} />
-                  )}
+                    <button
+                      type="button"
+                      className="review-image-remove"
+                      aria-label="Remove photo"
+                      onClick={() => {
+                        setPhotoFiles([]);
+                        if (fileInputRef.current) {
+                          fileInputRef.current.value = "";
+                        }
+                      }}
+                    >
+                      <FigmaIcon name="close" size={14} />
+                    </button>
+                  ) : null}
                 </div>
-                <span>{reviewMeta}</span>
+                {state.fieldErrors?.photos && (
+                  <p className="-mt-2 mb-2 text-[11px] text-red-600 dark:text-red-400">
+                    {state.fieldErrors.photos}
+                  </p>
+                )}
+                <p className="review-card__meta">{reviewMeta}</p>
                 <h3>{title.trim() || "—"}</h3>
-                <p>{description.trim() || "—"}</p>
+                {description.trim() ? <p>{description.trim()}</p> : null}
                 <div className="review-card__budget-row">
                   <strong>
                     {budgetHuman.trim() || "0"} {budgetAsset?.symbol}
                   </strong>
                   <span>{dueLabel}</span>
                 </div>
-                <small>
-                  Crypto budgets are informational only. PaidAid does not
-                  process payments in V1.
-                </small>
               </div>
             )}
 

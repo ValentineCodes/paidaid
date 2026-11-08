@@ -112,7 +112,6 @@ export function RequestDetailContent({ data, variant }: Props) {
         {budgetAmount != null && (
           <div className="detail-budget">
             {budgetHuman} {displaySymbol}
-            <span>Informational budget</span>
           </div>
         )}
         <div className="detail-meta">
@@ -300,9 +299,7 @@ export function RequestDetailContent({ data, variant }: Props) {
           className="rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
           role="status"
         >
-          Your request was saved{publishedAt ? " and published" : " as a draft"}
-          . This is an indicative budget only — nothing is funded or held in
-          escrow.
+          Your request was saved{publishedAt ? " and published" : " as a draft"}.
         </p>
       )}
 
@@ -311,20 +308,10 @@ export function RequestDetailContent({ data, variant }: Props) {
           className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100"
           role="note"
         >
-          Budget shown is indicative — not deposited or escrowed.{" "}
           <Link href="/auth/wallet" className="font-medium underline">
             Sign in
           </Link>{" "}
           to respond to requests or post your own.
-        </p>
-      )}
-
-      {user && !isOwner && (
-        <p
-          className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100"
-          role="note"
-        >
-          Budget shown is indicative — not deposited or escrowed.
         </p>
       )}
 
@@ -385,7 +372,7 @@ export function RequestDetailContent({ data, variant }: Props) {
         </div>
         {budgetAmount != null && (
           <div>
-            <dt className="text-stone-500">Indicative budget</dt>
+            <dt className="text-stone-500">Budget</dt>
             <dd className="font-mono">
               {budgetHuman} {displaySymbol}
             </dd>

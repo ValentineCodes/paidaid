@@ -94,8 +94,7 @@ export function ResponseOfferForm({
         id="respond_budget_hint"
         className="mt-[-8px] mb-[15px] text-[11px] font-normal text-[var(--muted)]"
       >
-        Indicative budget on this task is {budgetHuman} {assetSymbol} (whole
-        units only).
+        Task budget is {budgetHuman} {assetSymbol} (whole units only).
       </p>
       {state.fieldErrors?.proposedHuman && (
         <p className="mb-3 text-[12px] text-red-700 dark:text-red-300">

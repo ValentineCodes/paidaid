@@ -982,6 +982,7 @@ a.task-card {
 }
 
 .amount-input input {
+  border: 0;
   background: transparent;
   padding: 13px;
   min-width: 0;
@@ -1098,6 +1099,22 @@ a.task-card {
   width: 100%;
 }
 
+.form-fields input[type="date"] {
+  position: relative;
+  cursor: pointer;
+}
+
+.form-fields input[type="date"]::-webkit-calendar-picker-indicator {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
 .two-col {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1185,14 +1202,66 @@ a.task-card {
   border-radius: 12px;
 }
 
+.review-image-wrap {
+  position: relative;
+  margin-bottom: 16px;
+}
+
+.review-image-wrap .review-image {
+  margin-bottom: 0;
+}
+
 .review-image {
-  height: 100px;
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  height: auto;
   background: linear-gradient(135deg, #ddecaf, #b5d6c8);
   border-radius: 8px;
   display: grid;
   place-items: center;
   margin-bottom: 16px;
   color: #315c4c;
+}
+
+.review-image-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: #fff;
+  background: rgb(0 0 0 / 0.55);
+}
+
+.review-image-remove:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+.review-image--selectable {
+  cursor: pointer;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  text-align: inherit;
+}
+.review-image--selectable:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+.review-card__meta {
+  margin: 0 0 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  text-transform: uppercase;
 }
 
 .review-card h3 {

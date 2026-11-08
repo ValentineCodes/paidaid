@@ -3,7 +3,7 @@ import type { Tables } from "../database.types";
 const TITLE_MIN = 3;
 const TITLE_MAX = 50;
 const DESCRIPTION_MAX = 1000;
-const MAX_PHOTOS = 5;
+const MAX_PHOTOS = 1;
 const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 const ALLOWED_PHOTO_TYPES = new Set([
   "image/jpeg",
@@ -158,10 +158,8 @@ export function validateRequestComposer(
     fieldErrors.title = `Title must be between ${TITLE_MIN} and ${TITLE_MAX} characters`;
   }
 
-  const description = input.description;
-  const descTrimmed = description.trim();
-  if (descTrimmed.length < 1 || description.length > DESCRIPTION_MAX) {
-    fieldErrors.description = `Description is required and at most ${DESCRIPTION_MAX} characters`;
+  if (input.description.length > DESCRIPTION_MAX) {
+    fieldErrors.description = `Description must be at most ${DESCRIPTION_MAX} characters`;
   }
 
   if (input.timingType !== "immediate" && input.timingType !== "scheduled") {
