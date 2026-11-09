@@ -1,6 +1,18 @@
 "use client";
 
-import * as Dialog from "@radix-ui/react-dialog";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   useActionState,
   useEffect,
@@ -59,6 +71,10 @@ const CATEGORY_OPTIONS: {
     slug: "photography",
   },
 ];
+
+const CATEGORY_SELECT_ITEMS = Object.fromEntries(
+  CATEGORY_OPTIONS.map((c) => [c.key, c.label]),
+);
 
 function tagIdForPick(
   tags: Tables<"tags">[],
@@ -252,7 +268,7 @@ export function RequestCreateModal({
         return;
       }
       setClientFieldErrors({});
-      setStep((Math.min(3, effectiveStep + 1) as Step));
+      setStep(Math.min(3, effectiveStep + 1) as Step);
       return;
     }
     const deadlineAt =
@@ -303,7 +319,7 @@ export function RequestCreateModal({
       : `Due ${formatDueShort(`${deadlineDate.trim()}T12:00:00`)}`;
 
   return (
-    <Dialog.Root
+    <Dialog
       open
       onOpenChange={(next) => {
         if (!next) {
@@ -311,18 +327,20 @@ export function RequestCreateModal({
         }
       }}
     >
-      <Dialog.Portal>
-        <Dialog.Overlay className="overlay modal-overlay" />
-        <Dialog.Content className="create-modal" aria-describedby={undefined}>
-          <Dialog.Title className="sr-only">Create a task</Dialog.Title>
-          <div className="modal-head">
-            <PaidAidLogo />
-            <Dialog.Close asChild>
-              <button type="button" aria-label="Close">
-                <FigmaIcon name="close" size={18} />
-              </button>
-            </Dialog.Close>
-          </div>
+      <DialogContent
+        unstyled
+        showCloseButton={false}
+        overlayClassName="overlay modal-overlay"
+        className="create-modal"
+        aria-describedby={undefined}
+      >
+        <DialogTitle className="sr-only">Create a task</DialogTitle>
+        <div className="modal-head">
+          <PaidAidLogo />
+          <DialogClose render={<button type="button" aria-label="Close" />}>
+            <FigmaIcon name="close" size={18} />
+          </DialogClose>
+        </div>
 
         {!isPublished ? (
           <>
@@ -380,7 +398,9 @@ export function RequestCreateModal({
                 <label>
                   <span className="inline-flex items-baseline gap-1">
                     Description
-                    <span className="font-normal text-[var(--muted)]">(optional)</span>
+                    <span className="font-normal text-[var(--muted)]">
+                      (optional)
+                    </span>
                   </span>
                   <textarea
                     placeholder="Describe what needs doing, what success looks like, and any helpful context..."
@@ -458,9 +478,7 @@ export function RequestCreateModal({
                     </button>
                     <button
                       type="button"
-                      className={
-                        locationKind === "in_person" ? "selected" : ""
-                      }
+                      className={locationKind === "in_person" ? "selected" : ""}
                       onClick={() => {
                         setLocationKind("in_person");
                         clearClientFieldError("locationLabel");
@@ -491,19 +509,29 @@ export function RequestCreateModal({
                 )}
                 <label>
                   Category
-                  <select
+                  <Select
+                    modal={false}
+                    items={CATEGORY_SELECT_ITEMS}
                     value={categoryKey}
-                    onChange={(e) => {
-                      setCategoryKey(e.target.value);
+                    onValueChange={(value) => {
+                      if (value == null) {
+                        return;
+                      }
+                      setCategoryKey(String(value));
                       clearClientFieldError("tags");
                     }}
                   >
-                    {CATEGORY_OPTIONS.map((c) => (
-                      <option key={c.key} value={c.key}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="h-[46px] rounded-[9px] px-[13px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CATEGORY_OPTIONS.map((c) => (
+                        <SelectItem key={c.key} value={c.key}>
+                          {c.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </label>
                 {fieldErrors.tags && (
                   <p className="mb-2 text-[11px] text-red-600 dark:text-red-400">
@@ -627,8 +655,7 @@ export function RequestCreateModal({
             </button>
           </div>
         )}
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -1,6 +1,8 @@
 @import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Manrope:wght@500;600;700;800&display=swap");
 @import "tailwindcss";
 @import "./figma-design.css";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
 /* Match Figma: `dark` class on `body.app` (see theme script + `ThemeToggle`). */
 @custom-variant dark (&:where(.dark, .dark *));
@@ -13,8 +15,10 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
 
-  --font-sans: var(--font-dm-sans), "DM Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-heading: var(--font-manrope), Manrope, ui-sans-serif, system-ui, sans-serif;
+  --font-sans:
+    var(--font-dm-sans), "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-heading:
+    var(--font-manrope), Manrope, ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
 
   --color-stone-50: var(--stone-50);
@@ -28,4 +32,108 @@
   --color-stone-800: var(--stone-800);
   --color-stone-900: var(--stone-900);
   --color-stone-950: var(--stone-950);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ui-ring);
+  --color-input: var(--ui-input);
+  --color-border: var(--ui-border);
+  --color-destructive: var(--ui-destructive);
+  --color-accent-foreground: var(--ui-accent-foreground);
+  --color-accent: var(--ui-accent);
+  --color-muted-foreground: var(--ui-muted-foreground);
+  --color-muted: var(--ui-muted);
+  --color-secondary-foreground: var(--ui-secondary-foreground);
+  --color-secondary: var(--ui-secondary);
+  --color-primary-foreground: var(--ui-primary-foreground);
+  --color-primary: var(--ui-primary);
+  --color-popover-foreground: var(--ui-popover-foreground);
+  --color-popover: var(--ui-popover);
+  --color-card-foreground: var(--ui-card-foreground);
+  --color-card: var(--ui-card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/*
+  Shadcn tokens use `--ui-*` so we never override Figma’s `--muted` (text) or `--accent` (highlight).
+*/
+:root {
+  --radius: 1.125rem;
+  --ui-destructive: #dc2626;
+  --chart-1: var(--stone-400);
+  --chart-2: var(--stone-500);
+  --chart-3: var(--stone-600);
+  --chart-4: var(--stone-700);
+  --chart-5: var(--stone-800);
+  --sidebar: #f7f8f4;
+  --sidebar-foreground: #15231f;
+  --sidebar-primary: #15231f;
+  --sidebar-primary-foreground: #f7f8f4;
+  --sidebar-accent: #edf0ec;
+  --sidebar-accent-foreground: #15231f;
+  --sidebar-border: #dde2dc;
+  --sidebar-ring: #9aa59f;
+  --ui-card: #ffffff;
+  --ui-card-foreground: #15231f;
+  --ui-popover: #ffffff;
+  --ui-popover-foreground: #15231f;
+  --ui-primary: #15231f;
+  --ui-primary-foreground: #f7f8f4;
+  --ui-secondary: #edf0ec;
+  --ui-secondary-foreground: #15231f;
+  --ui-muted: #edf0ec;
+  --ui-muted-foreground: #68736e;
+  --ui-accent: #edf0ec;
+  --ui-accent-foreground: #15231f;
+  --ui-border: #dde2dc;
+  --ui-input: #dde2dc;
+  --ui-ring: #9aa59f;
+}
+
+body.app.dark {
+  --ui-card: #171e1b;
+  --ui-card-foreground: #edf2ed;
+  --ui-popover: #171e1b;
+  --ui-popover-foreground: #edf2ed;
+  --ui-primary: #edf2ed;
+  --ui-primary-foreground: #101614;
+  --ui-secondary: #2b3430;
+  --ui-secondary-foreground: #edf2ed;
+  --ui-muted: #2b3430;
+  --ui-muted-foreground: #9aa59f;
+  --ui-accent: #2b3430;
+  --ui-accent-foreground: #edf2ed;
+  --ui-border: #3d4742;
+  --ui-input: #3d4742;
+  --ui-ring: #9aa59f;
+  --ui-destructive: #f87171;
+  --sidebar: #171e1b;
+  --sidebar-foreground: #edf2ed;
+  --sidebar-border: #3d4742;
+  --sidebar-ring: #9aa59f;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+  }
 }

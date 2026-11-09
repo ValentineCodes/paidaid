@@ -3,6 +3,14 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState, useTransition } from "react";
 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
 import { explorerTransactionUrl } from "@paidaid/near";
 import { parseNearNetworkId } from "@paidaid/shared";
 import {
@@ -65,18 +73,23 @@ function SummaryCard({
       <p className="mt-1 text-lg font-semibold text-stone-900 dark:text-stone-100">
         {display}
       </p>
-      <p className="text-xs text-stone-500">{count} engagement{count === 1 ? "" : "s"}</p>
+      <p className="text-xs text-stone-500">
+        {count} engagement{count === 1 ? "" : "s"}
+      </p>
     </div>
   );
 }
 
-function ActivityLine({ row, networkId }: { row: PaymentActivityRow; networkId: string }) {
+function ActivityLine({
+  row,
+  networkId,
+}: {
+  row: PaymentActivityRow;
+  networkId: string;
+}) {
   const explorer =
     row.txHash && (networkId === "testnet" || networkId === "mainnet")
-      ? explorerTransactionUrl(
-          networkId as "testnet" | "mainnet",
-          row.txHash,
-        )
+      ? explorerTransactionUrl(networkId as "testnet" | "mainnet", row.txHash)
       : null;
   const statusClass = paymentActivityStatusClass(row.status);
   const amountLabel = formatPaymentActivityAmount(
@@ -85,9 +98,10 @@ function ActivityLine({ row, networkId }: { row: PaymentActivityRow; networkId: 
     row.assetSymbol,
   );
   const when = new Date(row.occurredAt).toLocaleString();
-  const confirmed = paymentActivityCompletedCopy(row.status) && row.confirmedAt
-    ? new Date(row.confirmedAt).toLocaleString()
-    : null;
+  const confirmed =
+    paymentActivityCompletedCopy(row.status) && row.confirmedAt
+      ? new Date(row.confirmedAt).toLocaleString()
+      : null;
 
   return (
     <div className="activity-card">
@@ -98,10 +112,14 @@ function ActivityLine({ row, networkId }: { row: PaymentActivityRow; networkId: 
       <h3>{row.requestTitle}</h3>
       <div className="text-sm text-stone-600 dark:text-stone-400">
         <p>
-          {amountLabel} · {row.chainId} · {row.viewerRole === "requester" ? "You funded" : "You receive"}
+          {amountLabel} · {row.chainId} ·{" "}
+          {row.viewerRole === "requester" ? "You funded" : "You receive"}
         </p>
         <p className="mt-1">
-          {paymentActivityCompletedCopy(row.status) ? "Confirmed" : "Not confirmed"} · {when}
+          {paymentActivityCompletedCopy(row.status)
+            ? "Confirmed"
+            : "Not confirmed"}{" "}
+          · {when}
           {confirmed ? ` (on-chain ${confirmed})` : null}
         </p>
         {row.txHash ? (
@@ -110,7 +128,9 @@ function ActivityLine({ row, networkId }: { row: PaymentActivityRow; networkId: 
           <p className="mt-1 text-xs text-stone-500">No transaction hash yet</p>
         )}
         {row.lastError ? (
-          <p className="mt-1 text-xs text-red-700 dark:text-red-300">{row.lastError}</p>
+          <p className="mt-1 text-xs text-red-700 dark:text-red-300">
+            {row.lastError}
+          </p>
         ) : null}
       </div>
       <div className="mt-3 flex flex-wrap gap-3">
@@ -230,40 +250,54 @@ export function PaymentActivitySection({ initial }: Props) {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <select
-          className="text-on-light-surface rounded border border-stone-300 bg-white px-2 py-1 text-sm dark:border-stone-700 dark:bg-stone-900"
+        <Select
           value={filter.kind ?? ""}
-          onChange={(e) =>
+          onValueChange={(value) =>
             onFilterChange({
               ...filter,
-              kind: (e.target.value || null) as PaymentEventKind | null,
+              kind: ((value ?? "") || null) as PaymentEventKind | null,
             })
           }
-          aria-label="Filter by type"
         >
-          {KIND_FILTERS.map((o) => (
-            <option key={o.label} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-        <select
-          className="text-on-light-surface rounded border border-stone-300 bg-white px-2 py-1 text-sm dark:border-stone-700 dark:bg-stone-900"
+          <SelectTrigger
+            size="sm"
+            className="w-fit"
+            aria-label="Filter by type"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {KIND_FILTERS.map((o) => (
+              <SelectItem key={o.label} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
           value={filter.status ?? ""}
-          onChange={(e) =>
+          onValueChange={(value) =>
             onFilterChange({
               ...filter,
-              status: (e.target.value || null) as PaymentEventStatus | null,
+              status: ((value ?? "") || null) as PaymentEventStatus | null,
             })
           }
-          aria-label="Filter by status"
         >
-          {STATUS_FILTERS.map((o) => (
-            <option key={o.label} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger
+            size="sm"
+            className="w-fit"
+            aria-label="Filter by status"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {STATUS_FILTERS.map((o) => (
+              <SelectItem key={o.label} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <button
           type="button"
           onClick={refresh}
@@ -286,8 +320,8 @@ export function PaymentActivitySection({ initial }: Props) {
         </p>
       ) : empty ? (
         <p className="py-8 text-sm text-[var(--muted)]" role="status">
-          No payment activity yet. Fund an engagement escrow or complete a payout to see
-          history here.
+          No payment activity yet. Fund an engagement escrow or complete a
+          payout to see history here.
         </p>
       ) : (
         <div className="activity-list">

@@ -4,6 +4,7 @@ const nextConfig: NextConfig = {
   agentRules: false,
   cacheComponents: true,
   transpilePackages: [
+    "@base-ui/react",
     "@paidaid/shared",
     "@paidaid/near",
     "@near-wallet-selector/core",

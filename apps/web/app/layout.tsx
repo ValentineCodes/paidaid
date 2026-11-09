@@ -33,9 +33,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${dmSans.variable} ${manrope.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      className={`h-full antialiased ${dmSans.variable} ${manrope.variable} ${jetbrainsMono.variable} font-sans`}
     >
-      <body className="flex min-h-full flex-col font-sans">
+      <body className="app flex min-h-full flex-col font-sans">
         <Script id="paidaid-theme-init" strategy="beforeInteractive">
           {THEME_INIT_SCRIPT}
         </Script>

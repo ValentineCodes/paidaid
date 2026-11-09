@@ -3,6 +3,14 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { FigmaIcon } from "../../../../components/figma-icons";
 import { useWalletSelector } from "@near-wallet-selector/react-hook";
 import { parseNearNetworkId } from "@paidaid/shared";
 import {
@@ -64,9 +72,7 @@ function StatusBanner({
   const tone =
     phase === "succeeded"
       ? "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-100"
-      : phase === "failed" ||
-          phase === "wallet_rejected" ||
-          phase === "expired"
+      : phase === "failed" || phase === "wallet_rejected" || phase === "expired"
         ? "border-red-200 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950/40 dark:text-red-100"
         : "text-on-light-surface border-stone-200 bg-stone-50 dark:border-stone-700 dark:bg-stone-900/50";
 
@@ -102,6 +108,7 @@ function AcceptResponseFormInner({
     null,
   );
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeStep, setActiveStep] = useState<string | null>(null);
@@ -155,6 +162,21 @@ function AcceptResponseFormInner({
     void refreshSnapshot().finally(() => setHydrated(true));
   }, [refreshSnapshot]);
 
+  const resumeOpenGuard = useRef(false);
+  useEffect(() => {
+    if (!hydrated || resumeOpenGuard.current || modalOpen) {
+      return;
+    }
+    if (
+      intent &&
+      shouldShowContinueFunding(phase, true) &&
+      phase !== "succeeded"
+    ) {
+      resumeOpenGuard.current = true;
+      setModalOpen(true);
+    }
+  }, [hydrated, intent, phase, modalOpen]);
+
   useEffect(() => {
     const onFocus = () => void refreshSnapshot();
     window.addEventListener("focus", onFocus);
@@ -203,9 +225,14 @@ function AcceptResponseFormInner({
 
       let current = starting;
 
-      if (current.status !== "finalized" && current.status !== "funding_verified") {
+      if (
+        current.status !== "finalized" &&
+        current.status !== "funding_verified"
+      ) {
         setActiveStep("Verifying funding on-chain…");
-        const recovered = await recoverAcceptanceFundingProgress(current.intentId);
+        const recovered = await recoverAcceptanceFundingProgress(
+          current.intentId,
+        );
         if (recovered.ok) {
           setIntent(recovered.intent);
           if (recovered.engagementId) {
@@ -247,7 +274,9 @@ function AcceptResponseFormInner({
         setFinalizedEngagementId(verified.engagementId);
       } else {
         setActiveStep("Finalizing acceptance…");
-        const recovered = await reconcileAcceptanceFinalization(current.intentId);
+        const recovered = await reconcileAcceptanceFinalization(
+          current.intentId,
+        );
         if (recovered.ok) {
           setFinalizedEngagementId(recovered.engagementId);
           setIntent(recovered.intent);
@@ -303,11 +332,14 @@ function AcceptResponseFormInner({
           await executeWalletFunding(current);
         }
         setActiveStep(null);
+        setModalOpen(true);
         router.refresh();
       } catch (e) {
-        const raw = e instanceof Error ? e.message : "Acceptance funding failed.";
+        const raw =
+          e instanceof Error ? e.message : "Acceptance funding failed.";
         setError(formatAcceptanceFundingError(raw));
         setActiveStep(null);
+        setModalOpen(true);
         await refreshSnapshot();
       } finally {
         setBusy(false);
@@ -332,13 +364,23 @@ function AcceptResponseFormInner({
         : null;
 
   const walletRequired = linkedRequesterNearAccountId == null;
-  const blocked =
-    anotherAcceptanceInProgress && !intent && phase === "idle";
+  const blocked = anotherAcceptanceInProgress && !intent && phase === "idle";
   const duplicateBlocked = blocksDuplicateFundingAttempt(phase, busy);
 
-  const compactIdleBar =
-    (phase === "idle" && !finalizedEngagementId) ||
-    (!hydrated && phase === "idle");
+  const closeModal = useCallback(() => {
+    if (busy) return;
+    setModalOpen(false);
+    setConfirmOpen(false);
+    setError(null);
+  }, [busy]);
+
+  const openFundingModal = useCallback((options?: { confirm?: boolean }) => {
+    setError(null);
+    if (options?.confirm) {
+      setConfirmOpen(true);
+    }
+    setModalOpen(true);
+  }, []);
 
   if (!hydrated) {
     return (
@@ -348,78 +390,27 @@ function AcceptResponseFormInner({
     );
   }
 
+  const acceptButtonClass =
+    variant === "drawer"
+      ? "primary w-fit shrink-0"
+      : "btn-ink w-fit shrink-0 rounded-lg px-3 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-60";
+
+  const modalTitle =
+    phase === "succeeded"
+      ? "Offer accepted"
+      : phase === "confirm"
+        ? "Review & fund escrow"
+        : acceptanceFundingPhaseLabel(phase) || "Accept offer";
+
   return (
-    <div
-      className={
-        compactIdleBar
-          ? "flex w-fit shrink-0 flex-col gap-2"
-          : "flex w-full max-w-md flex-col gap-2"
-      }
-    >
-      {phase !== "idle" && phase !== "confirm" && (
-        <StatusBanner phase={phase} busy={busy} label={phaseLabel ?? ""} />
-      )}
-
-      {phase === "succeeded" && finalizedEngagementId && (
-        <div className="flex flex-col gap-2">
-          <p className="text-sm text-emerald-800 dark:text-emerald-200">
-            {providerDisplayName}&apos;s offer is accepted. Escrow is funded on{" "}
-            {networkId}.
-          </p>
-          <Link
-            href={`/engagements/${finalizedEngagementId}`}
-            className="btn-ink w-fit rounded-lg px-3 py-2 text-sm font-medium"
-          >
-            Open engagement
-          </Link>
-        </div>
-      )}
-
-      {phase === "confirm" && (
-        <div className="flex flex-col gap-3 rounded-lg border border-stone-200 p-3 dark:border-stone-700">
-          <p className="text-on-light-surface text-sm">
-            Accepting <strong>{providerDisplayName}</strong> requires funding{" "}
-            <strong>
-              {offerAmountDisplay} {assetSymbol}
-            </strong>{" "}
-            into escrow on NEAR ({networkId}). The offer stays pending until
-            funding is verified on-chain — not when you sign.
-          </p>
-          {walletRequired ? (
-            <p className="text-sm text-amber-800 dark:text-amber-200">
-              Link your NEAR wallet under{" "}
-              <Link href="/account" className="underline">
-                Account
-              </Link>{" "}
-              before continuing.
-            </p>
-          ) : (
-            <p className="text-xs text-stone-600 dark:text-stone-400">
-              Funding wallet (request snapshot): {linkedRequesterNearAccountId}
-            </p>
-          )}
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={busy || walletRequired}
-              onClick={() => void runFundingFlow({ skipPrepare: false })}
-              className="btn-ink rounded-lg px-3 py-2 text-sm font-medium disabled:opacity-60"
-            >
-              Confirm and fund escrow
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => {
-                setConfirmOpen(false);
-                setError(null);
-              }}
-              className="rounded-lg border border-stone-300 px-3 py-2 text-sm dark:border-stone-600"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
+    <div className="flex w-fit shrink-0 flex-col gap-2">
+      {phase === "succeeded" && finalizedEngagementId && !modalOpen && (
+        <Link
+          href={`/engagements/${finalizedEngagementId}`}
+          className="text-sm font-medium text-emerald-800 underline dark:text-emerald-200"
+        >
+          Accepted · open engagement
+        </Link>
       )}
 
       {phase === "idle" && !finalizedEngagementId && (
@@ -427,15 +418,8 @@ function AcceptResponseFormInner({
           <button
             type="button"
             disabled={blocked || walletRequired}
-            onClick={() => {
-              setError(null);
-              setConfirmOpen(true);
-            }}
-            className={
-              variant === "drawer"
-                ? "primary w-fit shrink-0"
-                : "btn-ink w-fit shrink-0 rounded-lg px-3 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-60"
-            }
+            onClick={() => openFundingModal({ confirm: true })}
+            className={acceptButtonClass}
           >
             Accept
           </button>
@@ -456,52 +440,22 @@ function AcceptResponseFormInner({
         </>
       )}
 
-      {shouldShowContinueFunding(phase, Boolean(intent)) && (
-        <div className="flex flex-col gap-2">
-          <p className="text-xs text-stone-600 dark:text-stone-400">
-            Escrow funding in progress. The offer is not accepted until
-            verification completes.
-          </p>
-          {!signedAccountId && !walletRequired && (
-            <button
-              type="button"
-              onClick={() => void connectWallet()}
-              className="w-fit rounded-lg border border-stone-300 px-3 py-2 text-sm dark:border-stone-700"
-            >
-              Connect NEAR wallet
-            </button>
-          )}
-          {signedAccountId && !walletMatchesLink && (
-            <p className="text-sm text-amber-700 dark:text-amber-300">
-              Connected as {signedAccountId}. Use {linkedRequesterNearAccountId}.
-            </p>
-          )}
-          <button
-            type="button"
-            disabled={duplicateBlocked || walletRequired}
-            onClick={() =>
-              void runFundingFlow({
-                skipPrepare: Boolean(intent),
-                continueOnly:
-                  phase === "resume" ||
-                  phase === "fund_submitted" ||
-                  phase === "pending_tx",
-              })
-            }
-            className="btn-ink w-fit rounded-lg px-3 py-2 text-sm font-medium disabled:opacity-60"
-          >
-            {busy ? (activeStep ?? "Working…") : "Continue"}
-          </button>
-        </div>
+      {shouldShowContinueFunding(phase, Boolean(intent)) && !modalOpen && (
+        <button
+          type="button"
+          onClick={() => openFundingModal()}
+          className="secondary w-fit shrink-0 text-sm"
+        >
+          Continue funding
+        </button>
       )}
 
-      {canRetryAcceptanceFunding(phase) && !busy && (
+      {canRetryAcceptanceFunding(phase) && !busy && !modalOpen && (
         <button
           type="button"
           onClick={() => {
-            setError(null);
             setIntent(null);
-            setConfirmOpen(true);
+            openFundingModal({ confirm: true });
           }}
           className="w-fit text-sm font-medium underline"
         >
@@ -509,20 +463,247 @@ function AcceptResponseFormInner({
         </button>
       )}
 
-      {fundTxExplorer && (
-        <a
-          href={fundTxExplorer}
-          target="_blank"
-          rel="noreferrer"
-          className="text-sm underline"
+      <Dialog
+        open={modalOpen}
+        onOpenChange={(open) => {
+          if (open) {
+            setModalOpen(true);
+            return;
+          }
+          closeModal();
+        }}
+        disablePointerDismissal={busy}
+      >
+        <DialogContent
+          unstyled
+          showCloseButton={false}
+          overlayClassName="overlay modal-overlay"
+          className="create-modal !w-[min(520px,calc(100%-36px))]"
+          aria-describedby="accept-funding-desc"
         >
-          View on-chain funding transaction
-        </a>
-      )}
+          <DialogTitle className="sr-only">{modalTitle}</DialogTitle>
+          <div className="modal-head">
+            <div className="min-w-0">
+              <h2 className="font-heading m-0 text-[22px] leading-tight text-[var(--ink)]">
+                {modalTitle}
+              </h2>
+              <p className="mt-1 text-[13px] text-[var(--muted)]">
+                {providerDisplayName} · NEAR {networkId}
+              </p>
+            </div>
+            <DialogClose
+              render={
+                <button
+                  type="button"
+                  aria-label="Close"
+                  disabled={busy}
+                  className="disabled:opacity-40"
+                />
+              }
+            >
+              <FigmaIcon name="close" size={18} />
+            </DialogClose>
+          </div>
 
-      {error && (
-        <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
-      )}
+          <div className="accept-funding-summary">
+            <div>
+              <p className="accept-funding-summary__label">Escrow amount</p>
+              <p className="accept-funding-summary__amount">
+                {offerAmountDisplay}{" "}
+                <span className="font-sans font-medium">{assetSymbol}</span>
+              </p>
+            </div>
+            <p className="accept-funding-summary__provider">
+              {providerDisplayName}
+            </p>
+          </div>
+
+          <DialogDescription id="accept-funding-desc" className="sr-only">
+            Accept this response by funding escrow on NEAR. Verification happens
+            on-chain before the offer is accepted.
+          </DialogDescription>
+
+          {phase !== "idle" && phase !== "confirm" && (phaseLabel || busy) && (
+            <StatusBanner phase={phase} busy={busy} label={phaseLabel ?? ""} />
+          )}
+
+          <div className="accept-funding-body">
+            {phase === "confirm" && (
+              <>
+                <p className="text-[13px] leading-relaxed text-[var(--ink)]">
+                  Funding locks this amount in escrow. The offer stays pending
+                  until the transaction is verified on-chain — not when you sign
+                  in your wallet.
+                </p>
+                {walletRequired ? (
+                  <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100">
+                    Link your NEAR wallet under{" "}
+                    <Link href="/account" className="font-medium underline">
+                      Account
+                    </Link>{" "}
+                    before continuing.
+                  </p>
+                ) : (
+                  <p className="text-xs text-[var(--muted)]">
+                    Funding wallet:{" "}
+                    <span className="font-mono">
+                      {linkedRequesterNearAccountId}
+                    </span>
+                  </p>
+                )}
+              </>
+            )}
+
+            {phase === "succeeded" && finalizedEngagementId && (
+              <p className="text-sm text-emerald-800 dark:text-emerald-200">
+                Escrow is funded on {networkId}. You can message and coordinate
+                from the engagement page.
+              </p>
+            )}
+
+            {shouldShowContinueFunding(phase, Boolean(intent)) && (
+              <p className="text-[13px] leading-relaxed text-[var(--ink)]">
+                Escrow funding in progress. The offer is not accepted until
+                verification completes.
+              </p>
+            )}
+
+            {error && (
+              <p
+                className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/50 dark:text-red-200"
+                role="alert"
+              >
+                {error}
+              </p>
+            )}
+
+            {fundTxExplorer && (
+              <a
+                href={fundTxExplorer}
+                target="_blank"
+                rel="noreferrer"
+                className="text-sm font-medium text-[var(--deep)] underline"
+              >
+                View on-chain transaction
+              </a>
+            )}
+          </div>
+
+          <div className="modal-actions">
+            {phase === "confirm" && (
+              <>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={closeModal}
+                  className="secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={busy || walletRequired}
+                  onClick={() => void runFundingFlow({ skipPrepare: false })}
+                  className="primary"
+                >
+                  Confirm & fund
+                  <FigmaIcon name="arrow" size={17} />
+                </button>
+              </>
+            )}
+
+            {phase === "succeeded" && finalizedEngagementId && (
+              <>
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="secondary"
+                >
+                  Done
+                </button>
+                <Link
+                  href={`/engagements/${finalizedEngagementId}`}
+                  className="primary"
+                  onClick={() => setModalOpen(false)}
+                >
+                  Open engagement
+                  <FigmaIcon name="arrow" size={17} />
+                </Link>
+              </>
+            )}
+
+            {shouldShowContinueFunding(phase, Boolean(intent)) && (
+              <>
+                {!signedAccountId && !walletRequired && (
+                  <button
+                    type="button"
+                    onClick={() => void connectWallet()}
+                    className="secondary"
+                  >
+                    Connect wallet
+                  </button>
+                )}
+                {signedAccountId && !walletMatchesLink && (
+                  <p className="w-full text-sm text-amber-800 dark:text-amber-200">
+                    Connected as {signedAccountId}. Switch to{" "}
+                    {linkedRequesterNearAccountId}.
+                  </p>
+                )}
+                <button
+                  type="button"
+                  disabled={duplicateBlocked || walletRequired || busy}
+                  onClick={() =>
+                    void runFundingFlow({
+                      skipPrepare: Boolean(intent),
+                      continueOnly:
+                        phase === "resume" ||
+                        phase === "fund_submitted" ||
+                        phase === "pending_tx",
+                    })
+                  }
+                  className="primary"
+                >
+                  {busy ? (activeStep ?? "Working…") : "Continue"}
+                  {!busy && <FigmaIcon name="arrow" size={17} />}
+                </button>
+              </>
+            )}
+
+            {canRetryAcceptanceFunding(phase) &&
+              !busy &&
+              phase !== "confirm" && (
+                <>
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="secondary"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIntent(null);
+                      setConfirmOpen(true);
+                    }}
+                    className="primary"
+                  >
+                    Try again
+                  </button>
+                </>
+              )}
+
+            {busy &&
+              phase !== "confirm" &&
+              !shouldShowContinueFunding(phase, Boolean(intent)) && (
+                <p className="flex w-full items-center gap-2 text-sm text-[var(--muted)]">
+                  <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-[var(--deep)]" />
+                  {activeStep ?? "Working…"}
+                </p>
+              )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
