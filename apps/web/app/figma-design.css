@@ -1720,6 +1720,67 @@ a.conversation {
   align-self: flex-end;
 }
 
+.bubble-location-map {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: min(100%, 220px);
+  padding: 10px 11px;
+  border-radius: 9px;
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  background: color-mix(in srgb, var(--surface) 88%, var(--accent));
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.15s ease;
+}
+
+.bubble-location-map:hover {
+  background: color-mix(in srgb, var(--surface) 75%, var(--accent));
+}
+
+.bubble.mine .bubble-location-map {
+  border-color: color-mix(in srgb, #fff 28%, transparent);
+  background: color-mix(in srgb, #fff 14%, transparent);
+}
+
+.bubble.mine .bubble-location-map:hover {
+  background: color-mix(in srgb, #fff 22%, transparent);
+}
+
+.bubble-location-pin {
+  display: grid;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--line) 45%, var(--surface));
+}
+
+.bubble.mine .bubble-location-pin {
+  background: color-mix(in srgb, #fff 22%, transparent);
+}
+
+.bubble-location-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bubble-location-title {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.bubble-location-hint {
+  font-size: 9px;
+  line-height: 1.35;
+  opacity: 0.75;
+}
+
 .chat-input {
   height: 65px;
   border-top: 1px solid var(--line);

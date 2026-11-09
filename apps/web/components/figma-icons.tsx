@@ -17,7 +17,8 @@ export type FigmaIconName =
   | "plus"
   | "edit"
   | "refresh"
-  | "chevronLeft";
+  | "chevronLeft"
+  | "checks";
 
 const paths: Record<FigmaIconName, ReactNode> = {
   attach: (
@@ -75,6 +76,12 @@ const paths: Record<FigmaIconName, ReactNode> = {
     </>
   ),
   chevronLeft: <path d="m15 18-6-6 6-6" />,
+  checks: (
+    <>
+      <path d="m5 13 3 3 7-7" />
+      <path d="m10 13 3 3 7-7" />
+    </>
+  ),
 };
 
 export function FigmaIcon({

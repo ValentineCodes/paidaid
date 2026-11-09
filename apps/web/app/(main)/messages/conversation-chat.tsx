@@ -94,6 +94,21 @@ function formatBubbleTime(iso: string): string {
   });
 }
 
+function locationMessageLabel(
+  body: string | null,
+  locationLabel: string | null,
+): string {
+  const fromLabel = locationLabel?.trim();
+  if (fromLabel) {
+    return fromLabel;
+  }
+  const fromBody = body?.trim();
+  if (fromBody) {
+    return fromBody;
+  }
+  return "Shared location";
+}
+
 export function ConversationChat({
   conversationId,
   initialMessages,
@@ -309,12 +324,20 @@ export function ConversationChat({
 
   async function sendText() {
     const t = text.trim();
-    if (!t || sending) {
+    const pendingFiles = files;
+    if (sending || (!t && pendingFiles.length === 0)) {
       return;
     }
     if (!canSendMessages) {
       setError("Add a profile photo in Account before messaging.");
       return;
+    }
+    if (pendingFiles.length > 0) {
+      const val = validateChatFiles(pendingFiles);
+      if (!val.ok) {
+        setError(val.error);
+        return;
+      }
     }
     setSending(true);
     setError(null);
@@ -330,45 +353,40 @@ export function ConversationChat({
     }
     setText("");
     let attachError: string | null = null;
-    if (files.length > 0) {
-      const val = validateChatFiles(files);
-      if (!val.ok) {
-        attachError = val.error;
-      } else {
-        setUploadProgress("Uploading attachments…");
-        const paths: string[] = [];
-        const mimeTypes: string[] = [];
-        const byteSizes: number[] = [];
-        for (const f of files) {
-          const ext = extensionForAttachmentMime(f.type);
-          const path = `${currentUserId}/${conversationId}/${mid}/${crypto.randomUUID()}.${ext}`;
-          const { error: upErr } = await supabase.storage
-            .from(CONVERSATION_ATTACHMENTS_BUCKET)
-            .upload(path, f, { contentType: f.type, upsert: false });
-          if (upErr) {
-            attachError = upErr.message;
-            break;
-          }
-          paths.push(path);
-          mimeTypes.push(f.type);
-          byteSizes.push(f.size);
+    if (pendingFiles.length > 0) {
+      setUploadProgress("Uploading attachments…");
+      const paths: string[] = [];
+      const mimeTypes: string[] = [];
+      const byteSizes: number[] = [];
+      for (const f of pendingFiles) {
+        const ext = extensionForAttachmentMime(f.type);
+        const path = `${currentUserId}/${conversationId}/${mid}/${crypto.randomUUID()}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from(CONVERSATION_ATTACHMENTS_BUCKET)
+          .upload(path, f, { contentType: f.type, upsert: false });
+        if (upErr) {
+          attachError = upErr.message;
+          break;
         }
-        if (!attachError && paths.length > 0) {
-          const { error: addErr } = await supabase.rpc(
-            "add_message_attachments",
-            {
-              p_message_id: mid as string,
-              p_paths: paths,
-              p_mime_types: mimeTypes,
-              p_byte_sizes: byteSizes,
-            } as never,
-          );
-          if (addErr) {
-            attachError = addErr.message;
-          }
-        }
-        setUploadProgress(null);
+        paths.push(path);
+        mimeTypes.push(f.type);
+        byteSizes.push(f.size);
       }
+      if (!attachError && paths.length > 0) {
+        const { error: addErr } = await supabase.rpc(
+          "add_message_attachments",
+          {
+            p_message_id: mid as string,
+            p_paths: paths,
+            p_mime_types: mimeTypes,
+            p_byte_sizes: byteSizes,
+          } as never,
+        );
+        if (addErr) {
+          attachError = addErr.message;
+        }
+      }
+      setUploadProgress(null);
     }
     if (attachError) {
       setError(
@@ -503,34 +521,45 @@ export function ConversationChat({
           const showDay =
             i === 0 ||
             (prev && calendarDayKey(prev.created_at) !== calendarDayKey(m.created_at));
+          const hasImageAttachment = (m.message_attachments ?? []).some((a) =>
+            a.mime_type.startsWith("image/"),
+          );
+          const showPeerName = !mine && !hasImageAttachment;
           return (
             <div key={m.id} className="flex flex-col gap-3">
               {showDay ? <div className="day">{formatDaySeparator(m.created_at)}</div> : null}
               <div
                 className={`bubble ${mine ? "mine" : "theirs"}`}
               >
-                {!mine ? (
+                {showPeerName ? (
                   <span className="mb-1 text-[10px] opacity-80">
                     {m.display_name}
                   </span>
                 ) : null}
-                {m.kind === "text" && (
+                {m.kind === "text" && m.body?.trim() ? (
                   <span className="whitespace-pre-wrap">{m.body}</span>
-                )}
+                ) : null}
                 {m.kind === "location" &&
                   m.location_lat != null &&
                   m.location_lng != null && (
-                    <div>
-                      <span>{m.body}</span>
-                      <a
-                        href={mapUrl(m.location_lat, m.location_lng)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mt-1 inline-block text-[10px] underline"
-                      >
-                        Open map
-                      </a>
-                    </div>
+                    <a
+                      href={mapUrl(m.location_lat, m.location_lng)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="bubble-location-map"
+                    >
+                      <span className="bubble-location-pin" aria-hidden>
+                        <FigmaIcon name="pin" size={16} />
+                      </span>
+                      <span className="bubble-location-copy">
+                        <span className="bubble-location-title">
+                          {locationMessageLabel(m.body, m.location_label)}
+                        </span>
+                        <span className="bubble-location-hint">
+                          Open in maps
+                        </span>
+                      </span>
+                    </a>
                   )}
                 {m.message_attachments && m.message_attachments.length > 0 && (
                   <ul className="mt-2 space-y-1 text-[10px]">
@@ -544,9 +573,21 @@ export function ConversationChat({
                     ))}
                   </ul>
                 )}
-                <time dateTime={m.created_at}>
+                <time
+                  dateTime={m.created_at}
+                  className="inline-flex items-center gap-1"
+                >
                   {formatBubbleTime(m.created_at)}
-                  {mine && readByPeer.has(m.id) ? " · Read" : ""}
+                  {mine && readByPeer.has(m.id) ? (
+                    <>
+                      <FigmaIcon
+                        name="checks"
+                        size={12}
+                        className="shrink-0 opacity-80"
+                      />
+                      <span className="sr-only">Read</span>
+                    </>
+                  ) : null}
                 </time>
               </div>
             </div>
