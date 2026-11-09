@@ -37,14 +37,14 @@ export function CopyableNearAddress({
     }
   }, [accountId]);
 
-  const rootClass = ["flex w-full max-w-full items-center gap-1.5", className]
+  const rootClass = ["inline-flex max-w-full items-center gap-0.5", className]
     .filter(Boolean)
     .join(" ");
 
   return (
     <div className={rootClass}>
       <span
-        className="min-w-0 flex-1 truncate font-mono text-[11px] text-[var(--muted)]"
+        className="min-w-0 truncate font-mono text-[11px] text-[var(--muted)]"
         title={accountId}
       >
         {display}

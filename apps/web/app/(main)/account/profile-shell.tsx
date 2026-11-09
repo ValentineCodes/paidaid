@@ -73,27 +73,11 @@ export function ProfileShell({
             ) : (
               initials
             )}
-            <span className="pointer-events-none" aria-hidden>
-              <svg
-                width={16}
-                height={16}
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-              >
-                <path d="M4 7h3l2-3h6l2 3h3v13H4Z" />
-                <circle cx="12" cy="13" r="4" />
-              </svg>
-            </span>
           </div>
           <h2>{profile.display_name}</h2>
-          <p>
-            {profile.bio?.trim() ||
-              "Add a short bio so people know who you are."}
-          </p>
+          {profile.bio?.trim() ? <p>{profile.bio.trim()}</p> : null}
           {nearAccountId ? (
-            <CopyableNearAddress accountId={nearAccountId} className="mt-1" />
+            <CopyableNearAddress accountId={nearAccountId} />
           ) : null}
           <div className="profile-stats">
             <span>
