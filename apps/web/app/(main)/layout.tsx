@@ -54,7 +54,7 @@ export default async function MainLayout({
         linkedNearAccountId={linkedNearAccountId}
         unreadNotifications={unreadNotifications}
       />
-      <div className="relative flex min-w-0 w-full flex-1 flex-col">
+      <div className="relative flex w-full min-w-0 flex-1 flex-col items-stretch">
         {children}
         <ModalSlotGate>{modal}</ModalSlotGate>
       </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { User } from "@supabase/supabase-js";
@@ -36,6 +37,8 @@ type Props = {
   requestLocationKind: Database["public"]["Enums"]["location_kind"];
   /** When nested in `messages-shell`, header is optional (detail route shows it). */
   hideChatHead?: boolean;
+  /** Mobile back control to inbox (left of peer avatar in header). */
+  backHref?: string;
 };
 
 function dedupeById(rows: ChatMessagePayload[]): ChatMessagePayload[] {
@@ -104,6 +107,7 @@ export function ConversationChat({
   requestLocationLabel,
   requestLocationKind,
   hideChatHead = false,
+  backHref,
 }: Props) {
   const supabase = useMemo(() => createClient(), []);
   const [user, setUser] = useState<User | null>(null);
@@ -439,25 +443,32 @@ export function ConversationChat({
   const peerInitials = initialsFromDisplayName(peerDisplayName);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    <div className="chat flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
       {!hideChatHead ? (
         <div className="chat-head shrink-0">
-          <div className={`avatar ${peerAvatarClass}`}>
+          {backHref ? (
+            <Link
+              href={backHref}
+              className="chat-head-back icon-button"
+              aria-label="Back to messages"
+            >
+              <FigmaIcon name="chevronLeft" size={18} />
+            </Link>
+          ) : null}
+          <div className={`avatar shrink-0 ${peerAvatarClass}`}>
             {peerInitials}
             <span />
           </div>
-          <div>
+          <div className="chat-head-meta">
             <strong>{peerDisplayName}</strong>
-            <span>{chatSubtitle}</span>
+            <span className="chat-head-line">{chatSubtitle}</span>
             {peerPhone ? (
-              <span>
-                {" · "}
+              <span className="chat-head-line">
                 <a href={`tel:${peerPhone}`}>Call</a>
               </span>
             ) : null}
             {requestLocationKind === "in_person" && requestLocationLabel ? (
-              <span>
-                {" · "}
+              <span className="chat-head-line">
                 Task: {requestLocationLabel}
                 {" · "}
                 <a
@@ -566,14 +577,17 @@ export function ConversationChat({
         >
           <FigmaIcon name="attach" size={18} />
         </button>
-        <textarea
+        <input
+          type="text"
+          className="chat-input-text"
           value={text}
           onChange={(e) => setText(e.target.value)}
           maxLength={8000}
-          rows={1}
           placeholder="Write a message..."
+          autoComplete="off"
+          enterKeyHint="send"
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
+            if (e.key === "Enter") {
               e.preventDefault();
               void sendText();
             }

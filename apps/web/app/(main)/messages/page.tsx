@@ -48,6 +48,7 @@ export default async function MessagesPage() {
         sidebarRows={sidebarRows}
         activeConversationId={null}
         nowMs={nowMs}
+        layout="inbox"
       >
         {sidebarRows.length === 0 ? (
           <div className="chat flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center p-8">

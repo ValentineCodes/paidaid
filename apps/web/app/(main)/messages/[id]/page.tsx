@@ -49,8 +49,8 @@ export default async function MessageThreadPage({ params }: PageProps) {
   const sidebarRows = await loadMessagesSidebarData(supabase, user.id, nowMs);
 
   return (
-    <main className="inner-page">
-      <div className="page-heading">
+    <main className="inner-page inner-page--messages-thread">
+      <div className="page-heading messages-page-heading">
         <span>CONVERSATIONS</span>
         <h1>Messages</h1>
         <p>Keep every task moving.</p>
@@ -60,23 +60,23 @@ export default async function MessageThreadPage({ params }: PageProps) {
         sidebarRows={sidebarRows}
         activeConversationId={id}
         nowMs={nowMs}
+        layout="thread"
       >
-        <div className="chat flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-          <ConversationChat
-            conversationId={id}
-            initialMessages={thread.initialMessages}
-            currentUserId={user.id}
-            peerUserId={thread.peerId}
-            peerDisplayName={thread.peerDisplayName}
-            peerAvatarClass={thread.peerAvatarClass}
-            chatSubtitle={thread.chatSubtitle}
-            peerPhone={thread.peerPhone}
-            hasProfilePhoto={hasProfilePhoto}
-            requestLocationLabel={thread.reqRow.location_label}
-            requestLocationKind={thread.reqRow.location_kind}
-            hideChatHead={false}
-          />
-        </div>
+        <ConversationChat
+          backHref="/messages"
+          conversationId={id}
+          initialMessages={thread.initialMessages}
+          currentUserId={user.id}
+          peerUserId={thread.peerId}
+          peerDisplayName={thread.peerDisplayName}
+          peerAvatarClass={thread.peerAvatarClass}
+          chatSubtitle={thread.chatSubtitle}
+          peerPhone={thread.peerPhone}
+          hasProfilePhoto={hasProfilePhoto}
+          requestLocationLabel={thread.reqRow.location_label}
+          requestLocationKind={thread.reqRow.location_kind}
+          hideChatHead={false}
+        />
       </MessagesShell>
     </main>
   );
