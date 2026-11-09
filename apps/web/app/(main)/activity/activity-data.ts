@@ -1,9 +1,9 @@
-import type { createClient } from "../../../../lib/supabase/server";
-import type { Database } from "../../../../lib/database.types";
-import { formatBudgetSmallestUnits } from "../../../../lib/requests/format-budget";
+import type { createClient } from "../../../lib/supabase/server";
+import type { Database } from "../../../lib/database.types";
+import { formatBudgetSmallestUnits } from "../../../lib/requests/format-budget";
 import { normalizeDbNumericAmount } from "@paidaid/shared";
-import { normalizeSummaryAmount } from "../../../../lib/payments/payment-activity-format";
-import type { PaymentActivityPageData } from "../../../../lib/payments/payment-activity-types";
+import { normalizeSummaryAmount } from "../../../lib/payments/payment-activity-format";
+import type { PaymentActivityPageData } from "../../../lib/payments/payment-activity-types";
 
 export type ActivityTab =
   | "Posted"

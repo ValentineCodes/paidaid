@@ -1,17 +1,17 @@
 "use server";
 
 import { normalizeDbNumericAmount } from "@paidaid/shared";
-import { createClient } from "../../../../lib/supabase/server";
-import { createServiceClient } from "../../../../lib/supabase/service";
-import { normalizeSummaryAmount } from "../../../../lib/payments/payment-activity-format";
+import { createClient } from "../../../lib/supabase/server";
+import { createServiceClient } from "../../../lib/supabase/service";
+import { normalizeSummaryAmount } from "../../../lib/payments/payment-activity-format";
 import type {
   PaymentActivityFilter,
   PaymentActivityPageData,
   PaymentActivityRow,
   PaymentActivitySummary,
-} from "../../../../lib/payments/payment-activity-types";
-import { reconcileEngagementPaymentFromChain } from "../../../../lib/payments/reconcile-engagement-payment";
-import type { Database } from "../../../../lib/database.types";
+} from "../../../lib/payments/payment-activity-types";
+import { reconcileEngagementPaymentFromChain } from "../../../lib/payments/reconcile-engagement-payment";
+import type { Database } from "../../../lib/database.types";
 
 const PAGE_SIZE = 20;
 

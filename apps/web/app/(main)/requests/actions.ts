@@ -209,6 +209,7 @@ export async function createRequest(
     }
   }
 
+  revalidatePath("/activity");
   revalidatePath("/requests");
   revalidatePath(`/requests/${requestIdStr}`);
   if (stayInModal) {

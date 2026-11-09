@@ -126,6 +126,7 @@ export async function submitRequestResponse(
   }
 
   revalidatePath(`/requests/${requestId}`);
+  revalidatePath("/activity");
   revalidatePath("/responses/mine");
   return {
     error: null,
@@ -162,6 +163,7 @@ export async function withdrawRequestResponse(
   }
 
   revalidatePath(`/requests/${requestId}`);
+  revalidatePath("/activity");
   revalidatePath("/responses/mine");
   return { error: null, success: true };
 }

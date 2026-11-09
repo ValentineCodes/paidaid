@@ -186,6 +186,7 @@ async function finalizeAcceptance(intentId: string): Promise<string> {
 function revalidateAfterAcceptance(requestId: string, engagementId: string) {
   revalidatePath(`/requests/${requestId}`);
   revalidatePath(`/engagements/${engagementId}`);
+  revalidatePath("/activity");
   revalidatePath("/responses/mine");
   revalidatePath("/notifications");
   revalidatePath("/engagements", "layout");

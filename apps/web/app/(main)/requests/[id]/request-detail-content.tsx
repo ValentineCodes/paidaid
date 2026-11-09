@@ -235,7 +235,7 @@ export function RequestDetailContent({ data, variant }: Props) {
             {isOwner && (
               <>
                 {" · "}
-                <Link href="/requests/mine" className="underline">
+                <Link href="/activity" className="underline">
                   My requests
                 </Link>
               </>

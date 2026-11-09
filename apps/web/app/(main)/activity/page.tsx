@@ -2,8 +2,8 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
 
-import { createClient } from "../../../../lib/supabase/server";
-import { isSupabaseConfigured } from "../../../../lib/supabase/env";
+import { createClient } from "../../../lib/supabase/server";
+import { isSupabaseConfigured } from "../../../lib/supabase/env";
 import { loadActivityPageData } from "./activity-data";
 import { ActivityShell } from "./activity-shell";
 
@@ -28,7 +28,7 @@ export default async function ActivityPage() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/auth/wallet?next=/requests/mine");
+    redirect("/auth/wallet?next=/activity");
   }
 
   const data = await loadActivityPageData(supabase, user.id);

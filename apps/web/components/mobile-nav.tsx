@@ -13,7 +13,7 @@ type NavItem = {
 
 const items: NavItem[] = [
   { href: "/", label: "Discover", icon: "home" },
-  { href: "/requests/mine", label: "Activity", icon: "activity" },
+  { href: "/activity", label: "Activity", icon: "activity" },
   { href: "/messages", label: "Messages", icon: "message" },
   {
     href: "/notifications",

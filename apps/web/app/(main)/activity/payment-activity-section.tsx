@@ -19,14 +19,14 @@ import {
   paymentActivityStatusClass,
   paymentActivityStatusLabel,
   paymentActivityCompletedCopy,
-} from "../../../../lib/payments/payment-activity-format";
+} from "../../../lib/payments/payment-activity-format";
 import type {
   PaymentActivityFilter,
   PaymentActivityPageData,
   PaymentActivityRow,
   PaymentEventKind,
   PaymentEventStatus,
-} from "../../../../lib/payments/payment-activity-types";
+} from "../../../lib/payments/payment-activity-types";
 import {
   loadPaymentActivityPage,
   reconcileMyPaymentActivity,

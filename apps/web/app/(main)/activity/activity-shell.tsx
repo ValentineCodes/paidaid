@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { FigmaIcon } from "../../../../components/figma-icons";
+import { FigmaIcon } from "../../../components/figma-icons";
 import type {
   ActivityData,
   ActivityEngagementCard,

@@ -4,7 +4,7 @@ import { isSupabaseConfigured } from "./lib/supabase/env";
 
 const PROTECTED_PREFIXES = [
   "/account",
-  "/requests/mine",
+  "/activity",
   "/responses/mine",
   "/notifications",
   "/engagements",

@@ -22,6 +22,6 @@ On-chain state is authoritative; Supabase reflects verified outcomes only.
 
 ## UI
 
-- **Activity → Payments** tab (`/requests/mine?tab=payments`)
+- **Activity → Payments** tab (`/activity?tab=payments`)
 - **Account** links to payment activity
 - Pending items are never labeled as confirmed without `status = success` and optional `confirmed_at`.

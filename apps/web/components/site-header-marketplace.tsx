@@ -53,7 +53,7 @@ export function SiteHeaderMarketplace({
         <PaidAidLogo />
         <nav className="desktop-nav max-lg:hidden" aria-label="Main">
           <DesktopNavLink href="/">Discover</DesktopNavLink>
-          <DesktopNavLink href="/requests/mine">Activity</DesktopNavLink>
+          <DesktopNavLink href="/activity">Activity</DesktopNavLink>
           <DesktopNavLink href="/messages">Messages</DesktopNavLink>
           <DesktopNavLink href="/notifications" badge={unreadNotifications}>
             Updates

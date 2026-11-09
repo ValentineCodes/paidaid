@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export const mainSiteNavItems = [
   { href: "/", label: "Marketplace" },
-  { href: "/requests/mine", label: "My requests" },
+  { href: "/activity", label: "Activity" },
   { href: "/responses/mine", label: "My responses" },
   { href: "/notifications", label: "Notifications" },
   { href: "/engagements", label: "Engagements" },
