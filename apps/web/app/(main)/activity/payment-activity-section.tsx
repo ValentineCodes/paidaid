@@ -27,6 +27,7 @@ import type {
   PaymentEventKind,
   PaymentEventStatus,
 } from "../../../lib/payments/payment-activity-types";
+import { FigmaIcon } from "../../../components/figma-icons";
 import {
   loadPaymentActivityPage,
   reconcileMyPaymentActivity,
@@ -55,27 +56,22 @@ function SummaryCard({
   amountSmallestUnits,
   decimals,
   symbol,
-  count,
 }: {
   label: string;
   amountSmallestUnits: string;
   decimals: number;
   symbol: string;
-  count: number;
 }) {
   const display =
     amountSmallestUnits === "0"
       ? "—"
       : formatPaymentActivityAmount(amountSmallestUnits, decimals, symbol);
   return (
-    <div className="rounded-lg border border-stone-200 bg-white px-4 py-3 dark:border-stone-800 dark:bg-stone-950">
-      <p className="text-xs uppercase tracking-wide text-stone-500">{label}</p>
-      <p className="mt-1 text-lg font-semibold text-stone-900 dark:text-stone-100">
-        {display}
-      </p>
-      <p className="text-xs text-stone-500">
-        {count} engagement{count === 1 ? "" : "s"}
-      </p>
+    <div className="task-card payment-stat-card">
+      <div className="card-top">
+        <span>{label}</span>
+      </div>
+      <div className="budget">{display}</div>
     </div>
   );
 }
@@ -218,34 +214,30 @@ export function PaymentActivitySection({ initial }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="task-grid payment-stat-grid">
         <SummaryCard
           label="Total funded"
           amountSmallestUnits={data.summary.totalFundedSmallestUnits}
           decimals={primaryDecimals}
           symbol={primarySymbol}
-          count={data.summary.fundedCount}
         />
         <SummaryCard
           label="Locked in escrow"
           amountSmallestUnits={data.summary.lockedInEscrowSmallestUnits}
           decimals={primaryDecimals}
           symbol={primarySymbol}
-          count={data.summary.lockedCount}
         />
         <SummaryCard
           label="Received"
           amountSmallestUnits={data.summary.totalReceivedSmallestUnits}
           decimals={primaryDecimals}
           symbol={primarySymbol}
-          count={data.summary.receivedCount}
         />
         <SummaryCard
           label="Refunded"
           amountSmallestUnits={data.summary.totalRefundedSmallestUnits}
           decimals={primaryDecimals}
           symbol={primarySymbol}
-          count={data.summary.refundCount}
         />
       </div>
 
@@ -302,9 +294,15 @@ export function PaymentActivitySection({ initial }: Props) {
           type="button"
           onClick={refresh}
           disabled={isPending}
-          className="rounded border border-stone-300 px-3 py-1 text-sm disabled:opacity-50 dark:border-stone-700"
+          aria-label="Refresh payment activity"
+          title="Refresh"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--line)] bg-[var(--surface)] text-[var(--ink)] disabled:opacity-50"
         >
-          Refresh
+          <FigmaIcon
+            name="refresh"
+            size={16}
+            className={isPending ? "animate-spin" : undefined}
+          />
         </button>
       </div>
 

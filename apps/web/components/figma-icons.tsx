@@ -15,7 +15,8 @@ export type FigmaIconName =
   | "star"
   | "send"
   | "plus"
-  | "edit";
+  | "edit"
+  | "refresh";
 
 const paths: Record<FigmaIconName, ReactNode> = {
   attach: (
@@ -64,6 +65,14 @@ const paths: Record<FigmaIconName, ReactNode> = {
   send: <path d="m3 3 18 9-18 9 4-9Zm4 9h14" />,
   plus: <path d="M12 5v14M5 12h14" />,
   edit: <path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />,
+  refresh: (
+    <>
+      <path d="M20 5v5h-5" />
+      <path d="M4 19v-5h5" />
+      <path d="M20 5a8 8 0 0 0-13.5 2.9L4 12" />
+      <path d="M4 19a8 8 0 0 0 13.5-2.9L20 12" />
+    </>
+  ),
 };
 
 export function FigmaIcon({

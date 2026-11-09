@@ -598,6 +598,24 @@ a.task-card {
   box-shadow: 0 14px 35px #20382b12;
 }
 
+.task-card.payment-stat-card {
+  cursor: default;
+}
+
+.task-card.payment-stat-card:hover {
+  transform: none;
+  border-color: var(--line);
+  box-shadow: none;
+}
+
+.payment-stat-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.payment-stat-grid .budget {
+  margin: 12px 0 0;
+}
+
 .card-top {
   display: flex;
   align-items: center;
@@ -2146,6 +2164,10 @@ a.update {
   .task-grid {
     grid-template-columns: 1fr;
     gap: 11px;
+  }
+
+  .payment-stat-grid {
+    grid-template-columns: 1fr;
   }
 
   .task-card {
