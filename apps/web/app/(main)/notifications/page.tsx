@@ -1,14 +1,11 @@
-import Link from "next/link";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
 
 import { createClient } from "../../../lib/supabase/server";
 import { isSupabaseConfigured } from "../../../lib/supabase/env";
+import { getRequestWallTimeMs } from "../../../lib/datetime/request-wall-time";
 
-import {
-  NotificationsInbox,
-  type NotificationCategoryFilter,
-} from "./notifications-inbox";
+import { NotificationsInbox } from "./notifications-inbox";
 
 const PAGE_SIZE = 25;
 
@@ -16,27 +13,11 @@ type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-function parseCategory(raw: string | undefined): NotificationCategoryFilter {
-  if (
-    raw === "requests_responses" ||
-    raw === "messages" ||
-    raw === "payments_wallet" ||
-    raw === "calls" ||
-    raw === "tips_reminders"
-  ) {
-    return raw;
-  }
-  return "all";
-}
-
 export default async function NotificationsPage({ searchParams }: PageProps) {
   const sp = await searchParams;
-  const categoryParam =
-    typeof sp.category === "string" ? sp.category : undefined;
   const pageParam =
     typeof sp.page === "string" ? parseInt(sp.page, 10) : undefined;
 
-  const category = parseCategory(categoryParam);
   const page =
     Number.isFinite(pageParam) && (pageParam as number) > 0
       ? (pageParam as number)
@@ -62,6 +43,7 @@ export default async function NotificationsPage({ searchParams }: PageProps) {
   }
 
   await connection();
+  const nowMs = getRequestWallTimeMs();
 
   const supabase = await createClient();
   const {
@@ -75,19 +57,13 @@ export default async function NotificationsPage({ searchParams }: PageProps) {
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
 
-  let listQuery = supabase
-    .from("notifications")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-    .range(from, to);
-
-  if (category !== "all") {
-    listQuery = listQuery.eq("category", category);
-  }
-
   const [{ data: rows, error }, { count: unreadTotal }] = await Promise.all([
-    listQuery,
+    supabase
+      .from("notifications")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .range(from, to),
     supabase
       .from("notifications")
       .select("*", { count: "exact", head: true })
@@ -121,18 +97,12 @@ export default async function NotificationsPage({ searchParams }: PageProps) {
 
       <NotificationsInbox
         userId={user.id}
+        nowMs={nowMs}
         rows={list}
         unreadTotal={unreadTotal ?? 0}
-        category={category}
         page={page}
         hasMore={hasMore}
       />
-
-      <p className="mt-8 text-center text-sm text-[var(--muted)]">
-        <Link href="/" className="font-semibold text-[var(--ink)] underline">
-          Back to discovery
-        </Link>
-      </p>
     </main>
   );
 }

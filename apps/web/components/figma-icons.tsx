@@ -18,7 +18,9 @@ export type FigmaIconName =
   | "edit"
   | "refresh"
   | "chevronLeft"
-  | "checks";
+  | "checks"
+  | "message"
+  | "bell";
 
 const paths: Record<FigmaIconName, ReactNode> = {
   attach: (
@@ -80,6 +82,15 @@ const paths: Record<FigmaIconName, ReactNode> = {
     <>
       <path d="m5 13 3 3 7-7" />
       <path d="m10 13 3 3 7-7" />
+    </>
+  ),
+  message: (
+    <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z" />
+  ),
+  bell: (
+    <>
+      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+      <path d="M10 21h4" />
     </>
   ),
 };
