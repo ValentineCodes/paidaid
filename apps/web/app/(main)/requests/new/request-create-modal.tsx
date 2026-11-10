@@ -72,9 +72,12 @@ const CATEGORY_OPTIONS: {
   },
 ];
 
-const CATEGORY_SELECT_ITEMS = Object.fromEntries(
-  CATEGORY_OPTIONS.map((c) => [c.key, c.label]),
-);
+const CATEGORY_NONE_KEY = "none";
+
+const CATEGORY_SELECT_ITEMS = {
+  [CATEGORY_NONE_KEY]: "None",
+  ...Object.fromEntries(CATEGORY_OPTIONS.map((c) => [c.key, c.label])),
+};
 
 function tagIdForPick(
   tags: Tables<"tags">[],
@@ -119,7 +122,6 @@ function validateCreateStep2(input: {
   deadlineDate: string;
   locationKind: "online" | "in_person";
   locationLabel: string;
-  categoryTagId: string | null;
 }) {
   const fieldErrors: Record<string, string> = {};
   const budget = input.budgetHuman.trim();
@@ -134,9 +136,6 @@ function validateCreateStep2(input: {
     input.locationLabel.trim().length < 1
   ) {
     fieldErrors.locationLabel = "Add a short location for in-person tasks";
-  }
-  if (!input.categoryTagId) {
-    fieldErrors.tags = "Choose a category";
   }
   return fieldErrors;
 }
@@ -160,7 +159,7 @@ export function RequestCreateModal({
     "online",
   );
   const [locationLabel, setLocationLabel] = useState("");
-  const [categoryKey, setCategoryKey] = useState(CATEGORY_OPTIONS[0].key);
+  const [categoryKey, setCategoryKey] = useState(CATEGORY_NONE_KEY);
 
   const budgetAssetId = defaultAssetId;
   const budgetAsset = assets.find((a) => a.id === budgetAssetId);
@@ -171,12 +170,18 @@ export function RequestCreateModal({
     Record<string, string>
   >({});
 
-  const selectedCategory = CATEGORY_OPTIONS.find((c) => c.key === categoryKey)!;
-  const categoryTagId = tagIdForPick(
-    tags,
-    selectedCategory.dbCategory,
-    selectedCategory.slug,
-  );
+  const selectedCategory =
+    categoryKey === CATEGORY_NONE_KEY
+      ? null
+      : (CATEGORY_OPTIONS.find((c) => c.key === categoryKey) ?? null);
+  const categoryTagId =
+    selectedCategory == null
+      ? null
+      : tagIdForPick(
+          tags,
+          selectedCategory.dbCategory,
+          selectedCategory.slug,
+        );
 
   const photoPreviewUrl = useMemo(() => {
     const first = photoFiles[0];
@@ -261,7 +266,6 @@ export function RequestCreateModal({
               deadlineDate,
               locationKind,
               locationLabel,
-              categoryTagId,
             });
       if (Object.keys(stepErrors).length > 0) {
         setClientFieldErrors(stepErrors);
@@ -309,9 +313,12 @@ export function RequestCreateModal({
     }
   };
 
-  const reviewMeta = `${selectedCategory.label.toUpperCase()} · ${
-    locationKind === "online" ? "ONLINE" : "IN PERSON"
-  }`;
+  const reviewMeta = [
+    selectedCategory?.label.toUpperCase(),
+    locationKind === "online" ? "ONLINE" : "IN PERSON",
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   const dueLabel =
     deadlineDate.trim() === ""
@@ -508,7 +515,10 @@ export function RequestCreateModal({
                   </p>
                 )}
                 <label>
-                  Category
+                  <span className="request-create-modal__label-row">
+                    Category
+                    <span className="request-create-modal__optional">Optional</span>
+                  </span>
                   <Select
                     modal={false}
                     items={CATEGORY_SELECT_ITEMS}
@@ -525,6 +535,7 @@ export function RequestCreateModal({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value={CATEGORY_NONE_KEY}>None</SelectItem>
                       {CATEGORY_OPTIONS.map((c) => (
                         <SelectItem key={c.key} value={c.key}>
                           {c.label}

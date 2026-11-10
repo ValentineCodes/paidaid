@@ -1115,6 +1115,20 @@ a.task-card {
   padding: 24px 38px 30px;
 }
 
+.create-modal .request-create-modal__label-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.create-modal .request-create-modal__optional {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--muted);
+}
+
 .accept-funding-summary {
   display: flex;
   align-items: flex-end;
