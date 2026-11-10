@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useWalletSelector } from "@near-wallet-selector/react-hook";
 
+import { FigmaIcon } from "../../../../components/figma-icons";
 import { createClient } from "../../../../lib/supabase/client";
 import { NearSessionProvider } from "../../../../wallet/near-session-provider";
 import { useNearWalletAccountId } from "../../../../wallet/use-near-wallet-account";
@@ -17,8 +18,13 @@ import {
   loadEngagementSettlementView,
   releaseEscrowForEngagement,
 } from "../../../../lib/engagement/release-escrow-client";
-import { DELIVERY_ATTACHMENTS_BUCKET } from "../../../../lib/constants/storage";
 import {
+  CONVERSATION_ATTACHMENTS_BUCKET,
+  DELIVERY_ATTACHMENTS_BUCKET,
+} from "../../../../lib/constants/storage";
+import { extensionForAttachmentMime } from "../../../../lib/chat/allowed-attachment";
+import {
+  MAX_DELIVERY_ATTACHMENTS,
   extensionForDeliveryMime,
   validateDeliveryProofFiles,
 } from "../../../../lib/delivery/allowed-delivery-attachment";
@@ -42,7 +48,49 @@ type Props = {
   linkedRequesterNearAccountId: string | null;
 };
 
-function DeliveryMediaLink({ path, mime }: { path: string; mime: string }) {
+function ProofFileTile({
+  file,
+  onRemove,
+}: {
+  file: File;
+  onRemove: () => void;
+}) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const isImage = file.type.startsWith("image/");
+
+  useEffect(() => {
+    if (!isImage) {
+      setPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file, isImage]);
+
+  return (
+    <li className="engagement-proof-tile" title={file.name}>
+      <button
+        type="button"
+        className="engagement-proof-tile__remove"
+        onClick={onRemove}
+        aria-label={`Remove ${file.name}`}
+      >
+        <FigmaIcon name="close" size={12} />
+      </button>
+      {previewUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element -- blob preview
+        <img src={previewUrl} alt="" />
+      ) : (
+        <span className="engagement-proof-tile__video" aria-hidden>
+          <FigmaIcon name="camera" size={22} />
+        </span>
+      )}
+    </li>
+  );
+}
+
+function DeliveryAttachmentTile({ path, mime }: { path: string; mime: string }) {
   const supabase = useMemo(() => createClient(), []);
   const [url, setUrl] = useState<string | null>(null);
 
@@ -61,30 +109,111 @@ function DeliveryMediaLink({ path, mime }: { path: string; mime: string }) {
     };
   }, [supabase, path]);
 
-  if (!url) {
-    return <span className="text-stone-500">Loading… ({mime})</span>;
-  }
-  if (mime.startsWith("image/")) {
-    return (
-      <a href={url} target="_blank" rel="noreferrer" className="block">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={url}
-          alt=""
-          className="max-h-40 rounded border border-stone-200 dark:border-stone-600"
-        />
-      </a>
-    );
-  }
   return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noreferrer"
-      className="text-sm underline"
+    <li className="engagement-proof-tile">
+      {url ? (
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          className="engagement-proof-tile__link"
+          aria-label={mime.startsWith("image/") ? "View image proof" : "Open video proof"}
+        >
+          {mime.startsWith("image/") ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={url} alt="" />
+          ) : (
+            <span className="engagement-proof-tile__video" aria-hidden>
+              <FigmaIcon name="camera" size={22} />
+            </span>
+          )}
+        </a>
+      ) : (
+        <span className="engagement-proof-tile__video" aria-hidden>
+          <FigmaIcon name="camera" size={22} />
+        </span>
+      )}
+    </li>
+  );
+}
+
+const STAR_RATING_LABELS = [
+  "Poor",
+  "Fair",
+  "Good",
+  "Great",
+  "Excellent",
+] as const;
+
+function EngagementStarRating({
+  value,
+  onChange,
+  disabled,
+  readOnly,
+}: {
+  value: number;
+  onChange?: (rating: number) => void;
+  disabled?: boolean;
+  readOnly?: boolean;
+}) {
+  const stars = (
+    <>
+      {[1, 2, 3, 4, 5].map((n) => {
+        const on = n <= value;
+        const starClass = on
+          ? "engagement-star-rating__star engagement-star-rating__star--on"
+          : "engagement-star-rating__star";
+        if (readOnly) {
+          return (
+            <span
+              key={n}
+              className={starClass}
+              aria-hidden={!on}
+            >
+              <FigmaIcon name="star" size={20} />
+            </span>
+          );
+        }
+        return (
+          <button
+            key={n}
+            type="button"
+            className={starClass}
+            disabled={disabled}
+            aria-label={`${n} star${n === 1 ? "" : "s"}`}
+            aria-pressed={value === n}
+            onClick={() => onChange?.(n)}
+          >
+            <FigmaIcon name="star" size={20} />
+          </button>
+        );
+      })}
+    </>
+  );
+
+  return (
+    <div
+      className={
+        readOnly
+          ? "engagement-star-rating engagement-star-rating--readonly"
+          : "engagement-star-rating"
+      }
     >
-      Play video ({mime})
-    </a>
+      <div
+        className="engagement-star-rating__row"
+        role={readOnly ? "img" : "group"}
+        aria-label={
+          readOnly ? `${value} out of 5 stars` : "Rate from 1 to 5 stars"
+        }
+      >
+        {stars}
+      </div>
+      {!readOnly ? (
+        <p className="engagement-star-rating__hint" aria-live="polite">
+          {STAR_RATING_LABELS[value - 1] ?? "—"}
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -117,7 +246,6 @@ function EngagementWorkflowInner({
 
   const [desc, setDesc] = useState(delivery?.description ?? "");
   const [proofFiles, setProofFiles] = useState<File[]>([]);
-  const [postToChat, setPostToChat] = useState(true);
 
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
@@ -163,7 +291,7 @@ function EngagementWorkflowInner({
       {
         p_engagement_id: engagementId,
         p_description: desc.trim(),
-        p_post_to_chat: postToChat && conversationId !== null,
+        p_post_to_chat: false,
       },
     );
     if (rpcErr || !rows?.length) {
@@ -223,6 +351,82 @@ function EngagementWorkflowInner({
         return;
       }
     }
+
+    if (conversationId) {
+      const caption = desc.trim();
+      const shouldPostChat =
+        proofFiles.length > 0 || caption.length > 0;
+      if (!shouldPostChat) {
+        setProofFiles([]);
+        setBusy(false);
+        refresh();
+        return;
+      }
+      const chatBody = caption;
+      const {
+        data: { user: chatUser },
+      } = await supabase.auth.getUser();
+      if (!chatUser) {
+        setError("Not signed in");
+        setBusy(false);
+        return;
+      }
+      const { data: mid, error: msgErr } = await supabase.rpc("send_message", {
+        p_conversation_id: conversationId,
+        p_kind: "text",
+        p_body: chatBody,
+      });
+      if (msgErr || !mid) {
+        setError(
+          msgErr?.message ??
+            "Delivery saved but could not be posted to chat.",
+        );
+        setBusy(false);
+        refresh();
+        return;
+      }
+      if (proofFiles.length > 0) {
+        const chatPaths: string[] = [];
+        const chatMimes: string[] = [];
+        const chatSizes: number[] = [];
+        for (const f of proofFiles) {
+          const ext = extensionForAttachmentMime(f.type);
+          const path = `${chatUser.id}/${conversationId}/${mid}/${crypto.randomUUID()}.${ext}`;
+          const { error: chatUpErr } = await supabase.storage
+            .from(CONVERSATION_ATTACHMENTS_BUCKET)
+            .upload(path, f, { contentType: f.type, upsert: false });
+          if (chatUpErr) {
+            setError(
+              `Delivery saved but chat upload failed: ${chatUpErr.message}`,
+            );
+            setBusy(false);
+            refresh();
+            return;
+          }
+          chatPaths.push(path);
+          chatMimes.push(f.type);
+          chatSizes.push(f.size);
+        }
+        const { error: chatAttachErr } = await supabase.rpc(
+          "add_message_attachments",
+          {
+            p_message_id: mid as string,
+            p_paths: chatPaths,
+            p_mime_types: chatMimes,
+            p_byte_sizes: chatSizes,
+          },
+        );
+        if (chatAttachErr) {
+          setError(
+            `Delivery saved but chat attachments failed: ${chatAttachErr.message}`,
+          );
+          setBusy(false);
+          refresh();
+          return;
+        }
+      }
+    }
+
     setProofFiles([]);
     setBusy(false);
     refresh();
@@ -337,224 +541,238 @@ function EngagementWorkflowInner({
   const deliveryHasVisibleContent =
     Boolean(delivery?.description?.trim()) || deliveryAttachments.length > 0;
 
+  const showDeliveryForm =
+    deliveryStatus === null || deliveryStatus === "revision_requested";
+
   return (
-    <div className="flex flex-col gap-8">
-      {error && (
-        <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
-      )}
+    <div className="flex flex-col gap-4">
+      {error ? (
+        <p className="engagement-workflow-error" role="alert">
+          {error}
+        </p>
+      ) : null}
 
       {/* Provider: submit / resubmit */}
       {isProvider && engagementStatus === "active" && (
-        <section className="rounded-lg border border-stone-200 p-4 dark:border-stone-800">
-          {(deliveryStatus === null ||
-            deliveryStatus === "revision_requested") && (
-            <div className="flex flex-col gap-3">
-              <label className="text-sm font-medium text-stone-700 dark:text-stone-300">
-                Notes (optional)
-                <textarea
-                  value={desc}
-                  onChange={(e) => setDesc(e.target.value)}
-                  rows={4}
-                  maxLength={4000}
-                  className="mt-1 w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm dark:border-stone-600 dark:bg-stone-950"
-                  placeholder="Describe the work completed…"
-                />
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={postToChat}
-                  onChange={(e) => setPostToChat(e.target.checked)}
-                  disabled={!conversationId}
-                />
-                Also notify in chat
-                {!conversationId && (
-                  <span className="text-stone-500">(no conversation)</span>
-                )}
-              </label>
-              <div>
-                <p className="text-sm font-medium text-stone-700 dark:text-stone-300">
-                  Proof (optional)
-                </p>
-                <p className="text-xs text-stone-500">
-                  Images or video — max 10 files, 25 MB each.
-                </p>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
-                  className="mt-1 max-w-full text-sm"
-                  onChange={(e) => {
-                    const list = e.target.files ? [...e.target.files] : [];
-                    setProofFiles(list.slice(0, 10));
-                  }}
-                />
+        <section className="engagement-delivery-card">
+          {showDeliveryForm ? (
+            <>
+              <p className="engagement-delivery-card__eyebrow">Your delivery</p>
+              <h3>
+                {deliveryStatus === "revision_requested"
+                  ? "Submit your revision"
+                  : "Mark work complete"}
+              </h3>
+              <p className="engagement-delivery-card__lead">
+                {deliveryStatus === "revision_requested"
+                  ? "The requester asked for changes. Update your notes or proof, then send again."
+                  : "Proofs are optional and appear in chat."}
+              </p>
+              {deliveryStatus === "revision_requested" ? (
+                <div
+                  className="engagement-callout engagement-callout--warning"
+                  role="note"
+                >
+                  <strong>Revision requested</strong>
+                  <p>Your last submission needs updates before approval.</p>
+                </div>
+              ) : null}
+              <div className="form-fields">
+                <label htmlFor="delivery_notes">
+                  Caption
+                  <textarea
+                    id="delivery_notes"
+                    value={desc}
+                    onChange={(e) => setDesc(e.target.value)}
+                    rows={4}
+                    maxLength={4000}
+                    placeholder="Describe what you completed — shown in chat with your files…"
+                  />
+                </label>
+                <div className="engagement-delivery-proof">
+                  <p className="engagement-delivery-proof__hint">
+                    Photos or video — up to 10 files, 25 MB each. Shown in chat
+                    under your caption.
+                  </p>
+                  <label className="engagement-file-picker">
+                    <FigmaIcon name="attach" size={18} />
+                    {proofFiles.length > 0
+                      ? `${proofFiles.length} file${proofFiles.length === 1 ? "" : "s"} selected`
+                      : "Add files"}
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
+                      onChange={(e) => {
+                        const list = e.target.files ? [...e.target.files] : [];
+                        setProofFiles((prev) =>
+                          [...prev, ...list].slice(0, MAX_DELIVERY_ATTACHMENTS),
+                        );
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                  {proofFiles.length > 0 ? (
+                    <ul className="engagement-proof-grid">
+                      {proofFiles.map((f, index) => (
+                        <ProofFileTile
+                          key={`${f.name}-${f.size}-${f.lastModified}-${index}`}
+                          file={f}
+                          onRemove={() =>
+                            setProofFiles((prev) =>
+                              prev.filter((_, i) => i !== index),
+                            )
+                          }
+                        />
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void runSubmitDelivery()}
+                  className="primary-wide"
+                >
+                  {busy ? "Submitting…" : "Submit for review"}
+                  {!busy ? <FigmaIcon name="checks" size={17} /> : null}
+                </button>
               </div>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void runSubmitDelivery()}
-                className="btn-ink w-fit rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
+            </>
+          ) : null}
+          {deliveryStatus === "pending_review" ? (
+            <>
+              <div
+                className="engagement-callout engagement-callout--info"
+                role="status"
               >
-                {busy ? "Saving…" : "I'm done"}
-              </button>
-            </div>
-          )}
-          {deliveryStatus === "pending_review" && (
-            <p className="mt-3 text-sm text-stone-600 dark:text-stone-400">
-              Waiting for the requester to approve.
-            </p>
-          )}
-          {deliveryStatus === "approved" && engagementStatus === "active" && (
-            <p className="mt-3 text-sm text-stone-600 dark:text-stone-400">
+                <strong>Under review</strong>
+                <p>Waiting for the requester to approve your submission.</p>
+              </div>
+              {delivery && deliveryHasVisibleContent ? (
+                <div className="engagement-submission-preview">
+                  <p className="engagement-delivery-card__eyebrow">
+                    Your submission
+                  </p>
+                  {delivery.description?.trim() ? (
+                    <p className="engagement-submission-preview__notes">
+                      {delivery.description}
+                    </p>
+                  ) : null}
+                  {deliveryAttachments.length > 0 ? (
+                    <ul className="engagement-proof-grid">
+                      {deliveryAttachments.map((a) => (
+                        <DeliveryAttachmentTile
+                          key={a.id}
+                          path={a.storage_path}
+                          mime={a.mime_type}
+                        />
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+              ) : null}
+            </>
+          ) : null}
+          {deliveryStatus === "approved" && engagementStatus === "active" ? (
+            <p className="engagement-delivery-status">
               Delivery approved — awaiting on-chain payment release to complete
               the engagement.
             </p>
-          )}
+          ) : null}
         </section>
       )}
 
-      {/* Requester: review */}
       {isRequester &&
         paymentFunded &&
         engagementStatus === "active" &&
         deliveryStatus === "pending_review" && (
-          <section className="rounded-lg border border-stone-200 p-4 dark:border-stone-800">
-            <h2 className="text-lg font-medium text-stone-900 dark:text-stone-100">
-              Review delivery
-            </h2>
-            {delivery && deliveryHasVisibleContent && (
-              <div className="text-on-light-surface mt-3 rounded-lg bg-stone-50 p-3 text-sm dark:bg-stone-900/60">
-                {delivery.description.trim() ? (
-                  <p className="whitespace-pre-wrap">{delivery.description}</p>
-                ) : null}
-                {deliveryAttachments.length > 0 && (
-                  <ul className="mt-3 space-y-2">
-                    {deliveryAttachments.map((a) => (
-                      <li key={a.id}>
-                        <DeliveryMediaLink
-                          path={a.storage_path}
-                          mime={a.mime_type}
-                        />
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-            {approveStep && (
-              <p className="mt-3 text-sm text-stone-600 dark:text-stone-400">
-                {approveStep}
-              </p>
-            )}
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              {!signedAccountId && (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() =>
-                    void connectWallet().catch((e) =>
-                      setError(formatWalletConnectionError(e)),
-                    )
-                  }
-                  className="btn-ink rounded-lg px-4 py-2 text-sm font-medium"
-                >
-                  Connect wallet
-                </button>
-              )}
+          <section className="engagement-approve-actions">
+            {approveStep ? (
+              <p className="engagement-delivery-status">{approveStep}</p>
+            ) : null}
+            {!signedAccountId ? (
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => void runApproveAndRelease()}
-                className="rounded-lg bg-green-800 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-green-700"
+                onClick={() =>
+                  void connectWallet().catch((e) =>
+                    setError(formatWalletConnectionError(e)),
+                  )
+                }
+                className="secondary w-fit"
               >
-                {busy ? "Working…" : "Approve and release payment"}
+                Connect wallet
               </button>
-            </div>
-          </section>
-        )}
-
-      {/* Show delivery copy to provider when pending or revision */}
-      {isProvider &&
-        engagementStatus === "active" &&
-        delivery &&
-        deliveryStatus === "pending_review" &&
-        deliveryHasVisibleContent && (
-          <section className="rounded-lg border border-stone-200 p-4 dark:border-stone-800">
-            <h2 className="text-sm font-medium text-stone-900 dark:text-stone-100">
-              Your submission
-            </h2>
-            <p className="mt-2 whitespace-pre-wrap text-sm">
-              {delivery.description}
-            </p>
-            {deliveryAttachments.length > 0 && (
-              <ul className="mt-3 space-y-2">
-                {deliveryAttachments.map((a) => (
-                  <li key={a.id}>
-                    <DeliveryMediaLink
-                      path={a.storage_path}
-                      mime={a.mime_type}
-                    />
-                  </li>
-                ))}
-              </ul>
-            )}
+            ) : null}
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void runApproveAndRelease()}
+              className="primary-wide"
+            >
+              {busy ? "Working…" : "Approve and release payment"}
+              {!busy ? <FigmaIcon name="arrow" size={17} /> : null}
+            </button>
           </section>
         )}
 
       {/* Review after complete */}
       {engagementStatus === "completed" && isRequester && !existingReview && (
-        <section className="rounded-lg border border-stone-200 p-4 dark:border-stone-800">
-          <h2 className="text-lg font-medium text-stone-900 dark:text-stone-100">
-            Rate the provider
-          </h2>
-          <div className="mt-3 flex flex-col gap-2">
-            <label className="text-sm">
-              Rating (1–5)
-              <input
-                type="number"
-                min={1}
-                max={5}
-                value={rating}
-                onChange={(e) => setRating(Number(e.target.value))}
-                className="ml-2 w-16 rounded border border-stone-300 px-2 py-1 dark:border-stone-600"
+        <section className="engagement-delivery-card engagement-review-card">
+          <p className="engagement-delivery-card__eyebrow">Feedback</p>
+          <h3>Rate your provider</h3>
+          <p className="engagement-delivery-card__lead">
+            How did the work go? Your rating helps others choose with confidence.
+          </p>
+          <EngagementStarRating
+            value={rating}
+            onChange={setRating}
+            disabled={busy}
+          />
+          <div className="form-fields engagement-review-card__form">
+            <label htmlFor="review_comment">
+              Comment
+              <textarea
+                id="review_comment"
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                rows={4}
+                maxLength={2000}
+                placeholder="What stood out? Optional."
+                disabled={busy}
               />
             </label>
-            <textarea
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              rows={3}
-              maxLength={2000}
-              placeholder="Optional comment…"
-              className="rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm dark:border-stone-600 dark:bg-stone-950"
-            />
             <button
               type="button"
               disabled={busy || rating < 1 || rating > 5}
               onClick={() => void runSubmitReview()}
-              className="btn-ink w-fit rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
+              className="primary-wide"
             >
-              Submit review
+              {busy ? "Submitting…" : "Submit review"}
+              {!busy ? <FigmaIcon name="star" size={17} /> : null}
             </button>
           </div>
         </section>
       )}
 
-      {existingReview && (
-        <section className="rounded-lg border border-stone-200 p-4 dark:border-stone-800">
-          <h2 className="text-lg font-medium text-stone-900 dark:text-stone-100">
-            Review
-          </h2>
-          <p className="mt-2 text-sm">
-            {existingReview.rating}★
-            {existingReview.comment && (
-              <span className="mt-1 block whitespace-pre-wrap text-stone-700 dark:text-stone-300">
-                {existingReview.comment}
-              </span>
-            )}
-          </p>
+      {existingReview ? (
+        <section className="engagement-delivery-card engagement-review-card engagement-review-card--submitted">
+          <p className="engagement-delivery-card__eyebrow">Your review</p>
+          <h3>Thanks for the feedback</h3>
+          <EngagementStarRating
+            value={existingReview.rating}
+            readOnly
+          />
+          {existingReview.comment?.trim() ? (
+            <p className="engagement-review-card__comment">
+              {existingReview.comment}
+            </p>
+          ) : (
+            <p className="engagement-review-card__meta">No written comment.</p>
+          )}
         </section>
-      )}
+      ) : null}
     </div>
   );
 }

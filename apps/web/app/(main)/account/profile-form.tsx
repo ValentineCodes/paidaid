@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 
+import { AppToast } from "../../../components/app-toast";
 import { FigmaIcon } from "../../../components/figma-icons";
 import type { Tables } from "../../../lib/database.types";
 import {
@@ -43,6 +44,7 @@ export function ProfileForm({ profile, photoDisplayUrl }: ProfileFormProps) {
     photoDisplayUrl?.trim() ? photoDisplayUrl : null,
   );
   const [localPhotoError, setLocalPhotoError] = useState<string | null>(null);
+  const [saveToastOpen, setSaveToastOpen] = useState(false);
 
   useEffect(() => {
     setPreviewUrl((prev) => {
@@ -57,6 +59,7 @@ export function ProfileForm({ profile, photoDisplayUrl }: ProfileFormProps) {
     if (!state.success) {
       return;
     }
+    setSaveToastOpen(true);
     setPreviewUrl((prev) => {
       if (prev?.startsWith("blob:")) {
         URL.revokeObjectURL(prev);
@@ -187,12 +190,12 @@ export function ProfileForm({ profile, photoDisplayUrl }: ProfileFormProps) {
           {state.error}
         </p>
       ) : null}
-      {state.success ? (
-        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[13px] text-emerald-900">
-          Profile saved.
-        </p>
-      ) : null}
       <SubmitButton />
+      <AppToast
+        message="Profile saved"
+        visible={saveToastOpen}
+        onClose={() => setSaveToastOpen(false)}
+      />
     </form>
   );
 }

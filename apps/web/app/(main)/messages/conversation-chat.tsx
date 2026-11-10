@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { User } from "@supabase/supabase-js";
 
+import { ChatMessageAttachments } from "../../../components/chat-message-attachments";
 import { FigmaIcon } from "../../../components/figma-icons";
 import { createClient } from "../../../lib/supabase/client";
 import { CONVERSATION_ATTACHMENTS_BUCKET } from "../../../lib/constants/storage";
@@ -15,6 +16,7 @@ import {
 import type { Database } from "../../../lib/database.types";
 import { fetchConversationMessages } from "../../../lib/messages/fetch-conversation-messages";
 import type { ChatMessagePayload } from "../../../lib/messages/chat-types";
+import { messageAttachmentCaption } from "../../../lib/messages/attachment-caption";
 
 export type { ChatMessagePayload } from "../../../lib/messages/chat-types";
 
@@ -521,23 +523,30 @@ export function ConversationChat({
           const showDay =
             i === 0 ||
             (prev && calendarDayKey(prev.created_at) !== calendarDayKey(m.created_at));
+          const attachmentCount = m.message_attachments?.length ?? 0;
+          const attachmentCaption =
+            attachmentCount > 0 ? messageAttachmentCaption(m.body) : null;
           const hasImageAttachment = (m.message_attachments ?? []).some((a) =>
             a.mime_type.startsWith("image/"),
           );
           const showPeerName = !mine && !hasImageAttachment;
+          const showTextBody =
+            m.kind === "text" && m.body?.trim() && attachmentCount === 0;
           return (
             <div key={m.id} className="flex flex-col gap-3">
               {showDay ? <div className="day">{formatDaySeparator(m.created_at)}</div> : null}
               <div
-                className={`bubble ${mine ? "mine" : "theirs"}`}
+                className={`bubble ${mine ? "mine" : "theirs"}${attachmentCount > 0 ? " bubble--media" : ""}`}
               >
                 {showPeerName ? (
                   <span className="mb-1 text-[10px] opacity-80">
                     {m.display_name}
                   </span>
                 ) : null}
-                {m.kind === "text" && m.body?.trim() ? (
-                  <span className="whitespace-pre-wrap">{m.body}</span>
+                {showTextBody ? (
+                  <span className="chat-bubble-caption whitespace-pre-wrap">
+                    {m.body}
+                  </span>
                 ) : null}
                 {m.kind === "location" &&
                   m.location_lat != null &&
@@ -561,18 +570,12 @@ export function ConversationChat({
                       </span>
                     </a>
                   )}
-                {m.message_attachments && m.message_attachments.length > 0 && (
-                  <ul className="mt-2 space-y-1 text-[10px]">
-                    {m.message_attachments.map((a) => (
-                      <li key={a.id}>
-                        <AttachmentLink
-                          path={a.storage_path}
-                          mime={a.mime_type}
-                        />
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                {m.message_attachments && m.message_attachments.length > 0 ? (
+                  <ChatMessageAttachments
+                    attachments={m.message_attachments}
+                    caption={attachmentCaption}
+                  />
+                ) : null}
                 <time
                   dateTime={m.created_at}
                   className="inline-flex items-center gap-1"
@@ -669,44 +672,3 @@ export function ConversationChat({
   );
 }
 
-function AttachmentLink({ path, mime }: { path: string; mime: string }) {
-  const supabase = useMemo(() => createClient(), []);
-  const [url, setUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    void supabase.storage
-      .from(CONVERSATION_ATTACHMENTS_BUCKET)
-      .createSignedUrl(path, 3600)
-      .then(({ data }) => {
-        if (!cancelled) {
-          setUrl(data?.signedUrl ?? null);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [supabase, path]);
-
-  if (!url) {
-    return <span className="text-stone-500">Loading… ({mime})</span>;
-  }
-  const isImg = mime.startsWith("image/");
-  if (isImg) {
-    return (
-      <a href={url} target="_blank" rel="noreferrer" className="block">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={url}
-          alt=""
-          className="max-h-32 rounded border border-stone-200 dark:border-stone-600"
-        />
-      </a>
-    );
-  }
-  return (
-    <a href={url} target="_blank" rel="noreferrer" className="underline">
-      Download ({mime})
-    </a>
-  );
-}

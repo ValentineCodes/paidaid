@@ -164,7 +164,7 @@ function AcceptResponseFormInner({
 
   const resumeOpenGuard = useRef(false);
   useEffect(() => {
-    if (!hydrated || resumeOpenGuard.current || modalOpen) {
+    if (!hydrated || resumeOpenGuard.current || modalOpen || variant === "drawer") {
       return;
     }
     if (
@@ -175,7 +175,7 @@ function AcceptResponseFormInner({
       resumeOpenGuard.current = true;
       setModalOpen(true);
     }
-  }, [hydrated, intent, phase, modalOpen]);
+  }, [hydrated, intent, phase, modalOpen, variant]);
 
   useEffect(() => {
     const onFocus = () => void refreshSnapshot();

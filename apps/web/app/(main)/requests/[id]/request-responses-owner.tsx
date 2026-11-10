@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { DismissDrawerLink } from "../../../../components/dismiss-drawer-link";
+import { FigmaIcon } from "../../../../components/figma-icons";
 import { createClient } from "../../../../lib/supabase/server";
 import { loadActiveLinkedNearWallet } from "../../../../lib/near/load-linked-wallet";
 import {
@@ -9,6 +10,7 @@ import {
 } from "../../../../lib/profiles/resolve-photo";
 import { formatPostedRelative } from "../../../../lib/datetime/relative-from-now";
 import { formatBudgetSmallestUnits } from "../../../../lib/requests/format-budget";
+import { loadInFlightAcceptanceResponseId } from "../acceptance-funding-actions";
 import { AcceptResponseForm } from "./accept-response-form";
 
 type Row = {
@@ -38,6 +40,14 @@ type Props = {
   variant?: "drawer" | "page";
 };
 
+function initialsFromDisplayName(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return (parts[0]![0]! + parts[1]![0]!).toUpperCase();
+  }
+  return name.slice(0, 2).toUpperCase() || "?";
+}
+
 export async function RequestResponsesOwnerList({
   requestId,
   assetDecimals,
@@ -64,20 +74,9 @@ export async function RequestResponsesOwnerList({
   const linkedRequesterNear =
     requestMeta?.requester_near_account_id?.trim() || sessionLinked;
 
-  const { data: inFlightIntent } = await supabase
-    .from("acceptance_funding_intents")
-    .select("response_id")
-    .eq("request_id", requestId)
-    .in("status", [
-      "awaiting_wallet",
-      "create_submitted",
-      "fund_submitted",
-      "funding_verified",
-    ])
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const inFlightResponseId = inFlightIntent?.response_id ?? null;
+  const inFlight = await loadInFlightAcceptanceResponseId(requestId);
+  const inFlightResponseId =
+    inFlight.ok && inFlight.responseId ? inFlight.responseId : null;
   const { data: preConvs } = await supabase
     .from("conversations")
     .select("id, response_id")
@@ -120,6 +119,7 @@ export async function RequestResponsesOwnerList({
     `,
     )
     .eq("request_id", requestId)
+    .eq("status", "pending")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -150,7 +150,7 @@ export async function RequestResponsesOwnerList({
   );
 
   return (
-    <ul className="flex flex-col gap-4">
+    <ul className="request-response-list">
       {withUrls.map((r) => {
         const amount = formatBudgetSmallestUnits(
           String(r.proposed_amount),
@@ -163,88 +163,99 @@ export async function RequestResponsesOwnerList({
           ? "—"
           : formatPostedRelative(createdAt, nowMs);
         const conversationId = preAcceptConversationId(r);
-        const chatButtonClass =
-          variant === "drawer"
-            ? "secondary shrink-0 no-underline"
-            : "text-on-light-surface inline-flex w-fit shrink-0 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium dark:border-stone-600";
+        const providerHeadline = r.provider_profiles?.headline?.trim() ?? "";
+        const showProviderHeadline = providerHeadline.length > 0;
 
         return (
-          <li
-            key={r.id}
-            className="text-on-light-surface flex gap-4 rounded-lg border border-stone-200 p-4 dark:border-stone-700 dark:bg-stone-900/30"
-          >
-            {r.photoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element -- signed URL
-              <img
-                src={r.photoUrl}
-                alt=""
-                className="h-16 w-16 shrink-0 rounded-full object-cover"
-              />
-            ) : (
+          <li key={r.id} className="request-response-card">
+            <div
+              className={
+                showProviderHeadline
+                  ? "request-response-card__header"
+                  : "request-response-card__header request-response-card__header--centered"
+              }
+            >
               <div
-                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-stone-200 text-xs text-stone-600 dark:bg-stone-800 dark:text-stone-400"
-                aria-hidden
+                className={
+                  showProviderHeadline
+                    ? "request-response-card__profile"
+                    : "request-response-card__profile request-response-card__profile--centered"
+                }
               >
-                —
-              </div>
-            )}
-            <div className="min-w-0 flex-1">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="font-medium text-stone-900 dark:text-stone-100">
-                    {name}
-                  </p>
-                  {r.provider_profiles?.headline ? (
-                    <p className="text-sm text-stone-600 dark:text-stone-400">
-                      {r.provider_profiles.headline}
+                <div className="avatar large shrink-0">
+                  {r.photoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- signed URL
+                    <img
+                      src={r.photoUrl}
+                      alt=""
+                      className="size-full rounded-full object-cover"
+                    />
+                  ) : (
+                    initialsFromDisplayName(name)
+                  )}
+                </div>
+                <div className="request-response-card__identity">
+                  <p className="request-response-card__name">{name}</p>
+                  {showProviderHeadline ? (
+                    <p className="request-response-card__headline">
+                      {providerHeadline}
                     </p>
                   ) : null}
                 </div>
-                <time
-                  dateTime={r.created_at}
-                  className="shrink-0 text-xs text-stone-500 dark:text-stone-400"
-                >
-                  {postedLabel}
-                </time>
               </div>
-              <p className="mt-1 font-mono text-sm text-stone-800 dark:text-stone-200">
-                {amount} {assetSymbol} proposed
-              </p>
-              {r.message && (
-                <p className="mt-2 whitespace-pre-wrap text-sm text-stone-700 dark:text-stone-300">
-                  {r.message}
-                </p>
-              )}
-              {showAccept || conversationId ? (
-                <div className="mt-3 flex flex-col gap-2">
-                  <div className="flex flex-wrap items-start gap-2">
-                    {showAccept ? (
-                      <AcceptResponseForm
-                        requestId={requestId}
-                        responseId={r.id}
-                        providerDisplayName={name}
-                        offerAmountDisplay={amount}
-                        assetSymbol={assetSymbol}
-                        linkedRequesterNearAccountId={linkedRequesterNear}
-                        anotherAcceptanceInProgress={
-                          inFlightResponseId != null &&
-                          inFlightResponseId !== r.id
-                        }
-                        variant={variant}
-                      />
-                    ) : null}
-                    {conversationId ? (
-                      <ChatLink
-                        href={`/messages/${conversationId}`}
-                        className={chatButtonClass}
-                      >
-                        Open chat
-                      </ChatLink>
-                    ) : null}
-                  </div>
-                </div>
+              {conversationId ? (
+                <ChatLink
+                  href={`/messages/${conversationId}`}
+                  className="engagement-person-card__chat"
+                  aria-label={`Chat with ${name}`}
+                >
+                  <span className="engagement-connect-icon" aria-hidden>
+                    <FigmaIcon name="message" size={20} />
+                  </span>
+                </ChatLink>
               ) : null}
             </div>
+            <time
+              dateTime={r.created_at}
+              className="request-response-card__time"
+            >
+              {postedLabel}
+            </time>
+
+            <div className="request-response-card__offer">
+              <small>Proposed offer</small>
+              <strong>
+                {amount} <span>{assetSymbol}</span>
+              </strong>
+            </div>
+
+            {r.message ? (
+              <p className="request-response-card__message">{r.message}</p>
+            ) : null}
+
+            {showAccept ? (
+              <>
+                <div
+                  className="request-response-card__divider"
+                  aria-hidden
+                />
+                <div className="request-response-card__actions">
+                  <AcceptResponseForm
+                    requestId={requestId}
+                    responseId={r.id}
+                    providerDisplayName={name}
+                    offerAmountDisplay={amount}
+                    assetSymbol={assetSymbol}
+                    linkedRequesterNearAccountId={linkedRequesterNear}
+                    anotherAcceptanceInProgress={
+                      inFlightResponseId != null &&
+                      inFlightResponseId !== r.id
+                    }
+                    variant={variant}
+                  />
+                </div>
+              </>
+            ) : null}
           </li>
         );
       })}

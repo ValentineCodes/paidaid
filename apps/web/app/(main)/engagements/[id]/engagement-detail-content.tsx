@@ -296,7 +296,7 @@ export function EngagementDetailContent(props: EngagementDetailContentProps) {
         </div>
       )}
 
-      <div className="detail-section engagement-workflow-wrap">
+      <div className="engagement-workflow-wrap">
         <EngagementWorkflow
           engagementId={engagementId}
           conversationId={conversationId}

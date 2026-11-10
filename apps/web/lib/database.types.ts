@@ -215,17 +215,21 @@ export type Database = {
           accepted_response_id: string
           created_at?: string
           id?: string
+          provider_near_account_id?: string | null
           provider_user_id: string
           request_id: string
           requester_id: string
+          requester_near_account_id?: string | null
         }
         Update: {
           accepted_response_id?: string
           created_at?: string
           id?: string
+          provider_near_account_id?: string | null
           provider_user_id?: string
           request_id?: string
           requester_id?: string
+          requester_near_account_id?: string | null
         }
         Relationships: [
           {
@@ -544,6 +548,13 @@ export type Database = {
             columns: ["request_id"]
             isOneToOne: false
             referencedRelation: "requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagement_escrow_payments_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "requests_public"
             referencedColumns: ["id"]
           },
           {
@@ -1164,6 +1175,7 @@ export type Database = {
           proposed_asset_id: string
           provider_profile_id: string
           request_id: string
+          responder_near_account_id?: string | null
           status?: Database["public"]["Enums"]["response_status"]
           updated_at?: string
         }
@@ -1175,6 +1187,7 @@ export type Database = {
           proposed_asset_id?: string
           provider_profile_id?: string
           request_id?: string
+          responder_near_account_id?: string | null
           status?: Database["public"]["Enums"]["response_status"]
           updated_at?: string
         }
@@ -1282,6 +1295,7 @@ export type Database = {
           location_structured?: Json | null
           published_at?: string | null
           requester_id: string
+          requester_near_account_id?: string | null
           scheduled_at?: string | null
           status?: Database["public"]["Enums"]["request_status"]
           timing_type: Database["public"]["Enums"]["timing_type"]
@@ -1302,6 +1316,7 @@ export type Database = {
           location_structured?: Json | null
           published_at?: string | null
           requester_id?: string
+          requester_near_account_id?: string | null
           scheduled_at?: string | null
           status?: Database["public"]["Enums"]["request_status"]
           timing_type?: Database["public"]["Enums"]["timing_type"]
@@ -1545,31 +1560,6 @@ export type Database = {
         }
         Returns: string
       }
-      complete_wallet_authentication: {
-        Args: {
-          p_challenge_id: string
-          p_near_account_id: string
-          p_network_id: string
-          p_public_key: string
-          p_user_id: string
-        }
-        Returns: string
-      }
-      create_wallet_auth_challenge: {
-        Args: { p_near_account_id: string; p_network_id?: string }
-        Returns: {
-          challenge_id: string
-          expires_at: string
-          issued_at: string
-          message: string
-          nonce_hex: string
-          recipient: string
-        }[]
-      }
-      lookup_user_id_by_near_wallet: {
-        Args: { p_near_account_id: string }
-        Returns: string
-      }
       auto_complete_engagements: { Args: never; Returns: number }
       can_read_private_contact: {
         Args: { p_target_user: string }
@@ -1582,6 +1572,16 @@ export type Database = {
       complete_engagement_after_settlement: {
         Args: { p_auto?: boolean; p_engagement_id: string }
         Returns: boolean
+      }
+      complete_wallet_authentication: {
+        Args: {
+          p_challenge_id: string
+          p_near_account_id: string
+          p_network_id: string
+          p_public_key: string
+          p_user_id: string
+        }
+        Returns: string
       }
       confirm_live_profile_photo: {
         Args: { p_storage_path: string }
@@ -1614,6 +1614,25 @@ export type Database = {
           p_title: string
         }
         Returns: string
+      }
+      create_wallet_auth_challenge: {
+        Args: { p_near_account_id: string; p_network_id?: string }
+        Returns: {
+          challenge_id: string
+          expires_at: string
+          issued_at: string
+          message: string
+          nonce_hex: string
+          recipient: string
+        }[]
+      }
+      expire_active_acceptance_intents_for_response: {
+        Args: { p_response_id: string }
+        Returns: undefined
+      }
+      expire_stale_acceptance_intents_for_request: {
+        Args: { p_request_id: string }
+        Returns: undefined
       }
       finalize_acceptance_after_funding: {
         Args: { p_intent_id: string }
@@ -1791,6 +1810,10 @@ export type Database = {
         }[]
       }
       load_linked_near_account: { Args: { p_user_id: string }; Returns: string }
+      lookup_user_id_by_near_wallet: {
+        Args: { p_near_account_id: string }
+        Returns: string
+      }
       mark_all_notifications_read: {
         Args: {
           p_category?: Database["public"]["Enums"]["notification_category"]
@@ -1891,8 +1914,10 @@ export type Database = {
           provider_user_id: string
           release_tx_hash: string | null
           released_at: string | null
+          request_id: string | null
           requester_near_account_id: string
           requester_user_id: string
+          response_id: string | null
           settlement_eligible_at: string | null
           settlement_last_error: string | null
           settlement_status: Database["public"]["Enums"]["engagement_settlement_status"]
@@ -1981,8 +2006,10 @@ export type Database = {
           provider_user_id: string
           release_tx_hash: string | null
           released_at: string | null
+          request_id: string | null
           requester_near_account_id: string
           requester_user_id: string
+          response_id: string | null
           settlement_eligible_at: string | null
           settlement_last_error: string | null
           settlement_status: Database["public"]["Enums"]["engagement_settlement_status"]
@@ -2024,8 +2051,10 @@ export type Database = {
           provider_user_id: string
           release_tx_hash: string | null
           released_at: string | null
+          request_id: string | null
           requester_near_account_id: string
           requester_user_id: string
+          response_id: string | null
           settlement_eligible_at: string | null
           settlement_last_error: string | null
           settlement_status: Database["public"]["Enums"]["engagement_settlement_status"]
@@ -2049,15 +2078,27 @@ export type Database = {
       request_requester_public_card: {
         Args: { p_request_id: string }
         Returns: {
+          avatar_url: string
           display_name: string
+          live_profile_photo_path: string
           verified: boolean
-          avatar_url: string | null
-          live_profile_photo_path: string | null
         }[]
       }
+      require_auth_linked_near_account: { Args: never; Returns: string }
       resolve_engagement_issue: {
         Args: { p_issue_id: string }
         Returns: undefined
+      }
+      resolve_participant_near_accounts: {
+        Args: {
+          p_provider_user_id: string
+          p_request: Database["public"]["Tables"]["requests"]["Row"]
+          p_response: Database["public"]["Tables"]["request_responses"]["Row"]
+        }
+        Returns: {
+          provider_near: string
+          requester_near: string
+        }[]
       }
       restore_engagement_auto_deadline_if_eligible: {
         Args: { p_engagement_id: string }

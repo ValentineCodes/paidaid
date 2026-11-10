@@ -302,7 +302,24 @@ export async function loadInFlightAcceptanceResponseId(
   if (error) {
     return { ok: false, error: error.message };
   }
-  return { ok: true, responseId: row?.response_id ?? null };
+  if (!row?.response_id) {
+    return { ok: true, responseId: null };
+  }
+
+  const { data: response, error: responseError } = await supabase
+    .from("request_responses")
+    .select("status")
+    .eq("id", row.response_id)
+    .maybeSingle();
+
+  if (responseError) {
+    return { ok: false, error: responseError.message };
+  }
+  if (response?.status !== "pending") {
+    return { ok: true, responseId: null };
+  }
+
+  return { ok: true, responseId: row.response_id };
 }
 
 export async function loadAcceptanceFundingIntent(
