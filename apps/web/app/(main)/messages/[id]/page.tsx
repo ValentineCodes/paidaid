@@ -73,8 +73,6 @@ export default async function MessageThreadPage({ params }: PageProps) {
           chatSubtitle={thread.chatSubtitle}
           peerPhone={thread.peerPhone}
           hasProfilePhoto={hasProfilePhoto}
-          requestLocationLabel={thread.reqRow.location_label}
-          requestLocationKind={thread.reqRow.location_kind}
           hideChatHead={false}
         />
       </MessagesShell>

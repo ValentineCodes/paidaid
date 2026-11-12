@@ -35,8 +35,6 @@ type Props = {
   /** Co-participant phone when visible */
   peerPhone: string | null;
   hasProfilePhoto: boolean;
-  requestLocationLabel: string | null;
-  requestLocationKind: Database["public"]["Enums"]["location_kind"];
   /** When nested in `messages-shell`, header is optional (detail route shows it). */
   hideChatHead?: boolean;
   /** Mobile back control to inbox (left of peer avatar in header). */
@@ -121,8 +119,6 @@ export function ConversationChat({
   chatSubtitle,
   peerPhone,
   hasProfilePhoto,
-  requestLocationLabel,
-  requestLocationKind,
   hideChatHead = false,
   backHref,
 }: Props) {
@@ -408,13 +404,7 @@ export function ConversationChat({
       setMessages((prev) =>
         dedupeById([
           ...prev.filter((m) => m.id !== (mid as string)),
-          {
-            ...enriched,
-            display_name:
-              enriched.sender_id === currentUserId
-                ? "You"
-                : enriched.display_name,
-          },
+          enriched,
         ]),
       );
     } else {
@@ -487,19 +477,6 @@ export function ConversationChat({
                 <a href={`tel:${peerPhone}`}>Call</a>
               </span>
             ) : null}
-            {requestLocationKind === "in_person" && requestLocationLabel ? (
-              <span className="chat-head-line">
-                Task: {requestLocationLabel}
-                {" · "}
-                <a
-                  href={`https://www.openstreetmap.org/search?query=${encodeURIComponent(requestLocationLabel)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Map
-                </a>
-              </span>
-            ) : null}
           </div>
           <button
             type="button"
@@ -526,10 +503,6 @@ export function ConversationChat({
           const attachmentCount = m.message_attachments?.length ?? 0;
           const attachmentCaption =
             attachmentCount > 0 ? messageAttachmentCaption(m.body) : null;
-          const hasImageAttachment = (m.message_attachments ?? []).some((a) =>
-            a.mime_type.startsWith("image/"),
-          );
-          const showPeerName = !mine && !hasImageAttachment;
           const showTextBody =
             m.kind === "text" && m.body?.trim() && attachmentCount === 0;
           return (
@@ -538,11 +511,6 @@ export function ConversationChat({
               <div
                 className={`bubble ${mine ? "mine" : "theirs"}${attachmentCount > 0 ? " bubble--media" : ""}`}
               >
-                {showPeerName ? (
-                  <span className="mb-1 text-[10px] opacity-80">
-                    {m.display_name}
-                  </span>
-                ) : null}
                 {showTextBody ? (
                   <span className="chat-bubble-caption whitespace-pre-wrap">
                     {m.body}
