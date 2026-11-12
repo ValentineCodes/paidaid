@@ -1,6 +1,13 @@
 import { formatEngagementFundingError } from "../engagement/funding-errors";
 import { formatWalletSnapshotRpcError } from "../requests/wallet-snapshot-errors";
 
+export const PROVIDER_ACTIVE_ENGAGEMENT_TOAST =
+  "This provider is actively engaged with another request.";
+
+export function isProviderActiveEngagementError(raw: string): boolean {
+  return raw.toLowerCase().includes("provider already has an active engagement");
+}
+
 /** Requester-facing copy for fund-on-acceptance errors and RPC messages. */
 export function formatAcceptanceFundingError(raw: string): string {
   const lower = raw.toLowerCase();
@@ -10,6 +17,9 @@ export function formatAcceptanceFundingError(raw: string): string {
   }
   if (lower.includes("insufficient balance")) {
     return raw;
+  }
+  if (isProviderActiveEngagementError(raw)) {
+    return PROVIDER_ACTIVE_ENGAGEMENT_TOAST;
   }
   if (lower.includes("another acceptance is in progress")) {
     return "Another acceptance is already in progress for this request. Finish or wait for it to expire before choosing a different provider.";

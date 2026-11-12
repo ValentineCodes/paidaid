@@ -10,6 +10,7 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { AppToast } from "../../../../components/app-toast";
 import { FigmaIcon } from "../../../../components/figma-icons";
 import { useWalletSelector } from "@near-wallet-selector/react-hook";
 import { parseNearNetworkId } from "@paidaid/shared";
@@ -30,6 +31,7 @@ import { readWalletContractId } from "../../../../wallet/config";
 import { sendFundEscrowTransaction } from "../../../../wallet/send-escrow-funding";
 import {
   checkAcceptanceFundingBalance,
+  checkAcceptOfferEligibility,
   prepareAcceptanceFunding,
   recoverAcceptanceFundingProgress,
   reportAcceptanceFundTx,
@@ -38,7 +40,11 @@ import {
 } from "../acceptance-funding-actions";
 import { acceptanceIntentToWalletTerms } from "../../../../lib/acceptance/acceptance-intent-wallet-terms";
 import type { AcceptanceFundingPrepareResult } from "../../../../lib/acceptance/acceptance-funding-types";
-import { formatAcceptanceFundingError } from "../../../../lib/acceptance/acceptance-funding-errors";
+import {
+  formatAcceptanceFundingError,
+  isProviderActiveEngagementError,
+  PROVIDER_ACTIVE_ENGAGEMENT_TOAST,
+} from "../../../../lib/acceptance/acceptance-funding-errors";
 import {
   acceptanceFundingPhaseLabel,
   blocksDuplicateFundingAttempt,
@@ -116,6 +122,11 @@ function AcceptResponseFormInner({
     string | null
   >(null);
   const [hydrated, setHydrated] = useState(false);
+  const [acceptGateLoading, setAcceptGateLoading] = useState(false);
+  const [blockToastOpen, setBlockToastOpen] = useState(false);
+  const [blockToastMessage, setBlockToastMessage] = useState(
+    PROVIDER_ACTIVE_ENGAGEMENT_TOAST,
+  );
   const runGuard = useRef(false);
 
   const networkId = parseNearNetworkId(process.env.NEXT_PUBLIC_NEAR_NETWORK_ID);
@@ -300,6 +311,14 @@ function AcceptResponseFormInner({
     ],
   );
 
+  const showProviderBlockedToast = useCallback((message?: string) => {
+    setBlockToastMessage(message ?? PROVIDER_ACTIVE_ENGAGEMENT_TOAST);
+    setBlockToastOpen(true);
+    setModalOpen(false);
+    setConfirmOpen(false);
+    setError(null);
+  }, []);
+
   const runFundingFlow = useCallback(
     async (options: { skipPrepare?: boolean; continueOnly?: boolean }) => {
       if (runGuard.current) return;
@@ -354,6 +373,12 @@ function AcceptResponseFormInner({
       } catch (e) {
         const raw =
           e instanceof Error ? e.message : "Acceptance funding failed.";
+        if (isProviderActiveEngagementError(raw)) {
+          showProviderBlockedToast(PROVIDER_ACTIVE_ENGAGEMENT_TOAST);
+          setActiveStep(null);
+          await refreshSnapshot();
+          return;
+        }
         setError(formatAcceptanceFundingError(raw));
         setActiveStep(null);
         setModalOpen(true);
@@ -370,6 +395,7 @@ function AcceptResponseFormInner({
       executeWalletFunding,
       router,
       refreshSnapshot,
+      showProviderBlockedToast,
     ],
   );
 
@@ -399,6 +425,38 @@ function AcceptResponseFormInner({
     setModalOpen(true);
   }, []);
 
+  const handleAcceptClick = useCallback(async () => {
+    if (acceptGateLoading || blocked || walletRequired) {
+      return;
+    }
+    setAcceptGateLoading(true);
+    try {
+      const eligibility = await checkAcceptOfferEligibility(
+        requestId,
+        responseId,
+      );
+      if (!eligibility.ok) {
+        if (eligibility.code === "provider_active_engagement") {
+          showProviderBlockedToast(PROVIDER_ACTIVE_ENGAGEMENT_TOAST);
+          return;
+        }
+        setError(eligibility.error);
+        return;
+      }
+      openFundingModal({ confirm: true });
+    } finally {
+      setAcceptGateLoading(false);
+    }
+  }, [
+    acceptGateLoading,
+    blocked,
+    walletRequired,
+    requestId,
+    responseId,
+    showProviderBlockedToast,
+    openFundingModal,
+  ]);
+
   if (!hydrated) {
     return (
       <p className="text-xs text-stone-500 dark:text-stone-400">
@@ -421,6 +479,12 @@ function AcceptResponseFormInner({
 
   return (
     <div className="flex w-fit shrink-0 flex-col gap-2">
+      <AppToast
+        message={blockToastMessage}
+        visible={blockToastOpen}
+        onClose={() => setBlockToastOpen(false)}
+        variant="error"
+      />
       {phase === "succeeded" && finalizedEngagementId && !modalOpen && (
         <Link
           href={`/engagements/${finalizedEngagementId}`}
@@ -434,11 +498,21 @@ function AcceptResponseFormInner({
         <>
           <button
             type="button"
-            disabled={blocked || walletRequired}
-            onClick={() => openFundingModal({ confirm: true })}
+            disabled={blocked || walletRequired || acceptGateLoading}
+            onClick={() => void handleAcceptClick()}
             className={acceptButtonClass}
           >
-            Accept
+            {acceptGateLoading ? (
+              <>
+                <span
+                  className="mr-1 inline-block h-2 w-2 animate-pulse rounded-full bg-current"
+                  aria-hidden
+                />
+                Checking…
+              </>
+            ) : (
+              "Accept"
+            )}
           </button>
           {blocked && (
             <p className="text-xs text-stone-600 dark:text-stone-400">
@@ -540,9 +614,16 @@ function AcceptResponseFormInner({
             on-chain before the offer is accepted.
           </DialogDescription>
 
-          {phase !== "idle" && phase !== "confirm" && (phaseLabel || busy) && (
-            <StatusBanner phase={phase} busy={busy} label={phaseLabel ?? ""} />
-          )}
+          {phase !== "idle" &&
+            phase !== "confirm" &&
+            !busy &&
+            phaseLabel && (
+              <StatusBanner
+                phase={phase}
+                busy={false}
+                label={phaseLabel}
+              />
+            )}
 
           <div className="accept-funding-body">
             {phase === "confirm" && (
@@ -579,7 +660,7 @@ function AcceptResponseFormInner({
             )}
 
             {shouldShowContinueFunding(phase, Boolean(intent)) && (
-              <p className="text-[13px] leading-relaxed text-[var(--ink)]">
+              <p className="mt-4 text-[13px] leading-relaxed text-[var(--ink)]">
                 Escrow funding in progress. The offer is not accepted until
                 verification completes.
               </p>

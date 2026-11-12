@@ -149,6 +149,16 @@ test("validateCreateRequestFormForTests positive path", () => {
   assert(!r.fieldErrors);
 });
 
+test("validateCreateRequestFormForTests accepts fractional NEAR budget", () => {
+  const r = validateCreateRequestFormForTests({
+    values: { ...baseValues, budgetHuman: "0.001" },
+    assets: sampleAssets,
+    photoFiles: [],
+  });
+  assert.strictEqual(r.error, null);
+  assert(!r.fieldErrors);
+});
+
 test("USDC six decimals whole units", () => {
   const v = {
     ...baseValues,

@@ -2,7 +2,7 @@
 
 ## Supabase (`paidaid` on eu-central-1)
 
-1. `supabase link --project-ref uzmnutetbfaaichhbyvq`
+1. `supabase link --project-ref fhouikzlykagrxoyxtvu`
 2. `pnpm db:push` — apply all migrations
 3. `pnpm db:types:linked` — refresh `apps/web/lib/database.types.ts`
 4. **Auth** (Dashboard → Authentication → URL configuration):

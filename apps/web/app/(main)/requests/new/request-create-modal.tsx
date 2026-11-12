@@ -541,7 +541,7 @@ export function RequestCreateModal({
                       clearClientFieldError("tags");
                     }}
                   >
-                    <SelectTrigger className="h-[46px] rounded-[9px] px-[13px]">
+                    <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -656,8 +656,20 @@ export function RequestCreateModal({
                 onClick={handlePrimary}
                 disabled={isPending}
               >
-                {effectiveStep === 3 ? "Publish" : "Continue"}
-                <FigmaIcon name="arrow" size={17} />
+                {isPending && effectiveStep === 3 ? (
+                  <>
+                    <span
+                      className="mr-1 inline-block h-2 w-2 animate-pulse rounded-full bg-current"
+                      aria-hidden
+                    />
+                    Publishing…
+                  </>
+                ) : (
+                  <>
+                    {effectiveStep === 3 ? "Publish" : "Continue"}
+                    <FigmaIcon name="arrow" size={17} />
+                  </>
+                )}
               </button>
             </div>
           </>

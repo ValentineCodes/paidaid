@@ -1707,7 +1707,7 @@ export type Database = {
       }
       create_request: {
         Args: {
-          p_budget_amount: number
+          p_budget_amount: string
           p_budget_asset_id: string
           p_deadline_at: string
           p_description: string

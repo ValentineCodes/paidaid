@@ -237,6 +237,7 @@ function EngagementWorkflowInner({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [approveStep, setApproveStep] = useState<string | null>(null);
+  const [postReleaseLoading, setPostReleaseLoading] = useState(false);
 
   const walletMatchesLink =
     !linkedRequesterNearAccountId ||
@@ -253,6 +254,12 @@ function EngagementWorkflowInner({
   const refresh = useCallback(() => {
     router.refresh();
   }, [router]);
+
+  useEffect(() => {
+    if (postReleaseLoading && engagementStatus === "completed") {
+      setPostReleaseLoading(false);
+    }
+  }, [postReleaseLoading, engagementStatus]);
 
   useEffect(() => {
     const ch = supabase
@@ -492,7 +499,9 @@ function EngagementWorkflowInner({
         throw new Error(rpcErr.message);
       }
 
-      setApproveStep("Waiting for wallet approval (release escrow)…");
+      setApproveStep(
+        "Releasing payment — confirm in your wallet, then we verify on-chain…",
+      );
       const wallet = await selector.wallet();
       if (!wallet) {
         throw new Error("Wallet unavailable.");
@@ -511,8 +520,11 @@ function EngagementWorkflowInner({
         throw new Error(released.error);
       }
 
+      setApproveStep("Finishing up — your rating form will appear shortly…");
+      setPostReleaseLoading(true);
       refresh();
     } catch (e) {
+      setPostReleaseLoading(false);
       setError(e instanceof Error ? e.message : "Approval failed.");
     } finally {
       setBusy(false);
@@ -675,21 +687,52 @@ function EngagementWorkflowInner({
             </>
           ) : null}
           {deliveryStatus === "approved" && engagementStatus === "active" ? (
-            <p className="engagement-delivery-status">
-              Delivery approved — awaiting on-chain payment release to complete
-              the engagement.
-            </p>
+            postReleaseLoading ? (
+              <p className="engagement-delivery-status flex items-center gap-2.5">
+                <span
+                  className="inline-block h-2 w-2 shrink-0 animate-pulse rounded-full bg-[var(--deep)]"
+                  aria-hidden
+                />
+                Verifying release and preparing your review…
+              </p>
+            ) : (
+              <p className="engagement-delivery-status">
+                Delivery approved — awaiting on-chain payment release to complete
+                the engagement.
+              </p>
+            )
           ) : null}
+        </section>
+      )}
+
+      {isRequester && postReleaseLoading && engagementStatus !== "completed" && (
+        <section className="engagement-approve-actions" aria-busy="true">
+          <p className="engagement-delivery-status flex items-center gap-2.5">
+            <span
+              className="inline-block h-2 w-2 shrink-0 animate-pulse rounded-full bg-[var(--deep)]"
+              aria-hidden
+            />
+            {approveStep ?? "Verifying release and preparing your review…"}
+          </p>
         </section>
       )}
 
       {isRequester &&
         paymentFunded &&
         engagementStatus === "active" &&
-        deliveryStatus === "pending_review" && (
+        deliveryStatus === "pending_review" &&
+        !postReleaseLoading && (
           <section className="engagement-approve-actions">
             {approveStep ? (
-              <p className="engagement-delivery-status">{approveStep}</p>
+              <p className="engagement-delivery-status flex items-center gap-2.5">
+                {busy ? (
+                  <span
+                    className="inline-block h-2 w-2 shrink-0 animate-pulse rounded-full bg-[var(--deep)]"
+                    aria-hidden
+                  />
+                ) : null}
+                {approveStep}
+              </p>
             ) : null}
             {!signedAccountId ? (
               <button
@@ -711,8 +754,20 @@ function EngagementWorkflowInner({
               onClick={() => void runApproveAndRelease()}
               className="primary-wide"
             >
-              {busy ? "Working…" : "Approve and release payment"}
-              {!busy ? <FigmaIcon name="arrow" size={17} /> : null}
+              {busy ? (
+                <>
+                  <span
+                    className="mr-1 inline-block h-2 w-2 animate-pulse rounded-full bg-current"
+                    aria-hidden
+                  />
+                  Working…
+                </>
+              ) : (
+                <>
+                  Approve and release payment
+                  <FigmaIcon name="arrow" size={17} />
+                </>
+              )}
             </button>
           </section>
         )}

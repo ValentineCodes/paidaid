@@ -192,6 +192,124 @@ function revalidateAfterAcceptance(requestId: string, engagementId: string) {
   revalidatePath("/engagements", "layout");
 }
 
+export type AcceptOfferEligibilityResult =
+  | { ok: true }
+  | { ok: false; code: "provider_active_engagement"; error: string }
+  | { ok: false; code: "other"; error: string };
+
+function scheduledDayForRequest(
+  timingType: Database["public"]["Enums"]["timing_type"],
+  scheduledAt: string | null,
+): string {
+  const toDateString = (d: Date) => {
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(d.getUTCDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+  if (timingType === "scheduled" && scheduledAt) {
+    return toDateString(new Date(scheduledAt));
+  }
+  return toDateString(new Date());
+}
+
+/** Read-only gate before opening the fund escrow modal (matches `accept_response_with_ids`). */
+export async function checkAcceptOfferEligibility(
+  requestId: string,
+  responseId: string,
+): Promise<AcceptOfferEligibilityResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: false, code: "other", error: "Sign in to accept this offer." };
+  }
+
+  const { data: request, error: requestErr } = await supabase
+    .from("requests")
+    .select(
+      "id, requester_id, status, timing_type, scheduled_at, expires_at",
+    )
+    .eq("id", requestId)
+    .maybeSingle();
+
+  if (requestErr || !request) {
+    return {
+      ok: false,
+      code: "other",
+      error: requestErr?.message ?? "Request not found.",
+    };
+  }
+  if (request.requester_id !== user.id) {
+    return { ok: false, code: "other", error: "Only the requester may accept." };
+  }
+  if (request.status !== "open") {
+    return { ok: false, code: "other", error: "This request is not open." };
+  }
+  if (request.expires_at && new Date(request.expires_at) <= new Date()) {
+    return { ok: false, code: "other", error: "This request has expired." };
+  }
+
+  const { data: response, error: responseErr } = await supabase
+    .from("request_responses")
+    .select("id, status, provider_profile_id, request_id")
+    .eq("id", responseId)
+    .maybeSingle();
+
+  if (responseErr || !response || response.request_id !== requestId) {
+    return {
+      ok: false,
+      code: "other",
+      error: responseErr?.message ?? "Response not found.",
+    };
+  }
+  if (response.status !== "pending") {
+    return { ok: false, code: "other", error: "This offer is no longer pending." };
+  }
+
+  const { data: providerProfile, error: providerErr } = await supabase
+    .from("provider_profiles")
+    .select("user_id")
+    .eq("id", response.provider_profile_id)
+    .maybeSingle();
+
+  if (providerErr || !providerProfile) {
+    return {
+      ok: false,
+      code: "other",
+      error: providerErr?.message ?? "Provider not found.",
+    };
+  }
+
+  const scheduledDay = scheduledDayForRequest(
+    request.timing_type,
+    request.scheduled_at,
+  );
+
+  const { count, error: engagementErr } = await supabase
+    .from("engagements")
+    .select("id", { count: "exact", head: true })
+    .eq("provider_user_id", providerProfile.user_id)
+    .eq("status", "active")
+    .eq("scheduled_for_day", scheduledDay);
+
+  if (engagementErr) {
+    return { ok: false, code: "other", error: engagementErr.message };
+  }
+
+  if ((count ?? 0) > 0) {
+    return {
+      ok: false,
+      code: "provider_active_engagement",
+      error:
+        "This provider is actively engaged with another request for that day.",
+    };
+  }
+
+  return { ok: true };
+}
+
 export async function prepareAcceptanceFunding(
   requestId: string,
   responseId: string,

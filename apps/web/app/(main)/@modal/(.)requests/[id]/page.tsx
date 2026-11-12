@@ -1,9 +1,8 @@
-import { connection } from "next/server";
+import { Suspense } from "react";
 
-import { getRequestWallTimeMs } from "../../../../../lib/datetime/request-wall-time";
 import { isSupabaseConfigured } from "../../../../../lib/supabase/env";
-import { RequestDetailContent } from "../../../requests/[id]/request-detail-content";
-import { getRequestDetailOrNotFound } from "../../../requests/[id]/request-detail-data";
+import { RequestDetailDrawerFallback } from "../../../requests/[id]/request-detail-drawer-fallback";
+import { RequestDetailDrawerPane } from "../../../requests/[id]/request-detail-drawer-pane";
 import { RequestDrawer } from "../../../requests/[id]/request-drawer";
 
 type PageProps = { params: Promise<{ id: string }> };
@@ -15,13 +14,11 @@ export default async function RequestDetailModal({ params }: PageProps) {
     return null;
   }
 
-  await connection();
-  const nowMs = getRequestWallTimeMs();
-  const data = await getRequestDetailOrNotFound(id, nowMs);
-
   return (
     <RequestDrawer requestId={id}>
-      <RequestDetailContent data={data} variant="drawer" />
+      <Suspense fallback={<RequestDetailDrawerFallback />}>
+        <RequestDetailDrawerPane requestId={id} />
+      </Suspense>
     </RequestDrawer>
   );
 }
