@@ -124,16 +124,14 @@ export function ProfileForm({ profile, photoDisplayUrl }: ProfileFormProps) {
           onClick={openFilePicker}
           aria-label="Choose profile photo"
         >
-          {previewUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element -- blob + signed URLs
-            <img
-              src={previewUrl}
-              alt=""
-              className="size-full rounded-full object-cover"
-            />
-          ) : (
-            <span className="profile-avatar-initials">{initials}</span>
-          )}
+          <span className="profile-avatar-media">
+            {previewUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- blob + signed URLs
+              <img src={previewUrl} alt="" />
+            ) : (
+              <span className="profile-avatar-initials">{initials}</span>
+            )}
+          </span>
           <span className="profile-avatar-badge" aria-hidden>
             <FigmaIcon name="edit" size={14} />
           </span>

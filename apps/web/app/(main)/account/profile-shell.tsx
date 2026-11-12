@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { CopyableNearAddress } from "../../../components/copyable-near-address";
+import { ProfileReviewRating } from "../../../components/profile-review-rating";
 import type { Tables } from "../../../lib/database.types";
 import { formatReviewAgo } from "../../../lib/datetime/relative-from-now";
 
@@ -20,6 +21,8 @@ type Props = {
   nearAccountId: string | null;
   reviews: ReviewRow[];
   requesterNames: Map<string, string>;
+  /** Signed or external URLs for reviewers (review.requester_id). */
+  reviewerPhotoUrls: Map<string, string | null>;
   avgRating: number | null;
   reviewCount: number;
   taskCount: number;
@@ -44,6 +47,7 @@ export function ProfileShell({
   nearAccountId,
   reviews,
   requesterNames,
+  reviewerPhotoUrls,
   avgRating,
   reviewCount,
   taskCount,
@@ -65,11 +69,7 @@ export function ProfileShell({
           <div className="profile-avatar">
             {avatarSrc ? (
               // eslint-disable-next-line @next/next/no-img-element -- external URLs
-              <img
-                src={avatarSrc}
-                alt=""
-                className="size-full rounded-full object-cover"
-              />
+              <img src={avatarSrc} alt="" />
             ) : (
               initials
             )}
@@ -131,16 +131,35 @@ export function ProfileShell({
               const tone = i % 2 === 0 ? "blue" : "coral";
               return (
                 <blockquote key={r.id}>
-                  “{r.comment?.trim() || `${r.rating}-star review`}”
-                  <footer>
-                    <div className={`avatar small ${tone}`}>{initialsPeer}</div>
-                    <span>
-                      <strong>{name}</strong>
-                      <small>
-                        Task requester · {formatReviewAgo(r.created_at, nowMs)}
-                      </small>
-                    </span>
-                  </footer>
+                  <div
+                    className={`profile-review-row${r.comment?.trim() ? " has-comment" : ""}`}
+                  >
+                    {r.comment?.trim() ? (
+                      <p className="profile-review-comment">
+                        “{r.comment.trim()}”
+                      </p>
+                    ) : null}
+                    <footer>
+                      <div className={`avatar small ${tone}`}>
+                        {reviewerPhotoUrls.get(r.requester_id)?.trim() ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- signed URLs
+                          <img
+                            src={
+                              reviewerPhotoUrls.get(r.requester_id)!.trim()
+                            }
+                            alt=""
+                          />
+                        ) : (
+                          initialsPeer
+                        )}
+                      </div>
+                      <span>
+                        <strong>{name}</strong>
+                        <small>{formatReviewAgo(r.created_at, nowMs)}</small>
+                      </span>
+                    </footer>
+                    <ProfileReviewRating rating={r.rating} />
+                  </div>
                 </blockquote>
               );
             })

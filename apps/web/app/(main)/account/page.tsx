@@ -89,14 +89,21 @@ export default async function AccountPage() {
 
   const requesterIds = [...new Set(reviews.map((r) => r.requester_id))];
   const requesterNames = new Map<string, string>();
+  const reviewerPhotoUrls = new Map<string, string | null>();
   if (requesterIds.length > 0) {
     const { data: nameRows } = await supabase
       .from("profiles")
-      .select("id, display_name")
+      .select("id, display_name, avatar_url, live_profile_photo_path")
       .in("id", requesterIds);
-    for (const row of nameRows ?? []) {
-      requesterNames.set(row.id, row.display_name);
-    }
+    await Promise.all(
+      (nameRows ?? []).map(async (row) => {
+        requesterNames.set(row.id, row.display_name);
+        reviewerPhotoUrls.set(
+          row.id,
+          await resolveProfileDisplayUrl(supabase, row),
+        );
+      }),
+    );
   }
 
   const { count: assignmentCount } = await supabase
@@ -117,6 +124,7 @@ export default async function AccountPage() {
       nearAccountId={linkedWallet?.nearAccountId ?? null}
       reviews={reviews.slice(0, 10)}
       requesterNames={requesterNames}
+      reviewerPhotoUrls={reviewerPhotoUrls}
       avgRating={avgRating}
       reviewCount={reviewCount}
       taskCount={taskCount}

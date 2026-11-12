@@ -2208,6 +2208,7 @@ body.app.dark .updates-error {
   display: grid;
   grid-template-columns: 340px 1fr;
   gap: 18px;
+  align-items: start;
 }
 
 .profile-card,
@@ -2233,9 +2234,16 @@ body.app.dark .updates-error {
   margin: auto;
   font-weight: 700;
   position: relative;
+  overflow: hidden;
 }
 
-.profile-avatar span,
+.profile-avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .profile-avatar-badge {
   position: absolute;
   right: 0;
@@ -2248,6 +2256,7 @@ body.app.dark .updates-error {
   color: var(--surface);
   display: grid;
   place-items: center;
+  z-index: 1;
 }
 
 .profile-edit-avatar-block {
@@ -2265,8 +2274,17 @@ body.app.dark .updates-error {
   padding: 0;
   cursor: pointer;
   font: inherit;
-  overflow: hidden;
+  overflow: visible;
   transition: transform 0.15s ease;
+}
+
+.profile-avatar--editable .profile-avatar-media {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
 }
 
 .profile-avatar--editable:hover {
@@ -2365,6 +2383,50 @@ body.app.dark .updates-error {
   font: 500 14px/1.6 "Manrope";
 }
 
+.profile-review-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 16px;
+  row-gap: 15px;
+  align-items: center;
+}
+
+.profile-review-row footer {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.profile-review-row.has-comment .profile-review-comment {
+  grid-column: 1;
+  grid-row: 1;
+  margin: 0;
+}
+
+.profile-review-row.has-comment footer {
+  grid-row: 2;
+}
+
+.profile-review-row.has-comment .profile-review-stars {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.profile-review-row:not(.has-comment) .profile-review-stars {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.profile-review-stars {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  min-width: 2.5rem;
+  font: 700 14px "Manrope";
+  color: var(--ink);
+}
+
 .reputation blockquote:last-child {
   border: 0;
 }
@@ -2373,16 +2435,23 @@ body.app.dark .updates-error {
   display: flex;
   align-items: center;
   gap: 9px;
-  margin-top: 15px;
+  margin-top: 0;
 }
 
 .reputation footer>span {
   display: flex;
   flex-direction: column;
+  gap: 1px;
   font: 400 10px "DM Sans";
 }
 
+.reputation footer strong {
+  font: 600 12px "Manrope";
+  color: var(--ink);
+}
+
 .reputation footer small {
+  font-size: 10px;
   color: var(--muted);
 }
 
