@@ -132,13 +132,7 @@ export function NearWalletConnectModal({
       setMessage(initError);
       return;
     }
-    if (
-      status === "connected" &&
-      accountId &&
-      !preferPicker &&
-      phase !== "connecting" &&
-      phase !== "waiting_wallet"
-    ) {
+    if (status === "connected" && accountId && !preferPicker) {
       setPhase(authenticate ? "authenticating" : "connected");
       return;
     }
