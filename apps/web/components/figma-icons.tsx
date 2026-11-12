@@ -11,6 +11,7 @@ export type FigmaIconName =
   | "check"
   | "briefcase"
   | "spark"
+  | "globe"
   | "clock"
   | "star"
   | "send"
@@ -57,6 +58,13 @@ const paths: Record<FigmaIconName, ReactNode> = {
     <>
       <path d="m12 3 1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5Z" />
       <path d="m19 16 .7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7Z" />
+    </>
+  ),
+  globe: (
+    <>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M2 12h20" />
+      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
     </>
   ),
   clock: (

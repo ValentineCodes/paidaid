@@ -629,7 +629,7 @@ export function RequestCreateModal({
                         clearClientFieldError("locationLabel");
                       }}
                     >
-                      <FigmaIcon name="spark" size={18} />
+                      <FigmaIcon name="globe" size={18} />
                       Online
                     </button>
                     <button

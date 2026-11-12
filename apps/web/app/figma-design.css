@@ -2230,7 +2230,7 @@ body.app.dark .updates-error {
   display: grid;
   grid-template-columns: 340px 1fr;
   gap: 18px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .profile-card,
@@ -2242,6 +2242,7 @@ body.app.dark .updates-error {
 }
 
 .profile-card {
+  align-self: start;
   text-align: center;
 }
 
