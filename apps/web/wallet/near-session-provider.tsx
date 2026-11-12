@@ -1,20 +1,14 @@
 "use client";
 
-import "@near-wallet-selector/modal-ui/styles.css";
-import { WalletSelectorProvider } from "@near-wallet-selector/react-hook";
-import type { WalletSelectorParams } from "@near-wallet-selector/core";
 import { useContext, useMemo, type ReactNode } from "react";
 
 import type { NearPublicEnv } from "../lib/near/near-public-env";
-import { nearPublicEnvToWalletRecord } from "../lib/near/near-public-env";
-import {
-  buildWalletNetworkConfig,
-  readPublicNearNetworkId,
-  walletModules,
-} from "./network-config";
-import { readWalletContractId } from "./config";
 import { WalletNetworkContext } from "./wallet-network-context";
 import { WalletShellProvider } from "./wallet-shell-context";
+import { PaidAidNearWalletProvider } from "./paidaid-near-wallet-context";
+import { WalletConnectModalProvider } from "./wallet-connect-modal-context";
+import { buildNearConnectorOptions } from "./near-connect-config";
+import { nearPublicEnvToWalletRecord } from "../lib/near/near-public-env";
 
 type NearSessionProviderProps = {
   children: ReactNode;
@@ -22,31 +16,8 @@ type NearSessionProviderProps = {
   nearPublicEnv?: NearPublicEnv;
 };
 
-function buildSelectorConfig(env: Record<string, string | undefined>):
-  | { ok: true; config: WalletSelectorParams; providerKey: string }
-  | { ok: false; error: string } {
-  try {
-    readWalletContractId(env);
-    readPublicNearNetworkId(env);
-    const providerKey = readPublicNearNetworkId(env);
-    return {
-      ok: true,
-      providerKey,
-      config: {
-        ...buildWalletNetworkConfig(env),
-        modules: walletModules(env),
-      },
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      error: error instanceof Error ? error.message : "Wallet setup failed.",
-    };
-  }
-}
-
 /**
- * Wallet Selector session for marketplace header and account flows.
+ * NEAR Connect session for marketplace header and account flows.
  * Contract demo uses {@link WalletProvider} instead.
  */
 export function NearSessionProvider({
@@ -55,25 +26,26 @@ export function NearSessionProvider({
 }: NearSessionProviderProps) {
   const inheritedEnv = useContext(WalletNetworkContext);
   const nearPublicEnv = nearPublicEnvProp ?? inheritedEnv;
-  const env = useMemo(() => {
+
+  const setupError = useMemo(() => {
     if (!nearPublicEnv) {
-      return null;
+      return "Missing NEAR public config. Set NEXT_PUBLIC_NEAR_NETWORK_ID on the server.";
     }
-    return nearPublicEnvToWalletRecord(nearPublicEnv);
+    try {
+      const env = nearPublicEnvToWalletRecord(nearPublicEnv);
+      buildNearConnectorOptions(env);
+      return null;
+    } catch (error) {
+      return error instanceof Error ? error.message : "Wallet setup failed.";
+    }
   }, [nearPublicEnv]);
 
-  const built = useMemo(
-    () => (env ? buildSelectorConfig(env) : null),
-    [env],
-  );
-
-  if (!nearPublicEnv || !env || !built) {
+  if (!nearPublicEnv || setupError) {
     return (
       <WalletShellProvider
         value={{
           ready: false,
-          error:
-            "Missing NEAR public config. Set NEXT_PUBLIC_NEAR_NETWORK_ID on the server.",
+          error: setupError ?? "Missing NEAR public config.",
         }}
       >
         {children}
@@ -81,20 +53,14 @@ export function NearSessionProvider({
     );
   }
 
-  if (!built.ok) {
-    return (
-      <WalletShellProvider value={{ ready: false, error: built.error }}>
-        {children}
-      </WalletShellProvider>
-    );
-  }
+  const providerKey = nearPublicEnv.networkId;
 
   return (
     <WalletShellProvider value={{ ready: true, error: null }}>
       <WalletNetworkContext.Provider value={nearPublicEnv}>
-        <WalletSelectorProvider key={built.providerKey} config={built.config}>
-          {children}
-        </WalletSelectorProvider>
+        <PaidAidNearWalletProvider key={providerKey} nearPublicEnv={nearPublicEnv}>
+          <WalletConnectModalProvider>{children}</WalletConnectModalProvider>
+        </PaidAidNearWalletProvider>
       </WalletNetworkContext.Provider>
     </WalletShellProvider>
   );

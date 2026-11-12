@@ -3,11 +3,20 @@ export function formatWalletLinkError(message: string): string {
   if (lower.includes("near account already linked")) {
     return (
       "This NEAR account is already linked to another PaidAid user. " +
-      "Disconnect, connect a different NEAR account in Intear, then try again."
+      "Disconnect, connect a different NEAR account, then try again."
     );
   }
   if (lower.includes("wallet already linked")) {
     return "Your PaidAid account already has a linked wallet. Unlink it first to switch.";
+  }
+  if (lower.includes("user already has a different active wallet")) {
+    return "This PaidAid account is already linked to a different NEAR wallet. Sign in with that wallet, or contact support.";
+  }
+  if (lower.includes("challenge already used")) {
+    return "This sign-in request was already used. Connect your wallet and try again.";
+  }
+  if (lower.includes("challenge expired")) {
+    return "This sign-in request expired. Connect your wallet and try again.";
   }
   return message;
 }

@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/dialog";
 import { AppToast } from "../../../../components/app-toast";
 import { FigmaIcon } from "../../../../components/figma-icons";
-import { useWalletSelector } from "@near-wallet-selector/react-hook";
 import { parseNearNetworkId } from "@paidaid/shared";
 import {
   explorerTransactionUrl,
@@ -23,11 +22,8 @@ import {
 import { NearSessionProvider } from "../../../../wallet/near-session-provider";
 import { useNearWalletAccountId } from "../../../../wallet/use-near-wallet-account";
 import { formatWalletConnectionError } from "../../../../wallet/errors";
-import {
-  signInWithIntearWallet,
-  assertIntearWalletModule,
-} from "../../../../wallet/connect-intear";
-import { readWalletContractId } from "../../../../wallet/config";
+import { usePaidAidNearWallet } from "../../../../wallet/paidaid-near-wallet-context";
+import { useOpenNearWalletConnect } from "../../../../wallet/use-open-near-wallet-connect";
 import { sendFundEscrowTransaction } from "../../../../wallet/send-escrow-funding";
 import {
   checkAcceptanceFundingBalance,
@@ -107,7 +103,8 @@ function AcceptResponseFormInner({
   variant = "page",
 }: Props) {
   const router = useRouter();
-  const { walletSelector } = useWalletSelector();
+  const { getTransactionSigner } = usePaidAidNearWallet();
+  const openConnect = useOpenNearWalletConnect();
   const { accountId: signedAccountId, syncFromSelectorStore } =
     useNearWalletAccountId();
   const [intent, setIntent] = useState<AcceptanceFundingPrepareResult | null>(
@@ -197,20 +194,12 @@ function AcceptResponseFormInner({
   const connectWallet = useCallback(async () => {
     setError(null);
     try {
-      const selector = await walletSelector;
-      if (!selector) throw new Error("Wallet is still loading.");
-      assertIntearWalletModule(selector);
-      const contractId = readWalletContractId({
-        NEXT_PUBLIC_NEAR_CONTRACT_ID:
-          process.env.NEXT_PUBLIC_NEAR_ESCROW_CONTRACT_ID ??
-          process.env.NEXT_PUBLIC_NEAR_CONTRACT_ID,
-      });
-      await signInWithIntearWallet(selector, contractId);
+      await openConnect();
       await syncFromSelectorStore();
     } catch (e) {
       setError(formatWalletConnectionError(e));
     }
-  }, [walletSelector, syncFromSelectorStore]);
+  }, [openConnect, syncFromSelectorStore]);
 
   const executeWalletFunding = useCallback(
     async (starting: AcceptanceFundingPrepareResult) => {
@@ -219,8 +208,7 @@ function AcceptResponseFormInner({
         throw new Error(balance.error);
       }
 
-      const selector = await walletSelector;
-      if (!selector || !signedAccountId) {
+      if (!signedAccountId) {
         throw new Error("Connect your linked NEAR wallet to continue.");
       }
       if (!walletMatchesLink) {
@@ -229,10 +217,7 @@ function AcceptResponseFormInner({
         );
       }
 
-      const wallet = await selector.wallet();
-      if (!wallet) {
-        throw new Error("Wallet unavailable.");
-      }
+      const signer = await getTransactionSigner();
 
       let current = starting;
 
@@ -266,7 +251,7 @@ function AcceptResponseFormInner({
 
         setActiveStep("Waiting for wallet approval (fund escrow)…");
         const fundTx = await sendFundEscrowTransaction(
-          wallet,
+          signer,
           acceptanceIntentToWalletTerms(current),
         );
         if (!fundTx.txHash) {
@@ -304,7 +289,7 @@ function AcceptResponseFormInner({
       }
     },
     [
-      walletSelector,
+      getTransactionSigner,
       signedAccountId,
       walletMatchesLink,
       linkedRequesterNearAccountId,
@@ -738,7 +723,7 @@ function AcceptResponseFormInner({
                     onClick={() => void connectWallet()}
                     className="secondary"
                   >
-                    Connect wallet
+                    Connect
                   </button>
                 )}
                 {signedAccountId && !walletMatchesLink && (

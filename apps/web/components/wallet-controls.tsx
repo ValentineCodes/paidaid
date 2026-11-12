@@ -1,6 +1,7 @@
 "use client";
 
 import { usePaidAidWallet } from "../wallet/use-paidaid-wallet";
+import { usePaidAidNearWallet } from "../wallet/paidaid-near-wallet-context";
 
 export function WalletControls() {
   const {
@@ -12,6 +13,10 @@ export function WalletControls() {
     disconnect,
     clearError,
   } = usePaidAidWallet();
+  const { selectedWalletName, availableWallets, selectedWalletId } =
+    usePaidAidNearWallet();
+  const walletIcon =
+    availableWallets.find((w) => w.id === selectedWalletId)?.icon ?? null;
 
   const busy =
     status === "initializing" ||
@@ -25,6 +30,12 @@ export function WalletControls() {
         <StatusBadge status={status} />
         {accountId ? (
           <>
+            {selectedWalletName ? (
+              <WalletProviderBadge
+                name={selectedWalletName}
+                icon={walletIcon}
+              />
+            ) : null}
             <AccountBadge accountId={accountId} />
             <button
               type="button"
@@ -104,7 +115,7 @@ function connectButtonLabel(
     case "connecting":
       return "Connecting…";
     default:
-      return "Connect Intear";
+      return "Connect";
   }
 }
 
@@ -123,6 +134,24 @@ function statusLabel(
     case "disconnected":
       return "Not connected";
   }
+}
+
+function WalletProviderBadge({
+  name,
+  icon,
+}: {
+  name: string;
+  icon: string | null;
+}) {
+  return (
+    <span className="flex items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs dark:border-stone-700 dark:bg-stone-900">
+      {icon ? (
+        // eslint-disable-next-line @next/next/no-img-element -- dynamic wallet icon
+        <img src={icon} alt="" width={16} height={16} className="size-4 rounded" />
+      ) : null}
+      <span className="max-w-[7rem] truncate">{name}</span>
+    </span>
+  );
 }
 
 function AccountBadge({ accountId }: { accountId: string }) {

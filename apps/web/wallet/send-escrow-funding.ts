@@ -1,4 +1,3 @@
-import type { Wallet } from "@near-wallet-selector/core";
 import { actionCreators } from "@near-js/transactions";
 import { ESCROW_METHODS, smallestUnitsStringToBigInt } from "@paidaid/shared";
 import type { EngagementFundingPrepareResult } from "../lib/engagement/funding-types";
@@ -6,7 +5,8 @@ import {
   buildEscrowFundCallArgs,
   buildNep141FundEscrowTransferMessage,
 } from "../lib/near/escrow-fund-call";
-import { extractTransactionHash } from "@paidaid/near";
+import { validateEscrowFundTerms } from "./escrow-transaction-validation";
+import type { PaidAidNearTransactionSigner } from "./paidaid-near-transaction-signer";
 
 const ESCROW_GAS = BigInt("300000000000000");
 const FT_TRANSFER_GAS = BigInt("300000000000000");
@@ -18,13 +18,14 @@ export type EscrowTxResult = {
 
 /** Single-transaction native fund (create record + lock NEAR). */
 export async function sendNativeFundEscrowTransaction(
-  wallet: Wallet,
+  signer: PaidAidNearTransactionSigner,
   terms: EngagementFundingPrepareResult,
 ): Promise<EscrowTxResult> {
+  validateEscrowFundTerms(signer, terms);
   const deposit = smallestUnitsStringToBigInt(terms.amountSmallestUnits);
   const args = buildEscrowFundCallArgs(terms);
 
-  const outcome = await wallet.signAndSendTransaction({
+  const submission = await signer.signAndSendTransaction({
     receiverId: terms.escrowContractId,
     actions: [
       actionCreators.functionCall(
@@ -37,16 +38,17 @@ export async function sendNativeFundEscrowTransaction(
   });
 
   return {
-    outcome,
-    txHash: extractTransactionHash(outcome),
+    outcome: submission.outcome,
+    txHash: submission.txHash,
   };
 }
 
 /** Single-transaction NEP-141 fund via `ft_transfer_call` (record + tokens). */
 export async function sendNep141FundEscrowTransaction(
-  wallet: Wallet,
+  signer: PaidAidNearTransactionSigner,
   terms: EngagementFundingPrepareResult,
 ): Promise<EscrowTxResult> {
+  validateEscrowFundTerms(signer, terms);
   if (!terms.tokenContractId) {
     throw new Error("Missing token contract for NEP-141 funding.");
   }
@@ -54,7 +56,7 @@ export async function sendNep141FundEscrowTransaction(
   const msg = buildNep141FundEscrowTransferMessage(terms);
   const amount = smallestUnitsStringToBigInt(terms.amountSmallestUnits);
 
-  const outcome = await wallet.signAndSendTransaction({
+  const submission = await signer.signAndSendTransaction({
     receiverId: terms.tokenContractId,
     actions: [
       actionCreators.functionCall(
@@ -71,17 +73,17 @@ export async function sendNep141FundEscrowTransaction(
   });
 
   return {
-    outcome,
-    txHash: extractTransactionHash(outcome),
+    outcome: submission.outcome,
+    txHash: submission.txHash,
   };
 }
 
 export async function sendFundEscrowTransaction(
-  wallet: Wallet,
+  signer: PaidAidNearTransactionSigner,
   terms: EngagementFundingPrepareResult,
 ): Promise<EscrowTxResult> {
   if (terms.assetStandard === "native") {
-    return sendNativeFundEscrowTransaction(wallet, terms);
+    return sendNativeFundEscrowTransaction(signer, terms);
   }
-  return sendNep141FundEscrowTransaction(wallet, terms);
+  return sendNep141FundEscrowTransaction(signer, terms);
 }

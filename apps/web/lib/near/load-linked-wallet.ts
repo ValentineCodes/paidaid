@@ -6,6 +6,7 @@ export type LinkedNearWalletRow = {
   nearAccountId: string;
   publicKey: string;
   linkedAt: string;
+  walletProviderId: string | null;
 };
 
 export async function loadActiveLinkedNearWallet(
@@ -14,7 +15,7 @@ export async function loadActiveLinkedNearWallet(
 ): Promise<LinkedNearWalletRow | null> {
   const { data, error } = await supabase
     .from("linked_near_wallets")
-    .select("near_account_id, public_key, linked_at")
+    .select("near_account_id, public_key, linked_at, wallet_provider_id")
     .eq("user_id", userId)
     .is("unlinked_at", null)
     .maybeSingle();
@@ -27,5 +28,6 @@ export async function loadActiveLinkedNearWallet(
     nearAccountId: data.near_account_id,
     publicKey: data.public_key,
     linkedAt: data.linked_at,
+    walletProviderId: data.wallet_provider_id ?? null,
   };
 }

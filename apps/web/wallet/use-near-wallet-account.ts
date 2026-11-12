@@ -1,41 +1,23 @@
 "use client";
 
-import { useWalletSelector } from "@near-wallet-selector/react-hook";
-import { useCallback, useEffect, useState } from "react";
-
-import { readSelectorAccountId } from "./connect-intear";
+import { useCallback } from "react";
+import { usePaidAidNearWallet } from "./paidaid-near-wallet-context";
 
 export type NearWalletAccountIdState = {
   accountId: string | null;
-  /** Call after Intear sign-in / sign-out when react-hook `signedAccountId` lags. */
+  /** Refresh account id from the connector after connect or disconnect. */
   syncFromSelectorStore: () => Promise<void>;
 };
 
-/**
- * Wallet Selector react-hook `signedAccountId` can lag after Intear `signIn`.
- * `syncFromSelectorStore` reads the selector store immediately after connect.
- */
 export function useNearWalletAccountId(): NearWalletAccountIdState {
-  const { walletSelector, signedAccountId } = useWalletSelector();
-  const [storeOverride, setStoreOverride] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (signedAccountId) {
-      setStoreOverride(null);
-    }
-  }, [signedAccountId]);
+  const { accountId, refreshSession } = usePaidAidNearWallet();
 
   const syncFromSelectorStore = useCallback(async () => {
-    const selector = await walletSelector;
-    if (!selector) {
-      setStoreOverride(null);
-      return;
-    }
-    setStoreOverride(readSelectorAccountId(selector));
-  }, [walletSelector]);
+    await refreshSession();
+  }, [refreshSession]);
 
   return {
-    accountId: signedAccountId ?? storeOverride,
+    accountId,
     syncFromSelectorStore,
   };
 }

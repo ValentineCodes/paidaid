@@ -1,6 +1,5 @@
-import type { Wallet } from "@near-wallet-selector/core";
-
 import { sendReleaseEscrowTransaction } from "../../wallet/send-escrow-release";
+import type { PaidAidNearTransactionSigner } from "../../wallet/paidaid-near-transaction-signer";
 import {
   loadEngagementSettlementView,
   reportEngagementReleaseTx,
@@ -9,11 +8,12 @@ import type { EngagementSettlementView } from "./settlement-types";
 
 export async function releaseEscrowForEngagement(
   engagementId: string,
-  wallet: Wallet,
+  signer: PaidAidNearTransactionSigner,
   settlement: Pick<
     EngagementSettlementView,
     "escrowContractId" | "onChainEscrowId"
   >,
+  options?: { requesterNearAccountId?: string | null },
 ): Promise<
   { ok: true; settlement: EngagementSettlementView } | { ok: false; error: string }
 > {
@@ -22,9 +22,13 @@ export async function releaseEscrowForEngagement(
   }
 
   const tx = await sendReleaseEscrowTransaction(
-    wallet,
+    signer,
     settlement.escrowContractId,
     settlement.onChainEscrowId,
+    {
+      requesterNearAccountId: options?.requesterNearAccountId,
+      appNetworkId: signer.appNetworkId,
+    },
   );
   if (!tx.txHash) {
     return { ok: false, error: "Release transaction did not return a hash." };

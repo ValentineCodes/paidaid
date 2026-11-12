@@ -14,9 +14,7 @@ const nextConfig: NextConfig = {
     "@paidaid/shared",
     "@paidaid/near",
     "@near-wallet-selector/core",
-    "@near-wallet-selector/react-hook",
-    "@near-wallet-selector/modal-ui",
-    "@near-wallet-selector/intear-wallet",
+    "@hot-labs/near-connect",
   ],
   partialPrefetching: true,
   turbopack: {

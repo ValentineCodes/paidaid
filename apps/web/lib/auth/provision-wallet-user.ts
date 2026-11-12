@@ -15,6 +15,7 @@ export async function provisionWalletUser(
   service: SupabaseClient,
   nearAccountId: string,
   publicKey: string,
+  options?: { walletProviderId?: string | null },
 ): Promise<ProvisionWalletUserResult> {
   const account = nearAccountId.toLowerCase().trim();
 
@@ -38,6 +39,9 @@ export async function provisionWalletUser(
         ...userRow.user.user_metadata,
         primary_near_account_id: account,
         auth_provider: "near_wallet",
+        ...(options?.walletProviderId
+          ? { last_wallet_provider_id: options.walletProviderId }
+          : {}),
       },
     });
     return {
@@ -57,6 +61,9 @@ export async function provisionWalletUser(
         display_name: DEFAULT_DISPLAY_NAME,
         primary_near_account_id: account,
         auth_provider: "near_wallet",
+        ...(options?.walletProviderId
+          ? { last_wallet_provider_id: options.walletProviderId }
+          : {}),
       },
     },
   );

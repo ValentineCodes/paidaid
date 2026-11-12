@@ -1,16 +1,12 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { useWalletSelector } from "@near-wallet-selector/react-hook";
 import { explorerTransactionUrl } from "@paidaid/near";
 import { parseNearNetworkId } from "@paidaid/shared";
 import { NearSessionProvider } from "../../../../wallet/near-session-provider";
 import { useNearWalletAccountId } from "../../../../wallet/use-near-wallet-account";
-import {
-  assertIntearWalletModule,
-  signInWithIntearWallet,
-} from "../../../../wallet/connect-intear";
-import { readWalletContractId } from "../../../../wallet/config";
+import { usePaidAidNearWallet } from "../../../../wallet/paidaid-near-wallet-context";
+import { useOpenNearWalletConnect } from "../../../../wallet/use-open-near-wallet-connect";
 import { formatWalletConnectionError } from "../../../../wallet/errors";
 import {
   loadEngagementSettlementView,
@@ -36,7 +32,8 @@ function SettlementSectionInner({
   initialSettlement,
   deliveryStatus,
 }: Props) {
-  const { walletSelector } = useWalletSelector();
+  const { getTransactionSigner } = usePaidAidNearWallet();
+  const openConnect = useOpenNearWalletConnect();
   const { accountId: signedAccountId, syncFromSelectorStore } =
     useNearWalletAccountId();
   const [settlement, setSettlement] = useState(initialSettlement);
@@ -59,29 +56,18 @@ function SettlementSectionInner({
   const connectWallet = useCallback(async () => {
     setError(null);
     try {
-      const selector = await walletSelector;
-      if (!selector) {
-        throw new Error("Wallet is still loading.");
-      }
-      assertIntearWalletModule(selector);
-      const contractId = readWalletContractId({
-        NEXT_PUBLIC_NEAR_CONTRACT_ID:
-          process.env.NEXT_PUBLIC_NEAR_ESCROW_CONTRACT_ID ??
-          process.env.NEXT_PUBLIC_NEAR_CONTRACT_ID,
-      });
-      await signInWithIntearWallet(selector, contractId);
+      await openConnect();
       await syncFromSelectorStore();
     } catch (e) {
       setError(formatWalletConnectionError(e));
     }
-  }, [walletSelector, syncFromSelectorStore]);
+  }, [openConnect, syncFromSelectorStore]);
 
   const runRelease = useCallback(async () => {
     setError(null);
     setBusy(true);
     try {
-      const selector = await walletSelector;
-      if (!selector || !signedAccountId) {
+      if (!signedAccountId) {
         throw new Error("Connect your linked NEAR wallet first.");
       }
       if (!walletMatchesLink) {
@@ -91,15 +77,13 @@ function SettlementSectionInner({
         throw new Error("Escrow metadata missing.");
       }
 
-      const wallet = await selector.wallet();
-      if (!wallet) {
-        throw new Error("Wallet unavailable.");
-      }
+      const signer = await getTransactionSigner();
 
       const reported = await releaseEscrowForEngagement(
         engagementId,
-        wallet,
+        signer,
         settlement,
+        { requesterNearAccountId: linkedRequesterNearAccountId },
       );
       if (!reported.ok) {
         throw new Error(reported.error);
@@ -116,7 +100,7 @@ function SettlementSectionInner({
     signedAccountId,
     walletMatchesLink,
     linkedRequesterNearAccountId,
-    walletSelector,
+    getTransactionSigner,
   ]);
 
   if (!settlement?.paymentFunded) {
@@ -204,7 +188,7 @@ function SettlementSectionInner({
           onClick={() => void connectWallet()}
           disabled={busy}
         >
-          Connect wallet
+          Connect
         </button>
       )}
       {signedAccountId && (

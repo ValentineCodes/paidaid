@@ -2,17 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useWalletSelector } from "@near-wallet-selector/react-hook";
-
 import { FigmaIcon } from "../../../../components/figma-icons";
 import { createClient } from "../../../../lib/supabase/client";
 import { NearSessionProvider } from "../../../../wallet/near-session-provider";
 import { useNearWalletAccountId } from "../../../../wallet/use-near-wallet-account";
-import {
-  assertIntearWalletModule,
-  signInWithIntearWallet,
-} from "../../../../wallet/connect-intear";
-import { readWalletContractId } from "../../../../wallet/config";
+import { usePaidAidNearWallet } from "../../../../wallet/paidaid-near-wallet-context";
+import { useOpenNearWalletConnect } from "../../../../wallet/use-open-near-wallet-connect";
 import { formatWalletConnectionError } from "../../../../wallet/errors";
 import {
   loadEngagementSettlementView,
@@ -231,7 +226,8 @@ function EngagementWorkflowInner({
 }: Props) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
-  const { walletSelector } = useWalletSelector();
+  const { getTransactionSigner, getSessionAccountId } = usePaidAidNearWallet();
+  const openConnect = useOpenNearWalletConnect();
   const { accountId: signedAccountId, syncFromSelectorStore } =
     useNearWalletAccountId();
   const [error, setError] = useState<string | null>(null);
@@ -441,19 +437,9 @@ function EngagementWorkflowInner({
 
   const connectWallet = useCallback(async () => {
     setError(null);
-    const selector = await walletSelector;
-    if (!selector) {
-      throw new Error("Wallet is still loading.");
-    }
-    assertIntearWalletModule(selector);
-    const contractId = readWalletContractId({
-      NEXT_PUBLIC_NEAR_CONTRACT_ID:
-        process.env.NEXT_PUBLIC_NEAR_ESCROW_CONTRACT_ID ??
-        process.env.NEXT_PUBLIC_NEAR_CONTRACT_ID,
-    });
-    await signInWithIntearWallet(selector, contractId);
+    await openConnect();
     await syncFromSelectorStore();
-  }, [walletSelector, syncFromSelectorStore]);
+  }, [openConnect, syncFromSelectorStore]);
 
   async function runApproveAndRelease() {
     if (!paymentFunded) {
@@ -464,20 +450,12 @@ function EngagementWorkflowInner({
     setError(null);
     setApproveStep(null);
     try {
-      const selector = await walletSelector;
-      if (!selector) {
-        throw new Error("Wallet unavailable.");
-      }
-      let activeAccountId =
-        selector.store.getState().accounts.find((a) => a.active)?.accountId ??
-        signedAccountId;
+      let activeAccountId = signedAccountId;
 
       if (!activeAccountId) {
         setApproveStep("Connect your linked NEAR wallet to approve and pay.");
         await connectWallet();
-        activeAccountId =
-          selector.store.getState().accounts.find((a) => a.active)?.accountId ??
-          null;
+        activeAccountId = getSessionAccountId();
       }
       if (
         !activeAccountId ||
@@ -502,10 +480,7 @@ function EngagementWorkflowInner({
       setApproveStep(
         "Releasing payment — confirm in your wallet, then we verify on-chain…",
       );
-      const wallet = await selector.wallet();
-      if (!wallet) {
-        throw new Error("Wallet unavailable.");
-      }
+      const signer = await getTransactionSigner();
       const loaded = await loadEngagementSettlementView(engagementId);
       if (!loaded.ok) {
         throw new Error(loaded.error);
@@ -513,8 +488,9 @@ function EngagementWorkflowInner({
       const settlement = loaded.settlement;
       const released = await releaseEscrowForEngagement(
         engagementId,
-        wallet,
+        signer,
         settlement,
+        { requesterNearAccountId: linkedRequesterNearAccountId },
       );
       if (!released.ok) {
         throw new Error(released.error);
@@ -745,7 +721,7 @@ function EngagementWorkflowInner({
                 }
                 className="secondary w-fit"
               >
-                Connect wallet
+                Connect
               </button>
             ) : null}
             <button

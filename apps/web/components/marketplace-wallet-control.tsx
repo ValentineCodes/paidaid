@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
+import type { HeaderProfileLinkUser } from "./header-profile-link";
+
 import { createClient } from "../lib/supabase/client";
 import { clearWalletSession } from "../app/auth/wallet-actions";
 import { fetchHeaderNativeNearBalance } from "../app/(main)/header-wallet-actions";
@@ -17,10 +19,14 @@ import { useMarketplaceWalletAuth } from "../lib/wallet/use-marketplace-wallet-a
 import { usePaidAidWallet } from "../wallet/use-paidaid-wallet";
 import { formatWalletConnectionError } from "../wallet/errors";
 import { useWalletShell } from "../wallet/wallet-shell-context";
+import { useWalletConnectModal } from "../wallet/wallet-connect-modal-context";
+import { usePaidAidNearWallet } from "../wallet/paidaid-near-wallet-context";
+import { networkDisplayName } from "../wallet/near-wallet-connect-helpers";
 
 type MarketplaceWalletControlProps = {
   hasSession: boolean;
   sessionNearAccountId: string | null;
+  user?: HeaderProfileLinkUser | null;
 };
 
 const BALANCE_STALE_MS = 60_000;
@@ -74,6 +80,7 @@ function useWalletErrorToast(message: string | null, onDismiss: () => void) {
 function MarketplaceWalletControlInner({
   hasSession,
   sessionNearAccountId,
+  user,
 }: MarketplaceWalletControlProps) {
   const router = useRouter();
   const menuId = useId();
@@ -85,16 +92,22 @@ function MarketplaceWalletControlInner({
   const [balanceDisplay, setBalanceDisplay] = useState<string | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [balanceError, setBalanceError] = useState<string | null>(null);
-  const [balanceFetchedAt, setBalanceFetchedAt] = useState<number | null>(null);
+  const balanceFetchedAtRef = useRef<number | null>(null);
 
   const {
     status: walletStatus,
+    networkId,
     accountId: selectorAccountId,
     error: walletError,
     connect,
     disconnect,
     clearError,
   } = usePaidAidWallet();
+  const { openConnectModal } = useWalletConnectModal();
+  const { selectedWalletName, selectedWalletId, availableWallets } =
+    usePaidAidNearWallet();
+  const walletIcon =
+    availableWallets.find((w) => w.id === selectedWalletId)?.icon ?? null;
 
   const { authenticateConnectedAccount } = useMarketplaceWalletAuth();
 
@@ -114,36 +127,46 @@ function MarketplaceWalletControlInner({
       if (!hasSession || !sessionNearAccountId) {
         setBalanceDisplay(null);
         setBalanceError(null);
+        setBalanceLoading(false);
         return;
       }
+      const fetchedAt = balanceFetchedAtRef.current;
       if (
         !force &&
-        balanceFetchedAt != null &&
-        Date.now() - balanceFetchedAt < BALANCE_STALE_MS
+        fetchedAt != null &&
+        Date.now() - fetchedAt < BALANCE_STALE_MS
       ) {
         return;
       }
       setBalanceLoading(true);
       setBalanceError(null);
-      const result = await fetchHeaderNativeNearBalance({
-        forAccountId: selectorAccountId ?? undefined,
-        refresh: force,
-      });
-      setBalanceLoading(false);
-      if (result.ok) {
-        setBalanceDisplay(result.displayAmount);
-        setBalanceFetchedAt(Date.now());
-        setBalanceError(null);
-      } else if (result.code === "mismatch") {
+      try {
+        const result = await fetchHeaderNativeNearBalance({
+          forAccountId: selectorAccountId ?? undefined,
+          refresh: force,
+        });
+        if (result.ok) {
+          setBalanceDisplay(result.displayAmount);
+          balanceFetchedAtRef.current = Date.now();
+          setBalanceError(null);
+        } else if (result.code === "mismatch") {
+          setBalanceDisplay(null);
+          setBalanceError(result.error);
+        } else if (result.code === "signed_out") {
+          setBalanceDisplay(null);
+          setBalanceError(null);
+        } else {
+          setBalanceDisplay(null);
+          setBalanceError(result.error);
+        }
+      } catch {
         setBalanceDisplay(null);
-        setBalanceError(result.error);
-      } else if (result.code === "signed_out") {
-        setBalanceDisplay(null);
-      } else {
-        setBalanceError(result.error);
+        setBalanceError("Could not load balance.");
+      } finally {
+        setBalanceLoading(false);
       }
     },
-    [balanceFetchedAt, hasSession, selectorAccountId, sessionNearAccountId],
+    [hasSession, selectorAccountId, sessionNearAccountId],
   );
 
   useEffect(() => {
@@ -194,7 +217,7 @@ function MarketplaceWalletControlInner({
         setMenuError(result.error);
         return;
       }
-      setBalanceFetchedAt(null);
+      balanceFetchedAtRef.current = null;
       router.refresh();
     } catch (e) {
       setMenuError(e instanceof Error ? e.message : "Sign-in failed.");
@@ -223,7 +246,7 @@ function MarketplaceWalletControlInner({
     } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_OUT") {
         setBalanceDisplay(null);
-        setBalanceFetchedAt(null);
+        balanceFetchedAtRef.current = null;
         router.refresh();
       }
       if (event === "SIGNED_IN") {
@@ -239,17 +262,29 @@ function MarketplaceWalletControlInner({
     lastAutoAuthRef.current = null;
     try {
       await disconnect();
-      await connect();
+      openConnectModal({ preferPicker: true });
     } catch (e) {
       setMenuError(formatWalletConnectionError(e));
     }
-  }, [connect, disconnect]);
+  }, [disconnect, openConnectModal]);
+
+  const handleCopyAccount = useCallback(async () => {
+    const account = selectorAccountId ?? sessionNearAccountId;
+    if (!account) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(account);
+    } catch {
+      setMenuError("Could not copy account ID.");
+    }
+  }, [selectorAccountId, sessionNearAccountId]);
 
   const handleDisconnect = useCallback(async () => {
     setMenuError(null);
     setOpen(false);
     setBalanceDisplay(null);
-    setBalanceFetchedAt(null);
+    balanceFetchedAtRef.current = null;
     try {
       await clearWalletSession();
       await disconnect();
@@ -282,27 +317,30 @@ function MarketplaceWalletControlInner({
   const showConnectButton =
     syncState === "signed_out" || syncState === "session_only";
 
+  const openRefreshGuard = useRef(false);
+  useEffect(() => {
+    if (!open) {
+      openRefreshGuard.current = false;
+      return;
+    }
+    if (syncState !== "aligned" || openRefreshGuard.current) {
+      return;
+    }
+    openRefreshGuard.current = true;
+    void refreshBalance(true);
+  }, [open, refreshBalance, syncState]);
+
   if (showConnectButton) {
     return (
       <>
-        <div className="flex flex-col items-end gap-1">
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <button
-              type="button"
-              disabled={connectBusy}
-              onClick={() => void handleConnect()}
-              className="btn-ink rounded-lg px-3 py-2 text-xs font-semibold sm:text-sm"
-            >
-              {connectBusy ? "Connecting…" : "Connect"}
-            </button>
-          </div>
-          {syncState === "session_only" && sessionNearAccountId ? (
-            <p className="max-w-xs text-right text-[10px] text-[var(--muted)]">
-              Signed in as {truncateNearAccountId(sessionNearAccountId)} — connect
-              wallet to transact.
-            </p>
-          ) : null}
-        </div>
+        <button
+          type="button"
+          disabled={connectBusy}
+          onClick={() => void handleConnect()}
+          className="btn-ink h-[34px] rounded-full px-4 text-xs font-semibold sm:text-sm"
+        >
+          {connectBusy ? "Connecting…" : "Connect"}
+        </button>
         <AppToast
           variant="error"
           visible={errorToast.visible}
@@ -317,10 +355,12 @@ function MarketplaceWalletControlInner({
   const headerAccount =
     displayAccountId ?? sessionNearAccountId ?? selectorAccountId ?? "";
 
+  const showBalanceSkeleton =
+    syncState === "aligned" && balanceLoading && !balanceDisplay;
+
   return (
     <>
-    <div className="relative flex flex-col items-end gap-1" ref={menuRef}>
-      <div className="flex flex-wrap items-center justify-end gap-2">
+    <div className="relative" ref={menuRef}>
         <button
           type="button"
           disabled={menuInteractionBusy}
@@ -328,85 +368,141 @@ function MarketplaceWalletControlInner({
           aria-haspopup="menu"
           aria-controls={menuId}
           onClick={() => setOpen((v) => !v)}
-          className="text-on-light-surface flex max-w-[min(100%,18rem)] flex-nowrap items-center gap-2 rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-left text-xs shadow-sm transition hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-900 dark:hover:bg-stone-800"
+          className="flex h-[34px] max-w-[min(100%,14rem)] items-center gap-2 rounded-full border border-border bg-card py-0 pl-1.5 pr-2.5 text-left text-xs text-foreground shadow-sm backdrop-blur-sm transition hover:border-stone-300 hover:bg-muted"
         >
-          <span className="min-w-0 truncate font-mono font-medium">
+          {walletIcon ? (
+            // eslint-disable-next-line @next/next/no-img-element -- dynamic wallet icon
+            <img
+              src={walletIcon}
+              alt=""
+              className="size-[26px] shrink-0 rounded-full ring-1 ring-border"
+              width={26}
+              height={26}
+            />
+          ) : (
+            <span className="flex size-[26px] shrink-0 items-center justify-center rounded-full bg-muted text-[9px] font-bold text-muted-foreground">
+              NEAR
+            </span>
+          )}
+          <span className="min-w-0 truncate font-mono text-[11px] font-semibold sm:text-xs">
             {truncateNearAccountId(headerAccount)}
           </span>
-          {syncState === "aligned" && balanceDisplay ? (
-            <span className="text-on-light-surface-muted hidden shrink-0 whitespace-nowrap sm:inline">
-              {balanceLoading ? "…" : balanceDisplay}
-            </span>
-          ) : null}
           <ChevronIcon open={open} />
         </button>
-      </div>
 
       {open ? (
         <div
           id={menuId}
           role="menu"
-          className="absolute right-0 top-[calc(100%+6px)] z-50 w-[min(100vw-2rem,20rem)] rounded-xl border border-stone-200 bg-white p-3 text-sm shadow-lg dark:border-stone-700 dark:bg-stone-950"
+          className="absolute right-0 top-[calc(100%+8px)] z-50 w-[min(100vw-2rem,19rem)] overflow-hidden rounded-2xl border border-border bg-popover text-popover-foreground text-sm shadow-xl ring-1 ring-border/50"
         >
+          <div className="border-b border-border bg-muted/35 px-4 py-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Balance
+                </p>
+                {showBalanceSkeleton ? (
+                  <div
+                    className="mt-1.5 h-7 w-32 animate-pulse rounded-lg bg-stone-300/60"
+                    aria-hidden
+                  />
+                ) : (
+                  <p className="mt-0.5 font-mono text-lg font-semibold tracking-tight text-popover-foreground">
+                    {syncState === "aligned" && balanceDisplay
+                      ? balanceDisplay
+                      : "—"}
+                  </p>
+                )}
+                {balanceError && syncState === "aligned" ? (
+                  <p className="mt-1 text-[11px] text-amber-600">
+                    {balanceError}
+                  </p>
+                ) : null}
+              </div>
+              {walletIcon ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={walletIcon}
+                  alt=""
+                  className="size-10 rounded-xl ring-1 ring-border"
+                  width={40}
+                  height={40}
+                />
+              ) : null}
+            </div>
+            <p className="mt-3 break-all font-mono text-[11px] leading-snug text-muted-foreground">
+              {headerAccount}
+            </p>
+            <p className="mt-1 text-[10px] text-muted-foreground">
+              {selectedWalletName ?? "NEAR wallet"} · {networkDisplayName(networkId)}
+            </p>
+          </div>
+
           {syncState === "mismatch" ? (
             <div
-              className="mb-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
+              className="border-b border-amber-500/25 bg-amber-500/10 px-4 py-2.5 text-xs text-amber-700"
               role="status"
             >
-              Wallet ({truncateNearAccountId(selectorAccountId ?? "")}) does not
-              match your signed-in account. Re-authenticate or switch back.
+              Connected wallet does not match your signed-in account.
             </div>
           ) : null}
 
-          <ul className="flex flex-col gap-1">
-            <li>
-              <button
-                type="button"
-                role="menuitem"
-                className="w-full rounded-lg px-2 py-2 text-left hover:bg-stone-100 dark:hover:bg-stone-900"
-                disabled={walletActionBusy}
-                onClick={() => void handleSwitchWallet()}
-              >
-                Switch wallet (Intear)
-              </button>
-            </li>
+          {user ? (
+            <Link
+              href="/account"
+              className="flex items-center gap-3 border-b border-border px-4 py-3 transition hover:bg-muted sm:hidden"
+              onClick={() => setOpen(false)}
+            >
+              <span className="avatar small shrink-0">
+                {user.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={user.avatarKey}
+                    src={user.avatarUrl}
+                    alt=""
+                    width={34}
+                    height={34}
+                  />
+                ) : (
+                  profileInitials(user.displayName)
+                )}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold text-popover-foreground">
+                  {user.displayName || "Your profile"}
+                </span>
+                <span className="text-[11px] text-muted-foreground">Account & settings</span>
+              </span>
+            </Link>
+          ) : null}
+
+          <ul className="flex flex-col p-1.5">
+            <WalletMenuItem
+              label="Copy account ID"
+              disabled={walletActionBusy}
+              onClick={() => void handleCopyAccount()}
+            />
+            <WalletMenuItem
+              label="Switch wallet"
+              disabled={walletActionBusy}
+              onClick={() => void handleSwitchWallet()}
+            />
             {(syncState === "mismatch" || syncState === "wallet_only") &&
             selectorAccountId ? (
-              <li>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="w-full rounded-lg px-2 py-2 text-left font-semibold hover:bg-stone-100 dark:hover:bg-stone-900"
-                  disabled={authBusy}
-                  onClick={() => void runAuthenticate()}
-                >
-                  {authBusy ? "Signing in…" : "Sign in with this wallet"}
-                </button>
-              </li>
+              <WalletMenuItem
+                label={authBusy ? "Signing in…" : "Sign in with this wallet"}
+                disabled={authBusy}
+                emphasized
+                onClick={() => void runAuthenticate()}
+              />
             ) : null}
-            {hasSession ? (
-              <li>
-                <Link
-                  href="/account"
-                  role="menuitem"
-                  className="block rounded-lg px-2 py-2 hover:bg-stone-100 dark:hover:bg-stone-900"
-                  onClick={() => setOpen(false)}
-                >
-                  Profile & settings
-                </Link>
-              </li>
-            ) : null}
-            <li>
-              <button
-                type="button"
-                role="menuitem"
-                className="w-full rounded-lg px-2 py-2 text-left text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950/40"
-                disabled={menuInteractionBusy}
-                onClick={() => void handleDisconnect()}
-              >
-                Disconnect
-              </button>
-            </li>
+            <WalletMenuItem
+              label="Disconnect"
+              disabled={menuInteractionBusy}
+              destructive
+              onClick={() => void handleDisconnect()}
+            />
           </ul>
         </div>
       ) : null}
@@ -431,18 +527,59 @@ function ConnectWalletOnly({
   label: string;
 }) {
   return (
-    <div className="flex flex-col items-end gap-1">
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <button
-          type="button"
-          disabled={disabled}
-          className="btn-ink rounded-lg px-3 py-2 text-xs font-semibold sm:text-sm"
-        >
-          {label}
-        </button>
-      </div>
-    </div>
+    <button
+      type="button"
+      disabled={disabled}
+      className="btn-ink h-[34px] rounded-full px-4 text-xs font-semibold sm:text-sm"
+    >
+      {label}
+    </button>
   );
+}
+
+function WalletMenuItem({
+  label,
+  onClick,
+  disabled,
+  destructive,
+  emphasized,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  destructive?: boolean;
+  emphasized?: boolean;
+}) {
+  return (
+    <li>
+      <button
+        type="button"
+        role="menuitem"
+        disabled={disabled}
+        onClick={onClick}
+        className={`w-full rounded-xl px-3 py-2.5 text-left text-[13px] transition disabled:opacity-50 ${
+          destructive
+            ? "text-destructive hover:bg-destructive/10"
+            : emphasized
+              ? "font-semibold text-popover-foreground hover:bg-muted"
+              : "text-stone-600 hover:bg-muted"
+        }`}
+      >
+        {label}
+      </button>
+    </li>
+  );
+}
+
+function profileInitials(displayName: string): string {
+  const parts = displayName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return (parts[0]![0]! + parts[1]![0]!).toUpperCase();
+  }
+  if (parts[0]) {
+    return parts[0].slice(0, 2).toUpperCase();
+  }
+  return "PA";
 }
 
 function ChevronIcon({ open }: { open: boolean }) {

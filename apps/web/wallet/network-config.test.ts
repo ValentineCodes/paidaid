@@ -1,11 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  readPublicNearNetworkId,
-  resolveWalletNetwork,
-  walletModules,
-} from "./network-config";
+import { readPublicNearNetworkId, resolveWalletNetwork } from "./network-config";
+import { buildNearConnectorOptions } from "./near-connect-config";
 
 test("defaults to localnet when unset", () => {
   assert.equal(readPublicNearNetworkId({}), "localnet");
@@ -18,15 +15,13 @@ test("explicit testnet is opt-in", () => {
   );
 });
 
-test("walletModules uses localnet stack by default", () => {
-  const modules = walletModules({});
-  assert.equal(modules.length, 1);
-});
-
-test("walletModules rejects mainnet", () => {
-  assert.throws(() =>
-    walletModules({ NEXT_PUBLIC_NEAR_NETWORK_ID: "mainnet" }),
-  );
+test("buildNearConnectorOptions supports mainnet", () => {
+  const opts = buildNearConnectorOptions({
+    NEXT_PUBLIC_NEAR_NETWORK_ID: "mainnet",
+    NEXT_PUBLIC_NEAR_RPC_URL: "https://rpc.mainnet.near.org",
+  });
+  assert.equal(opts.network, "mainnet");
+  assert.equal(opts.appNetworkId, "mainnet");
 });
 
 test("resolveWalletNetwork keeps testnet id for testnet config", () => {

@@ -1,21 +1,15 @@
 "use client";
 
-import "@near-wallet-selector/modal-ui/styles.css";
-import { WalletSelectorProvider } from "@near-wallet-selector/react-hook";
-import type { WalletSelectorParams } from "@near-wallet-selector/core";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { SiteHeader } from "../components/site-header";
 import { SiteHeaderStatic } from "../components/site-header-static";
 import type { NearPublicEnv } from "../lib/near/near-public-env";
 import { nearPublicEnvToWalletRecord } from "../lib/near/near-public-env";
-import {
-  buildWalletNetworkConfig,
-  readPublicNearNetworkId,
-  walletModules,
-} from "./network-config";
-import { readWalletContractId } from "./config";
+import { buildNearConnectorOptions } from "./near-connect-config";
 import { WalletNetworkContext } from "./wallet-network-context";
 import { WalletSelectorReadyContext } from "./mount-context";
+import { PaidAidNearWalletProvider } from "./paidaid-near-wallet-context";
+import { WalletConnectModalProvider } from "./wallet-connect-modal-context";
 
 type WalletSelectorLayerProps = {
   children: ReactNode;
@@ -31,37 +25,15 @@ export function WalletSelectorLayer({
     [nearPublicEnv],
   );
 
-  const [selectorConfig, setSelectorConfig] =
-    useState<WalletSelectorParams | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    void (async () => {
-      try {
-        readWalletContractId(env);
-        readPublicNearNetworkId(env);
-        if (cancelled) {
-          return;
-        }
-        setSelectorConfig({
-          ...buildWalletNetworkConfig(env),
-          modules: walletModules(env),
-        });
-      } catch (error) {
-        if (!cancelled) {
-          setLoadError(
-            error instanceof Error ? error.message : "Wallet setup failed.",
-          );
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
+  const loadError = useMemo(() => {
+    try {
+      buildNearConnectorOptions(env);
+      return null;
+    } catch (error) {
+      return error instanceof Error ? error.message : "Wallet setup failed.";
+    }
   }, [env]);
+  const providerKey = nearPublicEnv.networkId;
 
   if (loadError) {
     return (
@@ -73,25 +45,16 @@ export function WalletSelectorLayer({
     );
   }
 
-  if (!selectorConfig) {
-    return (
-      <WalletSelectorReadyContext.Provider value={false}>
-        <SiteHeaderStatic />
-        {children}
-      </WalletSelectorReadyContext.Provider>
-    );
-  }
-
-  const providerKey = readPublicNearNetworkId(env);
-
   return (
     <WalletNetworkContext.Provider value={nearPublicEnv}>
-      <WalletSelectorProvider key={providerKey} config={selectorConfig}>
-        <WalletSelectorReadyContext.Provider value={true}>
-          <SiteHeader />
-          {children}
-        </WalletSelectorReadyContext.Provider>
-      </WalletSelectorProvider>
+      <PaidAidNearWalletProvider key={providerKey} nearPublicEnv={nearPublicEnv}>
+        <WalletConnectModalProvider>
+          <WalletSelectorReadyContext.Provider value={true}>
+            <SiteHeader />
+            {children}
+          </WalletSelectorReadyContext.Provider>
+        </WalletConnectModalProvider>
+      </PaidAidNearWalletProvider>
     </WalletNetworkContext.Provider>
   );
 }

@@ -1,7 +1,8 @@
-import type { Wallet } from "@near-wallet-selector/core";
 import { actionCreators } from "@near-js/transactions";
 import { ESCROW_METHODS } from "@paidaid/shared";
-import { extractTransactionHash } from "@paidaid/near";
+import type { NearNetworkId } from "@paidaid/shared";
+import { validateEscrowReleaseTerms } from "./escrow-transaction-validation";
+import type { PaidAidNearTransactionSigner } from "./paidaid-near-transaction-signer";
 
 const RELEASE_GAS = BigInt("300000000000000");
 
@@ -11,11 +12,26 @@ export type EscrowReleaseTxResult = {
 };
 
 export async function sendReleaseEscrowTransaction(
-  wallet: Wallet,
+  signer: PaidAidNearTransactionSigner,
   escrowContractId: string,
   onChainEscrowId: string,
+  options?: {
+    chainId?: string | null;
+    requesterNearAccountId?: string | null;
+    appNetworkId?: NearNetworkId;
+  },
 ): Promise<EscrowReleaseTxResult> {
-  const outcome = await wallet.signAndSendTransaction({
+  const appNetworkId = options?.appNetworkId ?? signer.appNetworkId;
+  validateEscrowReleaseTerms({
+    signer,
+    escrowContractId,
+    onChainEscrowId,
+    chainId: options?.chainId,
+    requesterNearAccountId: options?.requesterNearAccountId,
+    appNetworkId,
+  });
+
+  const submission = await signer.signAndSendTransaction({
     receiverId: escrowContractId,
     actions: [
       actionCreators.functionCall(
@@ -28,7 +44,7 @@ export async function sendReleaseEscrowTransaction(
   });
 
   return {
-    outcome,
-    txHash: extractTransactionHash(outcome),
+    outcome: submission.outcome,
+    txHash: submission.txHash,
   };
 }

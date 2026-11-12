@@ -106,6 +106,7 @@ export async function runWalletAuthenticationCore(input: {
     publicKey: string;
     signature: string;
   };
+  walletProviderId?: string | null;
 }): Promise<WalletAuthActionState> {
   if (input.recipient !== WALLET_AUTH_RECIPIENT) {
     return { error: "Invalid sign-in recipient." };
@@ -188,6 +189,7 @@ export async function runWalletAuthenticationCore(input: {
     service,
     input.signed.accountId,
     input.signed.publicKey,
+    { walletProviderId: input.walletProviderId ?? null },
   );
   if (!provision.ok) {
     return { error: provision.error };
@@ -199,6 +201,7 @@ export async function runWalletAuthenticationCore(input: {
     p_near_account_id: input.signed.accountId,
     p_public_key: input.signed.publicKey,
     p_network_id: configuredNetwork,
+    p_wallet_provider_id: input.walletProviderId ?? undefined,
   });
   if (completeError) {
     return { error: formatWalletLinkError(completeError.message) };
@@ -234,6 +237,7 @@ export async function completeWalletAuthentication(input: {
     publicKey: string;
     signature: string;
   };
+  walletProviderId?: string | null;
   next?: string;
 }): Promise<WalletAuthActionState> {
   const core = await runWalletAuthenticationCore(input);

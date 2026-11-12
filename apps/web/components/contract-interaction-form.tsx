@@ -8,7 +8,6 @@ import {
   readNearPublicConfig,
 } from "@paidaid/near";
 import type { NearConfig } from "@paidaid/shared";
-import { useWalletSelector } from "@near-wallet-selector/react-hook";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import {
   formatTransactionError,
@@ -21,6 +20,8 @@ import {
   WalletSelectorReadyContext,
 } from "../wallet/mount-context";
 import { usePaidAidWallet } from "../wallet/use-paidaid-wallet";
+import { usePaidAidNearWallet } from "../wallet/paidaid-near-wallet-context";
+import { fetchNearAccountBalanceYocto } from "../wallet/fetch-account-balance";
 
 type LoadState = "idle" | "loading" | "success" | "error";
 
@@ -43,7 +44,7 @@ export default function ContractInteractionForm() {
 
 function ContractInteractionFormInner() {
   const { accountId, status: walletStatus, connect } = usePaidAidWallet();
-  const { getBalance, wallet } = useWalletSelector();
+  const { getTransactionSigner } = usePaidAidNearWallet();
 
   const configResult = useMemo(() => {
     try {
@@ -93,19 +94,22 @@ function ContractInteractionFormInner() {
   const submitPending = submitState === "loading";
 
   const refreshBalance = useCallback(async () => {
-    if (!accountId) {
+    if (!accountId || !nearConfig) {
       return;
     }
     setBalanceState("loading");
     try {
-      const amount = await getBalance(accountId);
+      const amount = await fetchNearAccountBalanceYocto(
+        nearConfig.rpcUrl,
+        accountId,
+      );
       setBalanceYocto(amount);
       setBalanceState("success");
     } catch {
       setBalanceYocto(null);
       setBalanceState("error");
     }
-  }, [accountId, getBalance]);
+  }, [accountId, nearConfig]);
 
   useEffect(() => {
     if (!walletConnected || !accountId) {
@@ -179,7 +183,10 @@ function ContractInteractionFormInner() {
     setTransactionHash(null);
     try {
       if (accountId) {
-        const amount = await getBalance(accountId);
+        const amount = await fetchNearAccountBalanceYocto(
+        nearConfig.rpcUrl,
+        accountId,
+      );
         setBalanceYocto(amount);
         if (amount < MIN_SUBMIT_BALANCE_YOCTO) {
           throw new Error(
@@ -188,13 +195,11 @@ function ContractInteractionFormInner() {
         }
       }
 
-      if (!wallet) {
-        throw new Error("No wallet connected");
-      }
+      const signer = await getTransactionSigner();
 
       const call = buildSetMessageCall(nearConfig, message);
       const outcome = await sendSetMessageTransaction(
-        wallet,
+        signer,
         call.contractId,
         message,
       );
@@ -209,12 +214,11 @@ function ContractInteractionFormInner() {
     }
   }, [
     accountId,
-    getBalance,
+    getTransactionSigner,
     loadMyMessage,
     message,
     nearConfig,
     refreshTotal,
-    wallet,
     walletConnected,
   ]);
 
@@ -234,19 +238,17 @@ function ContractInteractionFormInner() {
         {!walletConnected ? (
           <div className="flex flex-wrap items-center gap-3">
             <p className="text-sm text-stone-600 dark:text-stone-400">
-              Connect with{" "}
-              <strong className="font-medium">Intear Wallet</strong> to sign{" "}
-              <code className="font-mono text-xs">set_message</code>. Add
-              localnet in Intear (RPC{" "}
-              <span className="font-mono text-xs">127.0.0.1:3030</span>, network
-              id <span className="font-mono text-xs">localnet</span>).
+              Connect a NEAR wallet to sign{" "}
+              <code className="font-mono text-xs">set_message</code>. On
+              localnet, choose a wallet that supports testnet with RPC{" "}
+              <span className="font-mono text-xs">127.0.0.1:3030</span>.
             </p>
             <button
               type="button"
               onClick={() => void connect()}
               className="btn-ink rounded-lg px-3 py-1.5 text-sm font-medium"
             >
-              Connect Intear
+              Connect
             </button>
           </div>
         ) : (
@@ -268,7 +270,7 @@ function ContractInteractionFormInner() {
             ) : null}
             {balanceTooLow ? (
               <p className="text-amber-800 dark:text-amber-200">
-                Fund this account on localnet (create it in Intear with RPC{" "}
+                Fund this account on localnet (import or create it in your wallet with RPC{" "}
                 <span className="font-mono">http://127.0.0.1:3030</span>).
               </p>
             ) : null}

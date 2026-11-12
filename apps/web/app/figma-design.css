@@ -228,6 +228,12 @@ body.app:not(.dark) {
   gap: 10px;
 }
 
+.header-wallet-cluster {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .icon-button {
   width: 40px;
   height: 40px;
@@ -255,7 +261,9 @@ body.app:not(.dark) {
 .btn-ink {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.35rem;
+  text-align: center;
   background: var(--ink);
   color: var(--surface);
 }
@@ -2445,8 +2453,8 @@ body.app.dark .updates-error {
     font-size: 18px;
   }
 
-  .header-actions>.avatar {
-    display: none;
+  .header-wallet-cluster .header-profile-link {
+    display: none !important;
   }
 
   /* Post a task only — not header Connect wallet */

@@ -793,6 +793,7 @@ export type Database = {
           public_key: string
           unlinked_at: string | null
           user_id: string
+          wallet_provider_id: string | null
         }
         Insert: {
           id?: string
@@ -802,6 +803,7 @@ export type Database = {
           public_key: string
           unlinked_at?: string | null
           user_id: string
+          wallet_provider_id?: string | null
         }
         Update: {
           id?: string
@@ -811,6 +813,7 @@ export type Database = {
           public_key?: string
           unlinked_at?: string | null
           user_id?: string
+          wallet_provider_id?: string | null
         }
         Relationships: [
           {
@@ -1688,6 +1691,7 @@ export type Database = {
           p_network_id: string
           p_public_key: string
           p_user_id: string
+          p_wallet_provider_id?: string
         }
         Returns: string
       }

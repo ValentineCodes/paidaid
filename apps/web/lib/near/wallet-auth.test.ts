@@ -176,3 +176,14 @@ test("assertWalletAuthChallengeUsable enforces expiry and replay", () => {
 test("walletAuthNonceFromHex rejects malformed nonce", () => {
   assert.throws(() => walletAuthNonceFromHex("abc"), /invalid/i);
 });
+
+test("buildWalletAuthMessage supports mainnet network binding", () => {
+  const msg = buildWalletAuthMessage(
+    "alice.near",
+    "00000000-0000-4000-8000-000000000001",
+    "mainnet",
+    "2025-11-08T12:00:00Z",
+  );
+  assert.match(msg, /Network mainnet/);
+  assert.match(msg, /Sign in to PaidAid/i);
+});

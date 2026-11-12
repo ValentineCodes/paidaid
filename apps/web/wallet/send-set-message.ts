@@ -1,11 +1,10 @@
-import type { Wallet } from "@near-wallet-selector/core";
 import { actionCreators } from "@near-js/transactions";
 import { CORE_METHODS } from "@paidaid/shared";
 import { SET_MESSAGE_GAS } from "./constants";
+import type { PaidAidNearTransactionSigner } from "./paidaid-near-transaction-signer";
 
-/** Sign and send PaidAidCore `set_message` using NAJ actions (avoids react-hook `callFunction` gas strings). */
 export async function sendSetMessageTransaction(
-  wallet: Wallet,
+  signer: PaidAidNearTransactionSigner,
   contractId: string,
   message: string,
 ): Promise<unknown> {
@@ -13,9 +12,12 @@ export async function sendSetMessageTransaction(
   if (!trimmed) {
     throw new Error("Message cannot be empty.");
   }
+  if (!contractId?.trim()) {
+    throw new Error("Contract id is missing.");
+  }
 
-  return wallet.signAndSendTransaction({
-    receiverId: contractId,
+  const submission = await signer.signAndSendTransaction({
+    receiverId: contractId.trim(),
     actions: [
       actionCreators.functionCall(
         CORE_METHODS.setMessage,
@@ -25,4 +27,6 @@ export async function sendSetMessageTransaction(
       ),
     ],
   });
+
+  return submission.outcome;
 }

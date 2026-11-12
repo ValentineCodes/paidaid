@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 import { PaidAidLogo } from "./paidaid-logo";
 import { ThemeToggle } from "./theme-toggle";
+import { HeaderProfileLink } from "./header-profile-link";
 import { MarketplaceWalletControl } from "./marketplace-wallet-control";
 
 type SiteHeaderMarketplaceProps = {
@@ -61,10 +62,14 @@ export function SiteHeaderMarketplace({
         </nav>
         <div className="header-actions">
           <ThemeToggle />
-          <MarketplaceWalletControl
-            hasSession={Boolean(user)}
-            sessionNearAccountId={linkedNearAccountId}
-          />
+          <div className="header-wallet-cluster">
+            <MarketplaceWalletControl
+              hasSession={Boolean(user)}
+              sessionNearAccountId={linkedNearAccountId}
+              user={user}
+            />
+            {user ? <HeaderProfileLink user={user} /> : null}
+          </div>
         </div>
       </div>
     </header>

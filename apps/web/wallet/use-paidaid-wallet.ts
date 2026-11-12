@@ -1,15 +1,10 @@
 "use client";
 
-import { useWalletSelector } from "@near-wallet-selector/react-hook";
-import { useNearWalletAccountId } from "./use-near-wallet-account";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { useWalletNearPublicEnv } from "./wallet-network-context";
-import {
-  assertIntearWalletModule,
-  signInWithIntearWallet,
-} from "./connect-intear";
-import { readWalletContractId } from "./config";
 import { formatWalletConnectionError } from "./errors";
+import { usePaidAidNearWallet } from "./paidaid-near-wallet-context";
+import { useOpenNearWalletConnect } from "./use-open-near-wallet-connect";
 
 export type WalletConnectionStatus =
   | "initializing"
@@ -30,102 +25,42 @@ export type PaidAidWalletState = {
 
 export function usePaidAidWallet(): PaidAidWalletState {
   const { networkId } = useWalletNearPublicEnv();
-  const { walletSelector, signOut } = useWalletSelector();
-  const { accountId: signedAccountId, syncFromSelectorStore } =
-    useNearWalletAccountId();
+  const near = usePaidAidNearWallet();
+  const openConnect = useOpenNearWalletConnect();
 
-  const [initialized, setInitialized] = useState(false);
-  const [initError, setInitError] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const error = near.initError ?? near.connectionError;
 
-  useEffect(() => {
-    let cancelled = false;
-
-    walletSelector
-      ?.then((selector) => {
-        if (cancelled) {
-          return;
-        }
-        assertIntearWalletModule(selector);
-        setInitialized(true);
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) {
-          setInitError(formatWalletConnectionError(error));
-          setInitialized(true);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [walletSelector]);
+  const status: WalletConnectionStatus = useMemo(() => {
+    if (!near.initialized) {
+      return "initializing";
+    }
+    return near.status;
+  }, [near.initialized, near.status]);
 
   const connect = useCallback(async () => {
-    setActionError(null);
-    setIsConnecting(true);
     try {
-      const selector = await walletSelector;
-      if (!selector) {
-        throw new Error("Wallet is still loading. Try again in a moment.");
-      }
-      const contractId = readWalletContractId({
-        NEXT_PUBLIC_NEAR_CONTRACT_ID:
-          process.env.NEXT_PUBLIC_NEAR_ESCROW_CONTRACT_ID ??
-          process.env.NEXT_PUBLIC_NEAR_CONTRACT_ID,
-      });
-      await signInWithIntearWallet(selector, contractId);
-      await syncFromSelectorStore();
-    } catch (error) {
-      setActionError(formatWalletConnectionError(error));
-    } finally {
-      setIsConnecting(false);
+      await openConnect();
+    } catch (e) {
+      throw new Error(formatWalletConnectionError(e));
     }
-  }, [walletSelector, syncFromSelectorStore]);
+  }, [openConnect]);
 
   const disconnect = useCallback(async () => {
-    setActionError(null);
-    setIsDisconnecting(true);
     try {
-      await signOut();
-      await syncFromSelectorStore();
-    } catch (error) {
-      setActionError(formatWalletConnectionError(error));
-    } finally {
-      setIsDisconnecting(false);
+      await near.disconnect();
+    } catch (e) {
+      throw new Error(formatWalletConnectionError(e));
     }
-  }, [signOut, syncFromSelectorStore]);
+  }, [near]);
 
   const clearError = useCallback(() => {
-    setActionError(null);
-    setInitError(null);
-  }, []);
-
-  const error = initError ?? actionError;
-
-  let status: WalletConnectionStatus;
-  if (!initialized) {
-    status = "initializing";
-  } else if (isDisconnecting) {
-    status = "disconnecting";
-  } else if (signedAccountId) {
-    status = "connected";
-  } else if (isConnecting) {
-    status = "connecting";
-  } else {
-    status = "disconnected";
-  }
-
-  if (isConnecting && signedAccountId) {
-    status = "connected";
-  }
+    near.clearErrors();
+  }, [near]);
 
   return {
     status,
     networkId,
-    accountId: signedAccountId,
+    accountId: near.accountId,
     error,
     connect,
     disconnect,
