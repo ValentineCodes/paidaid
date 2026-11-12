@@ -9,14 +9,17 @@ import {
   resolveProfileDisplayUrl,
 } from "../../../../lib/profiles/resolve-photo";
 import { formatPostedRelative } from "../../../../lib/datetime/relative-from-now";
-import { formatBudgetSmallestUnits } from "../../../../lib/requests/format-budget";
+import {
+  formatBudgetSmallestUnits,
+  normalizeAssetDecimals,
+} from "../../../../lib/requests/format-budget";
 import { loadInFlightAcceptanceResponseId } from "../acceptance-funding-actions";
 import { AcceptResponseForm } from "./accept-response-form";
 
 type Row = {
   id: string;
   message: string | null;
-  proposed_amount: number | string;
+  proposed_amount: string;
   status: string;
   created_at: string;
   conversations?: { id: string; kind: string }[] | null;
@@ -100,7 +103,7 @@ export async function RequestResponsesOwnerList({
   }
 
   const { data: rows, error } = await supabase
-    .from("request_responses")
+    .from("request_responses_api")
     .select(
       `
       id,
@@ -153,8 +156,8 @@ export async function RequestResponsesOwnerList({
     <ul className="request-response-list">
       {withUrls.map((r) => {
         const amount = formatBudgetSmallestUnits(
-          String(r.proposed_amount),
-          assetDecimals,
+          r.proposed_amount,
+          normalizeAssetDecimals(assetDecimals),
         );
         const name = r.provider_profiles?.profiles?.display_name ?? "Provider";
         const showAccept = canAcceptOffers && r.status === "pending";

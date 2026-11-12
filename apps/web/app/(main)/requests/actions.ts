@@ -14,6 +14,7 @@ import {
 } from "../../../lib/validation/request";
 import { validateCreateRequestFormForTests } from "../../../lib/requests/validate-create-input";
 import { formatWalletSnapshotRpcError } from "../../../lib/requests/wallet-snapshot-errors";
+import { chainIdForCurrentNearNetwork } from "../../../lib/near/escrow-config";
 export type CreateRequestState = {
   error: string | null;
   fieldErrors?: Record<string, string>;
@@ -115,6 +116,17 @@ export async function createRequest(
     return {
       error: null,
       fieldErrors: { budgetAssetId: "Select a supported asset" },
+    };
+  }
+
+  const chainId = chainIdForCurrentNearNetwork();
+  if (asset.chain_id !== chainId || !asset.enabled) {
+    return {
+      error: null,
+      fieldErrors: {
+        budgetAssetId:
+          "Selected asset does not match your NEAR network. Refresh and try again.",
+      },
     };
   }
 

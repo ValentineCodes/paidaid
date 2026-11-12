@@ -1,6 +1,9 @@
 import type { createClient } from "../../../lib/supabase/server";
 import type { Database } from "../../../lib/database.types";
-import { formatBudgetSmallestUnits } from "../../../lib/requests/format-budget";
+import {
+  formatBudgetSmallestUnits,
+  normalizeAssetDecimals,
+} from "../../../lib/requests/format-budget";
 import { normalizeDbNumericAmount } from "@paidaid/shared";
 import { normalizeSummaryAmount } from "../../../lib/payments/payment-activity-format";
 import type { PaymentActivityPageData } from "../../../lib/payments/payment-activity-types";
@@ -105,7 +108,7 @@ export async function loadActivityPageData(
   const { data: responseCountRows } =
     requestIds.length > 0
       ? await supabase
-          .from("request_responses")
+          .from("request_responses_api")
           .select("request_id")
           .in("request_id", requestIds)
           .neq("status", "withdrawn")
@@ -200,7 +203,7 @@ export async function loadActivityPageData(
 
   const { data: responseRows } = pp
     ? await supabase
-        .from("request_responses")
+        .from("request_responses_api")
         .select(
           `
           id,
@@ -255,12 +258,9 @@ export async function loadActivityPageData(
     };
 
     const asset = r.assets;
-    const decimals = asset?.decimals ?? 24;
+    const decimals = normalizeAssetDecimals(asset?.decimals);
     const sym = asset?.symbol ?? "";
-    const budgetHuman = formatBudgetSmallestUnits(
-      String(r.proposed_amount),
-      decimals,
-    );
+    const budgetHuman = formatBudgetSmallestUnits(r.proposed_amount, decimals);
 
     const rs = r.status;
     let statusClass: ActivityOfferCard["statusClass"] = "other";

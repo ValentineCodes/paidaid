@@ -4,7 +4,10 @@ import { redirect } from "next/navigation";
 import { WithdrawResponseForm } from "../../requests/[id]/withdraw-response-form";
 import { createClient } from "../../../../lib/supabase/server";
 import { isSupabaseConfigured } from "../../../../lib/supabase/env";
-import { formatBudgetSmallestUnits } from "../../../../lib/requests/format-budget";
+import {
+  formatBudgetSmallestUnits,
+  normalizeAssetDecimals,
+} from "../../../../lib/requests/format-budget";
 
 export default async function MyResponsesPage() {
   if (!isSupabaseConfigured()) {
@@ -35,7 +38,7 @@ export default async function MyResponsesPage() {
 
   const { data: responses, error } = pp
     ? await supabase
-        .from("request_responses")
+        .from("request_responses_api")
         .select(
           `
           id,
@@ -62,7 +65,30 @@ export default async function MyResponsesPage() {
     );
   }
 
-  const rows = responses ?? [];
+  const rows = (responses ?? []).flatMap((r) => {
+    if (
+      !r.id ||
+      !r.request_id ||
+      !r.status ||
+      !r.created_at ||
+      r.proposed_amount == null ||
+      r.proposed_amount === ""
+    ) {
+      return [];
+    }
+    return [
+      {
+        id: r.id,
+        request_id: r.request_id,
+        status: r.status,
+        created_at: r.created_at,
+        proposed_amount: r.proposed_amount,
+        message: r.message,
+        requests: r.requests,
+        assets: r.assets,
+      },
+    ];
+  });
 
   const acceptedIds = rows
     .filter((r) => r.status === "accepted")
@@ -116,12 +142,9 @@ export default async function MyResponsesPage() {
             symbol: string;
             decimals: number;
           } | null;
-          const decimals = asset?.decimals ?? 24;
+          const decimals = normalizeAssetDecimals(asset?.decimals);
           const sym = asset?.symbol ?? "";
-          const amount = formatBudgetSmallestUnits(
-            String(r.proposed_amount),
-            decimals,
-          );
+          const amount = formatBudgetSmallestUnits(r.proposed_amount, decimals);
           return (
             <li
               key={r.id}

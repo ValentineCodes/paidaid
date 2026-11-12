@@ -112,7 +112,7 @@ export async function submitRequestResponse(
     {
       p_request_id: requestId,
       p_message: message.trim(),
-      p_proposed_amount: smallestUnits as unknown as number,
+      p_proposed_amount: smallestUnits,
       p_headline: headline.trim(),
     },
   );

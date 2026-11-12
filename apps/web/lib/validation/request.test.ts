@@ -54,17 +54,23 @@ test("humanAmountToSmallestUnits avoids floats", () => {
   assert.strictEqual(r.smallestUnits, "2000000000000000000000000");
 });
 
-test("validateBudgetSmallestUnitsAgainstAsset rejects sub-unit remainder", () => {
-  const bad = validateBudgetSmallestUnitsAgainstAsset(
-    "1000000000000000000000001",
+test("humanAmountToSmallestUnits accepts fractional NEAR", () => {
+  const r = humanAmountToSmallestUnits("0.001", 24);
+  assert(r.ok);
+  assert.strictEqual(r.smallestUnits, "1000000000000000000000");
+});
+
+test("validateBudgetSmallestUnitsAgainstAsset accepts fractional smallest units", () => {
+  const subUnit = validateBudgetSmallestUnitsAgainstAsset(
+    "1000000000000000000000",
     sampleAssets[0],
   );
-  assert.strictEqual(bad.ok, false);
-  const good = validateBudgetSmallestUnitsAgainstAsset(
+  assert.strictEqual(subUnit.ok, true);
+  const whole = validateBudgetSmallestUnitsAgainstAsset(
     "2000000000000000000000000",
     sampleAssets[0],
   );
-  assert.strictEqual(good.ok, true);
+  assert.strictEqual(whole.ok, true);
 });
 
 test("tag max three", () => {
@@ -163,9 +169,11 @@ test("USDC six decimals whole units", () => {
     sampleAssets[1],
   );
   assert.strictEqual(prec.ok, true);
-  const half = validateBudgetSmallestUnitsAgainstAsset(
-    "500000",
+  const half = humanAmountToSmallestUnits("0.5", 6);
+  assert(half.ok);
+  const halfValid = validateBudgetSmallestUnitsAgainstAsset(
+    half.smallestUnits,
     sampleAssets[1],
   );
-  assert.strictEqual(half.ok, false);
+  assert.strictEqual(halfValid.ok, true);
 });

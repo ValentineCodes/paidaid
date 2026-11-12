@@ -70,24 +70,59 @@ export function parseDigitsIntegerString(value: string): string | null {
 }
 
 /**
- * Converts a human amount string (integer, no decimals) to smallest units using asset.decimals.
+ * Converts a human amount (e.g. `0.001`, `10`, `2.5`) to on-chain smallest units.
  * No floating point.
  */
 export function humanAmountToSmallestUnits(
-  humanInteger: string,
+  humanAmount: string,
   decimals: number,
 ): { ok: true; smallestUnits: string } | { ok: false; error: string } {
-  const digits = parseDigitsIntegerString(humanInteger);
-  if (digits === null) {
-    return { ok: false, error: "Enter a whole number for the budget" };
+  const trimmed = humanAmount.trim();
+  if (trimmed === "") {
+    return { ok: false, error: "Enter a budget amount" };
   }
-  if (digits === "0") {
+
+  const m = /^(\d+)(?:\.(\d+))?$/.exec(trimmed);
+  if (!m) {
+    return {
+      ok: false,
+      error: "Enter a valid amount (e.g. 0.001 or 10)",
+    };
+  }
+
+  const intPart = m[1]!;
+  const fracPart = m[2] ?? "";
+
+  if (fracPart.length > decimals) {
+    return {
+      ok: false,
+      error: `Use at most ${decimals} decimal places for this asset`,
+    };
+  }
+
+  if (!Number.isInteger(decimals) || decimals < 0 || decimals > 128) {
+    return { ok: false, error: "Invalid asset decimals" };
+  }
+
+  const intDigits = intPart.replace(/^0+/, "") || "0";
+  const fracDigits = fracPart.replace(/0+$/, "");
+  if (intDigits === "0" && fracDigits === "") {
     return { ok: false, error: "Budget must be positive" };
   }
 
+  let factor: bigint;
+  try {
+    factor = BigInt(10) ** BigInt(decimals);
+  } catch {
+    return { ok: false, error: "Budget is too large" };
+  }
+
+  const fracPadded = fracPart.padEnd(decimals, "0");
   let scaled: bigint;
   try {
-    scaled = scaleIntegerStringByDecimals(digits, decimals);
+    const whole = BigInt(intDigits);
+    const frac = fracPadded === "" ? BigInt(0) : BigInt(fracPadded);
+    scaled = whole * factor + frac;
   } catch {
     return { ok: false, error: "Budget is too large" };
   }
@@ -97,18 +132,6 @@ export function humanAmountToSmallestUnits(
   }
 
   return { ok: true, smallestUnits: scaled.toString() };
-}
-
-function scaleIntegerStringByDecimals(
-  integerDigits: string,
-  decimals: number,
-): bigint {
-  if (!Number.isInteger(decimals) || decimals < 0 || decimals > 128) {
-    throw new RangeError("invalid decimals");
-  }
-  const base = BigInt(integerDigits);
-  const factor = BigInt(10) ** BigInt(decimals);
-  return base * factor;
 }
 
 export function validateBudgetSmallestUnitsAgainstAsset(
@@ -126,19 +149,6 @@ export function validateBudgetSmallestUnitsAgainstAsset(
     }
   } catch {
     return { ok: false, error: "Invalid budget amount" };
-  }
-
-  const factor = BigInt(10) ** BigInt(asset.decimals);
-  try {
-    const remainder = BigInt(normalized) % factor;
-    if (remainder !== BigInt(0)) {
-      return {
-        ok: false,
-        error: `Use whole ${asset.symbol} units here; this asset uses ${asset.decimals} decimal places on-chain`,
-      };
-    }
-  } catch {
-    return { ok: false, error: "Budget is too large" };
   }
 
   return { ok: true };

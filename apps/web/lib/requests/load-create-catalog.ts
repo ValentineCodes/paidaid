@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database, Tables } from "../database.types";
+import { chainIdForCurrentNearNetwork } from "../near/escrow-config";
 
 export type RequestCreateCatalog = {
   assets: Tables<"assets">[];
@@ -34,9 +35,24 @@ export async function loadRequestCreateCatalog(
     );
   }
 
+  const chainId = chainIdForCurrentNearNetwork();
+  const networkAssets = assets.filter(
+    (a) => a.enabled && a.chain_id === chainId,
+  );
+  if (networkAssets.length === 0) {
+    throw new Error(
+      `No enabled assets for ${chainId}. Check NEAR_NETWORK_ID and database seeds.`,
+    );
+  }
+
+  const nativeNear = networkAssets.find(
+    (a) => a.asset_standard === "native" && a.native_reference === "near",
+  );
+  const defaultAssetId = nativeNear?.id ?? networkAssets[0]!.id;
+
   return {
-    assets,
+    assets: networkAssets,
     tags,
-    defaultAssetId: assets[0].id,
+    defaultAssetId,
   };
 }

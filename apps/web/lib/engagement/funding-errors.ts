@@ -10,8 +10,17 @@ export function formatEngagementFundingError(raw: string): string {
   if (lower.includes("asset network mismatch")) {
     return "This offer uses an asset on a different network than your NEAR configuration. Check NEAR network settings.";
   }
+  if (lower.includes("asset invalid for network")) {
+    return "This request was created with a local-network asset but your app is on testnet. Post a new request (budget in testnet NEAR) and accept that offer.";
+  }
   if (lower.includes("already funded")) {
     return "This engagement is already funded.";
+  }
+  if (
+    lower.includes("incompatible on-chain state") ||
+    lower.includes("cannot deserialize")
+  ) {
+    return raw;
   }
   if (lower.includes("methodnotfound") || lower.includes("method resolve error")) {
     return "Escrow contract is out of date. Run `pnpm sandbox:deploy-escrow` (rebuilds wasm) and try again.";

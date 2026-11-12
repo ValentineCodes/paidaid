@@ -174,7 +174,8 @@ export async function loadRequestDetailPageData(
         ? await loadTagsForOwner(supabase, id)
         : [];
 
-  const budgetAmount = row?.budget_amount ?? pub?.budget_amount ?? null;
+  const budgetAmount =
+    pub?.budget_amount ?? row?.budget_amount ?? null;
   const budgetAssetId = row?.budget_asset_id ?? pub?.budget_asset_id;
   const assetSymbol = pub?.asset_symbol;
   const assetDecimals = pub?.asset_decimals;
@@ -198,7 +199,12 @@ export async function loadRequestDetailPageData(
       ? formatBudgetSmallestUnits(budgetAmount, displayDecimals)
       : "";
 
-  const budgetAmountStr = budgetAmount != null ? String(budgetAmount) : "";
+  const budgetAmountStr =
+    budgetAmount != null
+      ? typeof budgetAmount === "string"
+        ? budgetAmount
+        : String(budgetAmount)
+      : "";
 
   let photoUrls: string[] = [];
   if (isOwner && user && row) {

@@ -1,7 +1,7 @@
 import {
   assertFundingCompleteOnChain,
   assertEscrowReleasedOnChain,
-  findEscrowIdForEngagementByScan,
+  findEscrowIdForEngagement,
   viewEscrowRecord,
   waitForEscrowReleaseSettlement,
   type FundingVerificationExpectation,
@@ -82,10 +82,7 @@ export async function reconcileEngagementPaymentFromChain(
 
   if (isRequester && payment.status !== "funded" && payment.status !== "failed") {
     if (!escrowId) {
-      escrowId = await findEscrowIdForEngagementByScan(
-        config,
-        engagementId,
-      );
+      escrowId = await findEscrowIdForEngagement(config, engagementId);
       if (escrowId) {
         await deps.applyFundingProgress(engagementId, "deposit_submitted", {
           onChainEscrowId: escrowId,

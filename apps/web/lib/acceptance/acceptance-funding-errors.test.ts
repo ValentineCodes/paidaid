@@ -17,3 +17,18 @@ test("formatAcceptanceFundingError maps RPC downtime", () => {
   const out = formatAcceptanceFundingError("fetch failed: timeout");
   assert.match(out, /temporarily unavailable/i);
 });
+
+test("formatAcceptanceFundingError surfaces payment network mismatch", () => {
+  const out = formatAcceptanceFundingError(
+    "Payment escrow verification: network mismatch (expected testnet, got localnet).",
+  );
+  assert.match(out, /different NEAR network/i);
+  assert.doesNotMatch(out, /temporarily unavailable/i);
+});
+
+test("formatAcceptanceFundingError surfaces env network mismatch", () => {
+  const out = formatAcceptanceFundingError(
+    "NEAR_NETWORK_ID vs NEXT_PUBLIC_NEAR_NETWORK_ID: network mismatch (expected testnet, got localnet).",
+  );
+  assert.match(out, /env vars disagree/i);
+});

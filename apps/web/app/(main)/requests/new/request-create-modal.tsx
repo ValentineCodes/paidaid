@@ -25,6 +25,8 @@ import { format } from "date-fns";
 import { PaidAidLogo } from "../../../../components/paidaid-logo";
 import { FigmaIcon } from "../../../../components/figma-icons";
 import type { Tables } from "../../../../lib/database.types";
+import { sanitizeHumanAmountInput } from "../../../../lib/requests/human-amount-input";
+import { humanAmountToSmallestUnits } from "../../../../lib/validation/request";
 import { createRequest, type CreateRequestState } from "../actions";
 
 type RequestCreateModalProps = {
@@ -117,16 +119,22 @@ function validateCreateStep1(title: string, description: string) {
   return fieldErrors;
 }
 
-function validateCreateStep2(input: {
-  budgetHuman: string;
-  deadlineDate: string;
-  locationKind: "online" | "in_person";
-  locationLabel: string;
-}) {
+function validateCreateStep2(
+  input: {
+    budgetHuman: string;
+    deadlineDate: string;
+    locationKind: "online" | "in_person";
+    locationLabel: string;
+  },
+  assetDecimals: number,
+) {
   const fieldErrors: Record<string, string> = {};
-  const budget = input.budgetHuman.trim();
-  if (!/^\d+$/.test(budget) || budget === "0") {
-    fieldErrors.budgetHuman = "Enter a whole-number budget greater than 0";
+  const converted = humanAmountToSmallestUnits(
+    input.budgetHuman,
+    assetDecimals,
+  );
+  if (!converted.ok) {
+    fieldErrors.budgetHuman = converted.error;
   }
   if (input.deadlineDate.trim() === "") {
     fieldErrors.deadlineAt = "Pick a deadline";
@@ -261,12 +269,15 @@ export function RequestCreateModal({
       const stepErrors =
         effectiveStep === 1
           ? validateCreateStep1(title, description)
-          : validateCreateStep2({
-              budgetHuman,
-              deadlineDate,
-              locationKind,
-              locationLabel,
-            });
+          : validateCreateStep2(
+              {
+                budgetHuman,
+                deadlineDate,
+                locationKind,
+                locationLabel,
+              },
+              budgetAsset?.decimals ?? 24,
+            );
       if (Object.keys(stepErrors).length > 0) {
         setClientFieldErrors(stepErrors);
         return;
@@ -434,13 +445,12 @@ export function RequestCreateModal({
                     Budget
                     <div className="amount-input">
                       <input
-                        placeholder="250"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
+                        placeholder="0"
+                        inputMode="decimal"
                         autoComplete="off"
                         value={budgetHuman}
                         onChange={(e) => {
-                          setBudgetHuman(e.target.value.replace(/\D/g, ""));
+                          setBudgetHuman(sanitizeHumanAmountInput(e.target.value));
                           clearClientFieldError("budgetHuman");
                         }}
                       />

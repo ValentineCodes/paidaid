@@ -5,7 +5,7 @@ import {
   assertFundingCompleteOnChain,
   assertTransactionFinalSuccess,
   fetchTxFinalOutcome,
-  findEscrowIdForEngagementByScan,
+  findEscrowIdForEngagement,
   resolveEscrowIdAfterCreateTx,
   TransactionExecutionFailedError,
   viewEscrowRecord,
@@ -368,6 +368,19 @@ export async function recoverAcceptanceFundingProgress(
     };
   }
 
+  if (
+    intent.status === "awaiting_wallet" &&
+    !intent.fundTxHash &&
+    !intent.createTxHash &&
+    !intent.onChainEscrowId
+  ) {
+    return {
+      ok: false,
+      error: "No on-chain escrow for this acceptance yet.",
+      recoverable: false,
+    };
+  }
+
   const synced = await syncAcceptanceEscrowFromChain(intentId);
   if (synced.ok) {
     if (synced.intent.status === "finalized") {
@@ -426,10 +439,12 @@ export async function recoverAcceptanceFundingProgress(
     return { ok: false, error: synced.error, recoverable: false };
   }
 
+  const message = synced.ok ? "Funding not complete yet." : synced.error;
+  const noEscrow = message.includes("No on-chain escrow");
   return {
     ok: false,
-    error: synced.ok ? "Funding not complete yet." : synced.error,
-    recoverable: !synced.ok,
+    error: message,
+    recoverable: noEscrow ? false : !synced.ok,
   };
 }
 
@@ -471,7 +486,15 @@ export async function syncAcceptanceEscrowFromChain(
   }
 
   const config = nearConfigForIntent(intent);
-  const escrowId = await findEscrowIdForEngagementByScan(
+  if (
+    intent.status === "awaiting_wallet" &&
+    !intent.fund_tx_hash &&
+    !intent.create_tx_hash
+  ) {
+    return { ok: false, error: "No on-chain escrow for this acceptance yet." };
+  }
+
+  const escrowId = await findEscrowIdForEngagement(
     config,
     intent.planned_engagement_id,
   );

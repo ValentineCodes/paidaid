@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { FigmaIcon } from "../../../../components/figma-icons";
 import { formatBudgetSmallestUnits } from "../../../../lib/requests/format-budget";
+import { sanitizeHumanAmountInput } from "../../../../lib/requests/human-amount-input";
 import {
   submitRequestResponse,
   type SubmitResponseState,
@@ -80,12 +81,14 @@ export function ResponseOfferForm({
             id="respond_proposed_human"
             name="proposed_human"
             type="text"
-            inputMode="numeric"
-            pattern="[0-9]*"
+            inputMode="decimal"
             required
             defaultValue={budgetHuman}
             autoComplete="off"
             aria-describedby="respond_budget_hint"
+            onChange={(e) => {
+              e.target.value = sanitizeHumanAmountInput(e.target.value);
+            }}
           />
           <span>{assetSymbol}</span>
         </div>
@@ -94,7 +97,7 @@ export function ResponseOfferForm({
         id="respond_budget_hint"
         className="mt-[-8px] mb-[15px] text-[11px] font-normal text-[var(--muted)]"
       >
-        Task budget is {budgetHuman} {assetSymbol} (whole units only).
+        Task budget is {budgetHuman} {assetSymbol}.
       </p>
       {state.fieldErrors?.proposedHuman && (
         <p className="mb-3 text-[12px] text-red-700 dark:text-red-300">

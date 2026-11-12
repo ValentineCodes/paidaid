@@ -6,7 +6,10 @@ import { isSupabaseConfigured } from "../../../../lib/supabase/env";
 import { getRequestWallTimeMs } from "../../../../lib/datetime/request-wall-time";
 import { resolveProfileDisplayUrl } from "../../../../lib/profiles/resolve-photo";
 import { normalizeDbNumericAmount } from "@paidaid/shared";
-import { formatBudgetSmallestUnits } from "../../../../lib/requests/format-budget";
+import {
+  formatBudgetSmallestUnits,
+  normalizeAssetDecimals,
+} from "../../../../lib/requests/format-budget";
 import { EngagementDetailContent } from "./engagement-detail-content";
 import type { EngagementSettlementView } from "../../../../lib/engagement/settlement-types";
 import { loadActiveLinkedNearWallet } from "../../../../lib/near/load-linked-wallet";
@@ -97,7 +100,7 @@ export default async function EngagementPage({ params }: PageProps) {
     .maybeSingle();
 
   const { data: accepted } = await supabase
-    .from("request_responses")
+    .from("request_responses_api")
     .select(
       `
       proposed_amount,
@@ -167,8 +170,8 @@ export default async function EngagementPage({ params }: PageProps) {
   const budgetStr =
     accepted && asset
       ? formatBudgetSmallestUnits(
-          String(accepted.proposed_amount),
-          asset.decimals,
+          accepted.proposed_amount,
+          normalizeAssetDecimals(asset.decimals),
         )
       : "";
 

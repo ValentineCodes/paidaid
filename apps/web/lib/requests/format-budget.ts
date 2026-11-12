@@ -73,7 +73,17 @@ function bigintFromBudgetAmount(
   return n != null ? { ok: true, value: n } : { ok: false };
 }
 
-/** Format stored smallest-units budget for display (whole token units when divisible). */
+export function normalizeAssetDecimals(decimals: unknown): number {
+  const n =
+    typeof decimals === "number"
+      ? decimals
+      : typeof decimals === "string"
+        ? Number(decimals)
+        : NaN;
+  return Number.isFinite(n) && n >= 0 ? Math.trunc(n) : 24;
+}
+
+/** Format stored smallest-units budget for display (e.g. 0.001 NEAR from yocto). */
 export function formatBudgetSmallestUnits(
   budgetAmount: string | number | null | undefined,
   decimals: number,
@@ -82,6 +92,8 @@ export function formatBudgetSmallestUnits(
     return "";
   }
 
+  const assetDecimals = normalizeAssetDecimals(decimals);
+
   const parsed = bigintFromBudgetAmount(budgetAmount);
   if (!parsed.ok) {
     return String(budgetAmount);
@@ -89,11 +101,20 @@ export function formatBudgetSmallestUnits(
 
   try {
     const amount = parsed.value;
-    const factor = BigInt(10) ** BigInt(decimals);
-    if (factor > BigInt(0) && amount % factor === BigInt(0)) {
-      return (amount / factor).toString();
+    const factor = BigInt(10) ** BigInt(assetDecimals);
+    if (factor <= BigInt(0)) {
+      return amount.toString();
     }
-    return amount.toString();
+    const whole = amount / factor;
+    const frac = amount % factor;
+    if (frac === BigInt(0)) {
+      return whole.toString();
+    }
+    const fracStr = frac
+      .toString()
+      .padStart(assetDecimals, "0")
+      .replace(/0+$/, "");
+    return `${whole.toString()}.${fracStr}`;
   } catch {
     return String(budgetAmount);
   }

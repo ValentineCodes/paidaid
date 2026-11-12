@@ -252,6 +252,38 @@ export async function findEscrowIdForEngagementByScan(
   return null;
 }
 
+/** Prefer contract index view; fall back to id scan only on older wasm without the view method. */
+export async function findEscrowIdForEngagement(
+  config: EscrowNearConfig,
+  engagementId: string,
+): Promise<string | null> {
+  try {
+    const id = await viewActiveEscrowIdForEngagement(config, engagementId);
+    if (id) {
+      return id;
+    }
+    return null;
+  } catch (e) {
+    const message = e instanceof Error ? e.message.toLowerCase() : "";
+    if (
+      message.includes("methodnotfound") ||
+      message.includes("method resolve error")
+    ) {
+      return findEscrowIdForEngagementByScan(config, engagementId);
+    }
+    if (
+      message.includes("cannot deserialize") ||
+      message.includes("guestpanic") ||
+      message.includes("wasm execution failed")
+    ) {
+      throw new Error(
+        "Escrow contract on this network has invalid or incompatible on-chain state. Run `pnpm contract:build` then `pnpm testnet:upgrade-escrow`, or deploy a fresh escrow subaccount and update NEAR_ESCROW_CONTRACT_ID.",
+      );
+    }
+    throw e;
+  }
+}
+
 export async function viewActiveEscrowIdForEngagement(
   config: EscrowNearConfig,
   engagementId: string,
@@ -327,7 +359,7 @@ export async function resolveEscrowIdAfterCreateTx(
       }
     }
 
-    const scanned = await findEscrowIdForEngagementByScan(config, engagementId);
+    const scanned = await findEscrowIdForEngagement(config, engagementId);
     if (scanned) {
       return scanned;
     }

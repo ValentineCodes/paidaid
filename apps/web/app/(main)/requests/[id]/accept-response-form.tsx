@@ -229,19 +229,28 @@ function AcceptResponseFormInner({
         current.status !== "finalized" &&
         current.status !== "funding_verified"
       ) {
-        setActiveStep("Verifying funding on-chain…");
-        const recovered = await recoverAcceptanceFundingProgress(
-          current.intentId,
-        );
-        if (recovered.ok) {
-          setIntent(recovered.intent);
-          if (recovered.engagementId) {
-            setFinalizedEngagementId(recovered.engagementId);
+        const needsWalletFund =
+          !current.fundTxHash && !current.onChainEscrowId;
+
+        if (!needsWalletFund) {
+          setActiveStep("Verifying funding on-chain…");
+          const recovered = await recoverAcceptanceFundingProgress(
+            current.intentId,
+          );
+          if (recovered.ok) {
+            setIntent(recovered.intent);
+            if (recovered.engagementId) {
+              setFinalizedEngagementId(recovered.engagementId);
+            }
+            return;
           }
-          return;
-        }
-        if (recovered.recoverable) {
-          throw new Error(recovered.error);
+          const noEscrowYet = recovered.error.includes("No on-chain escrow");
+          if (recovered.recoverable && !noEscrowYet) {
+            throw new Error(recovered.error);
+          }
+          if (!noEscrowYet && !recovered.recoverable) {
+            throw new Error(recovered.error);
+          }
         }
 
         setActiveStep("Waiting for wallet approval (fund escrow)…");
@@ -322,6 +331,14 @@ function AcceptResponseFormInner({
             current.intentId,
           );
           if (!recovered.ok) {
+            if (
+              !recovered.recoverable &&
+              recovered.error.includes("No on-chain escrow")
+            ) {
+              throw new Error(
+                "No fund transaction yet. Confirm funding in your wallet first, then use Continue.",
+              );
+            }
             throw new Error(recovered.error);
           }
           setIntent(recovered.intent);

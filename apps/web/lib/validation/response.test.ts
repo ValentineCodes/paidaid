@@ -11,9 +11,17 @@ test("validateResponseOfferInput accepts whole human offer matching asset decima
   assert.equal(fieldErrors, null);
 });
 
-test("validateResponseOfferInput rejects fractional human amount", () => {
+test("validateResponseOfferInput accepts fractional human amount", () => {
   const { fieldErrors } = validateResponseOfferInput(
-    { message: "", headline: "", proposedHuman: "10.5" },
+    { message: "", headline: "", proposedHuman: "0.001" },
+    { symbol: "NEAR", decimals: 24 },
+  );
+  assert.equal(fieldErrors, null);
+});
+
+test("validateResponseOfferInput rejects excess decimal places", () => {
+  const { fieldErrors } = validateResponseOfferInput(
+    { message: "", headline: "", proposedHuman: "1.0000000000000000000000001" },
     { symbol: "NEAR", decimals: 24 },
   );
   assert.ok(fieldErrors?.proposedHuman);

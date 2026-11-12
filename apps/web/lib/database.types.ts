@@ -146,6 +146,13 @@ export type Database = {
             referencedRelation: "request_responses"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "acceptance_funding_intents_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "request_responses_api"
+            referencedColumns: ["id"]
+          },
         ]
       }
       app_config: {
@@ -245,6 +252,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "assignments_accepted_response_id_fkey"
+            columns: ["accepted_response_id"]
+            isOneToOne: true
+            referencedRelation: "request_responses_api"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "assignments_provider_user_id_fkey"
             columns: ["provider_user_id"]
             isOneToOne: false
@@ -329,6 +343,13 @@ export type Database = {
             columns: ["response_id"]
             isOneToOne: false
             referencedRelation: "request_responses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "request_responses_api"
             referencedColumns: ["id"]
           },
         ]
@@ -574,6 +595,13 @@ export type Database = {
             columns: ["response_id"]
             isOneToOne: false
             referencedRelation: "request_responses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagement_escrow_payments_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "request_responses_api"
             referencedColumns: ["id"]
           },
         ]
@@ -1006,6 +1034,13 @@ export type Database = {
             columns: ["response_id"]
             isOneToOne: false
             referencedRelation: "request_responses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "request_responses_api"
             referencedColumns: ["id"]
           },
           {
@@ -1483,6 +1518,74 @@ export type Database = {
       }
     }
     Views: {
+      request_responses_api: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          message: string | null
+          proposed_amount: string | null
+          proposed_asset_id: string | null
+          provider_profile_id: string | null
+          request_id: string | null
+          responder_near_account_id: string | null
+          status: Database["public"]["Enums"]["response_status"] | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string | null
+          message?: string | null
+          proposed_amount?: never
+          proposed_asset_id?: string | null
+          provider_profile_id?: string | null
+          request_id?: string | null
+          responder_near_account_id?: string | null
+          status?: Database["public"]["Enums"]["response_status"] | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string | null
+          message?: string | null
+          proposed_amount?: never
+          proposed_asset_id?: string | null
+          provider_profile_id?: string | null
+          request_id?: string | null
+          responder_near_account_id?: string | null
+          status?: Database["public"]["Enums"]["response_status"] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "request_responses_proposed_asset_id_fkey"
+            columns: ["proposed_asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "request_responses_provider_profile_id_fkey"
+            columns: ["provider_profile_id"]
+            isOneToOne: false
+            referencedRelation: "provider_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "request_responses_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "request_responses_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "requests_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       requests_public: {
         Row: {
           asset_decimals: number | null
@@ -2145,7 +2248,7 @@ export type Database = {
         Args: {
           p_headline: string
           p_message: string
-          p_proposed_amount: number
+          p_proposed_amount: string
           p_request_id: string
         }
         Returns: string

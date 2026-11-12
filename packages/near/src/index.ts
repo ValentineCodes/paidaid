@@ -31,6 +31,7 @@ export {
   waitForEscrowReleaseSettlement,
   explorerTransactionUrl,
   fetchTxFinalOutcome,
+  findEscrowIdForEngagement,
   findEscrowIdForEngagementByScan,
   isMapEntryArray,
   normalizeTransactionOutcome,
