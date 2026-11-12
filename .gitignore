@@ -10,6 +10,7 @@ target
 .env.local
 .env.*.local
 .sandbox
+.testnet
 .vercel
 
 # Supabase CLI local artifacts (never commit secrets)

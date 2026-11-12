@@ -3,7 +3,7 @@
 import { useWalletSelector } from "@near-wallet-selector/react-hook";
 import { useNearWalletAccountId } from "./use-near-wallet-account";
 import { useCallback, useEffect, useState } from "react";
-import { WALLET_NETWORK_ID } from "./constants";
+import { useWalletNearPublicEnv } from "./wallet-network-context";
 import {
   assertIntearWalletModule,
   signInWithIntearWallet,
@@ -20,7 +20,7 @@ export type WalletConnectionStatus =
 
 export type PaidAidWalletState = {
   status: WalletConnectionStatus;
-  networkId: typeof WALLET_NETWORK_ID;
+  networkId: ReturnType<typeof useWalletNearPublicEnv>["networkId"];
   accountId: string | null;
   error: string | null;
   connect: () => Promise<void>;
@@ -29,6 +29,7 @@ export type PaidAidWalletState = {
 };
 
 export function usePaidAidWallet(): PaidAidWalletState {
+  const { networkId } = useWalletNearPublicEnv();
   const { walletSelector, signOut } = useWalletSelector();
   const { accountId: signedAccountId, syncFromSelectorStore } =
     useNearWalletAccountId();
@@ -123,7 +124,7 @@ export function usePaidAidWallet(): PaidAidWalletState {
 
   return {
     status,
-    networkId: WALLET_NETWORK_ID,
+    networkId,
     accountId: signedAccountId,
     error,
     connect,

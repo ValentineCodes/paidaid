@@ -2,6 +2,7 @@ import { connection } from "next/server";
 
 import { createClient } from "../../lib/supabase/server";
 import { SiteHeaderMarketplace } from "../../components/site-header-marketplace";
+import { readNearPublicEnv } from "../../lib/near/near-public-env";
 import { NearSessionProvider } from "../../wallet/near-session-provider";
 import { loadActiveLinkedNearWallet } from "../../lib/near/load-linked-wallet";
 import { MobileNav } from "../../components/mobile-nav";
@@ -47,8 +48,10 @@ export default async function MainLayout({
     }
   }
 
+  const nearPublicEnv = readNearPublicEnv();
+
   return (
-    <NearSessionProvider>
+    <NearSessionProvider nearPublicEnv={nearPublicEnv}>
       <SiteHeaderMarketplace
         user={user}
         linkedNearAccountId={linkedNearAccountId}

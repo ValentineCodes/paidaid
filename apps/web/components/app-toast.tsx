@@ -10,6 +10,7 @@ type Props = {
   visible: boolean;
   onClose: () => void;
   durationMs?: number;
+  variant?: "success" | "error";
 };
 
 export function AppToast({
@@ -17,6 +18,7 @@ export function AppToast({
   visible,
   onClose,
   durationMs = 3200,
+  variant = "success",
 }: Props) {
   const [mounted, setMounted] = useState(false);
 
@@ -36,10 +38,16 @@ export function AppToast({
     return null;
   }
 
+  const isError = variant === "error";
+
   return createPortal(
-    <div className="app-toast" role="status" aria-live="polite">
+    <div
+      className={isError ? "app-toast app-toast--error" : "app-toast"}
+      role={isError ? "alert" : "status"}
+      aria-live={isError ? "assertive" : "polite"}
+    >
       <span className="app-toast__icon" aria-hidden>
-        <FigmaIcon name="check" size={16} />
+        <FigmaIcon name={isError ? "close" : "check"} size={16} />
       </span>
       <span>{message}</span>
       <button

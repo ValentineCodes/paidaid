@@ -6,25 +6,29 @@ import type { WalletSelectorParams } from "@near-wallet-selector/core";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { SiteHeader } from "../components/site-header";
 import { SiteHeaderStatic } from "../components/site-header-static";
+import type { NearPublicEnv } from "../lib/near/near-public-env";
+import { nearPublicEnvToWalletRecord } from "../lib/near/near-public-env";
 import {
   buildWalletNetworkConfig,
   readPublicNearNetworkId,
   walletModules,
 } from "./network-config";
 import { readWalletContractId } from "./config";
+import { WalletNetworkContext } from "./wallet-network-context";
 import { WalletSelectorReadyContext } from "./mount-context";
 
 type WalletSelectorLayerProps = {
   children: ReactNode;
+  nearPublicEnv: NearPublicEnv;
 };
 
-export function WalletSelectorLayer({ children }: WalletSelectorLayerProps) {
+export function WalletSelectorLayer({
+  children,
+  nearPublicEnv,
+}: WalletSelectorLayerProps) {
   const env = useMemo(
-    () => ({
-      NEXT_PUBLIC_NEAR_NETWORK_ID: process.env.NEXT_PUBLIC_NEAR_NETWORK_ID,
-      NEXT_PUBLIC_NEAR_RPC_URL: process.env.NEXT_PUBLIC_NEAR_RPC_URL,
-    }),
-    [],
+    () => nearPublicEnvToWalletRecord(nearPublicEnv),
+    [nearPublicEnv],
   );
 
   const [selectorConfig, setSelectorConfig] =
@@ -36,17 +40,14 @@ export function WalletSelectorLayer({ children }: WalletSelectorLayerProps) {
 
     void (async () => {
       try {
-        readWalletContractId({
-          NEXT_PUBLIC_NEAR_CONTRACT_ID:
-            process.env.NEXT_PUBLIC_NEAR_CONTRACT_ID,
-        });
+        readWalletContractId(env);
         readPublicNearNetworkId(env);
         if (cancelled) {
           return;
         }
         setSelectorConfig({
           ...buildWalletNetworkConfig(env),
-          modules: walletModules(),
+          modules: walletModules(env),
         });
       } catch (error) {
         if (!cancelled) {
@@ -84,11 +85,13 @@ export function WalletSelectorLayer({ children }: WalletSelectorLayerProps) {
   const providerKey = readPublicNearNetworkId(env);
 
   return (
-    <WalletSelectorProvider key={providerKey} config={selectorConfig}>
-      <WalletSelectorReadyContext.Provider value={true}>
-        <SiteHeader />
-        {children}
-      </WalletSelectorReadyContext.Provider>
-    </WalletSelectorProvider>
+    <WalletNetworkContext.Provider value={nearPublicEnv}>
+      <WalletSelectorProvider key={providerKey} config={selectorConfig}>
+        <WalletSelectorReadyContext.Provider value={true}>
+          <SiteHeader />
+          {children}
+        </WalletSelectorReadyContext.Provider>
+      </WalletSelectorProvider>
+    </WalletNetworkContext.Provider>
   );
 }

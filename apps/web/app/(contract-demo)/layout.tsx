@@ -1,3 +1,4 @@
+import { readNearPublicEnv } from "../../lib/near/near-public-env";
 import { WalletProvider } from "../../wallet/provider";
 
 export default function ContractDemoLayout({
@@ -5,5 +6,9 @@ export default function ContractDemoLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <WalletProvider>{children}</WalletProvider>;
+  return (
+    <WalletProvider nearPublicEnv={readNearPublicEnv()}>
+      {children}
+    </WalletProvider>
+  );
 }

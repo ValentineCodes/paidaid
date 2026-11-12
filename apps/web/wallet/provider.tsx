@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useLayoutEffect, useState, type ReactNode } from "react";
+import type { NearPublicEnv } from "../lib/near/near-public-env";
 import { SiteHeaderStatic } from "../components/site-header-static";
 import { WalletMountContext } from "./mount-context";
 
@@ -15,9 +16,10 @@ const WalletSelectorLayer = dynamic(
 
 type WalletProviderProps = {
   children: ReactNode;
+  nearPublicEnv: NearPublicEnv;
 };
 
-export function WalletProvider({ children }: WalletProviderProps) {
+export function WalletProvider({ children, nearPublicEnv }: WalletProviderProps) {
   const [mounted, setMounted] = useState(false);
 
   useLayoutEffect(() => {
@@ -34,7 +36,9 @@ export function WalletProvider({ children }: WalletProviderProps) {
           {children}
         </>
       ) : (
-        <WalletSelectorLayer>{children}</WalletSelectorLayer>
+        <WalletSelectorLayer nearPublicEnv={nearPublicEnv}>
+          {children}
+        </WalletSelectorLayer>
       )}
     </WalletMountContext.Provider>
   );

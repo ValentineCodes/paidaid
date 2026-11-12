@@ -23,6 +23,8 @@
     "sandbox:deploy": "node scripts/sandbox/deploy.mjs",
     "sandbox:deploy-escrow": "pnpm contract:build && node scripts/sandbox/deploy-escrow.mjs",
     "sandbox:test-escrow": "node scripts/sandbox/test-escrow.mjs",
+    "testnet:deploy-escrow": "node --env-file=apps/web/.env.local scripts/testnet/deploy-escrow.mjs",
+    "testnet:upgrade-escrow": "node --env-file=apps/web/.env.local scripts/testnet/upgrade-escrow.mjs",
     "db:start": "supabase start",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",

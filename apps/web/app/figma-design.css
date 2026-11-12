@@ -3288,6 +3288,16 @@ body.app.dark .updates-error {
   color: #378c62;
 }
 
+.app-toast--error {
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+.app-toast--error .app-toast__icon {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
 .app-toast__close {
   display: grid;
   flex-shrink: 0;

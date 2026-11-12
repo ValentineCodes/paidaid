@@ -12,6 +12,7 @@ import {
   truncateNearAccountId,
   type HeaderWalletSyncState,
 } from "../lib/wallet/header-display";
+import { AppToast } from "./app-toast";
 import { useMarketplaceWalletAuth } from "../lib/wallet/use-marketplace-wallet-auth";
 import { usePaidAidWallet } from "../wallet/use-paidaid-wallet";
 import { formatWalletConnectionError } from "../wallet/errors";
@@ -26,16 +27,48 @@ const BALANCE_STALE_MS = 60_000;
 
 export function MarketplaceWalletControl(props: MarketplaceWalletControlProps) {
   const walletShell = useWalletShell();
+  const [shellToastOpen, setShellToastOpen] = useState(false);
+
+  useEffect(() => {
+    setShellToastOpen(Boolean(walletShell.error?.trim()));
+  }, [walletShell.error]);
+
   if (!walletShell.ready) {
     return (
-      <ConnectWalletOnly
-        disabled
-        label="Connecting…"
-        error={walletShell.error}
-      />
+      <>
+        <ConnectWalletOnly disabled label="Connecting…" />
+        <AppToast
+          variant="error"
+          visible={shellToastOpen}
+          message={walletShell.error ?? ""}
+          onClose={() => setShellToastOpen(false)}
+          durationMs={6000}
+        />
+      </>
     );
   }
   return <MarketplaceWalletControlInner {...props} />;
+}
+
+function useWalletErrorToast(message: string | null, onDismiss: () => void) {
+  const [visible, setVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+
+  useEffect(() => {
+    if (!message?.trim()) {
+      setVisible(false);
+      return;
+    }
+    setToastMessage(message);
+    setVisible(true);
+  }, [message]);
+
+  const closeToast = useCallback(() => {
+    setVisible(false);
+    onDismiss();
+  }, [onDismiss]);
+
+  return { visible, toastMessage, closeToast };
 }
 
 function MarketplaceWalletControlInner({
@@ -226,6 +259,13 @@ function MarketplaceWalletControlInner({
     }
   }, [disconnect, router]);
 
+  const combinedError = walletError ?? menuError ?? null;
+  const dismissErrors = useCallback(() => {
+    clearError();
+    setMenuError(null);
+  }, [clearError]);
+  const errorToast = useWalletErrorToast(combinedError, dismissErrors);
+
   const connectBusy =
     authBusy ||
     walletStatus === "connecting" ||
@@ -244,33 +284,33 @@ function MarketplaceWalletControlInner({
 
   if (showConnectButton) {
     return (
-      <div className="flex flex-col items-end gap-1">
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <button
-            type="button"
-            disabled={connectBusy}
-            onClick={() => void handleConnect()}
-            className="btn-ink rounded-lg px-3 py-2 text-xs font-semibold sm:text-sm"
-          >
-            {connectBusy ? "Connecting…" : "Connect"}
-          </button>
+      <>
+        <div className="flex flex-col items-end gap-1">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <button
+              type="button"
+              disabled={connectBusy}
+              onClick={() => void handleConnect()}
+              className="btn-ink rounded-lg px-3 py-2 text-xs font-semibold sm:text-sm"
+            >
+              {connectBusy ? "Connecting…" : "Connect"}
+            </button>
+          </div>
+          {syncState === "session_only" && sessionNearAccountId ? (
+            <p className="max-w-xs text-right text-[10px] text-[var(--muted)]">
+              Signed in as {truncateNearAccountId(sessionNearAccountId)} — connect
+              wallet to transact.
+            </p>
+          ) : null}
         </div>
-        {(walletError || menuError) && (
-          <HeaderAlert
-            message={walletError ?? menuError ?? ""}
-            onDismiss={() => {
-              clearError();
-              setMenuError(null);
-            }}
-          />
-        )}
-        {syncState === "session_only" && sessionNearAccountId ? (
-          <p className="max-w-xs text-right text-[10px] text-[var(--muted)]">
-            Signed in as {truncateNearAccountId(sessionNearAccountId)} — connect
-            wallet to transact.
-          </p>
-        ) : null}
-      </div>
+        <AppToast
+          variant="error"
+          visible={errorToast.visible}
+          message={errorToast.toastMessage}
+          onClose={errorToast.closeToast}
+          durationMs={6000}
+        />
+      </>
     );
   }
 
@@ -278,6 +318,7 @@ function MarketplaceWalletControlInner({
     displayAccountId ?? sessionNearAccountId ?? selectorAccountId ?? "";
 
   return (
+    <>
     <div className="relative flex flex-col items-end gap-1" ref={menuRef}>
       <div className="flex flex-wrap items-center justify-end gap-2">
         <button
@@ -370,27 +411,24 @@ function MarketplaceWalletControlInner({
         </div>
       ) : null}
 
-      {(walletError || menuError) && (
-        <HeaderAlert
-          message={walletError ?? menuError ?? ""}
-          onDismiss={() => {
-            clearError();
-            setMenuError(null);
-          }}
-        />
-      )}
     </div>
+    <AppToast
+      variant="error"
+      visible={errorToast.visible}
+      message={errorToast.toastMessage}
+      onClose={errorToast.closeToast}
+      durationMs={6000}
+    />
+    </>
   );
 }
 
 function ConnectWalletOnly({
   disabled,
   label,
-  error,
 }: {
   disabled?: boolean;
   label: string;
-  error?: string | null;
 }) {
   return (
     <div className="flex flex-col items-end gap-1">
@@ -403,11 +441,6 @@ function ConnectWalletOnly({
           {label}
         </button>
       </div>
-      {error ? (
-        <p className="max-w-xs text-right text-[10px] text-red-700 dark:text-red-300">
-          {error}
-        </p>
-      ) : null}
     </div>
   );
 }
@@ -429,26 +462,3 @@ function ChevronIcon({ open }: { open: boolean }) {
   );
 }
 
-function HeaderAlert({
-  message,
-  onDismiss,
-}: {
-  message: string;
-  onDismiss: () => void;
-}) {
-  return (
-    <div
-      role="alert"
-      className="flex max-w-xs items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-right text-[10px] text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
-    >
-      <span className="flex-1">{message}</span>
-      <button
-        type="button"
-        onClick={onDismiss}
-        className="shrink-0 font-semibold underline-offset-2 hover:underline"
-      >
-        Dismiss
-      </button>
-    </div>
-  );
-}
