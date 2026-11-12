@@ -9,6 +9,22 @@ export type RequestCreateCatalog = {
   defaultAssetId: string;
 };
 
+/** Prefer native NEAR when enabled on the current network (unchanged when USDC is added). */
+export function resolveDefaultBudgetAssetId(
+  networkAssets: Pick<
+    Tables<"assets">,
+    "id" | "asset_standard" | "native_reference"
+  >[],
+): string {
+  if (networkAssets.length === 0) {
+    throw new Error("No enabled assets for network.");
+  }
+  const nativeNear = networkAssets.find(
+    (a) => a.asset_standard === "native" && a.native_reference === "near",
+  );
+  return nativeNear?.id ?? networkAssets[0]!.id;
+}
+
 export async function loadRequestCreateCatalog(
   supabase: SupabaseClient<Database>,
 ): Promise<RequestCreateCatalog | null> {
@@ -45,10 +61,7 @@ export async function loadRequestCreateCatalog(
     );
   }
 
-  const nativeNear = networkAssets.find(
-    (a) => a.asset_standard === "native" && a.native_reference === "near",
-  );
-  const defaultAssetId = nativeNear?.id ?? networkAssets[0]!.id;
+  const defaultAssetId = resolveDefaultBudgetAssetId(networkAssets);
 
   return {
     assets: networkAssets,

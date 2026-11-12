@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { AppToast } from "../../../../components/app-toast";
 import { FigmaIcon } from "../../../../components/figma-icons";
-import { parseNearNetworkId } from "@paidaid/shared";
+import { defaultRpcUrlForNetwork, parseNearNetworkId } from "@paidaid/shared";
 import {
   explorerTransactionUrl,
   normalizeTransactionOutcome,
@@ -25,8 +25,10 @@ import { formatWalletConnectionError } from "../../../../wallet/errors";
 import { usePaidAidNearWallet } from "../../../../wallet/paidaid-near-wallet-context";
 import { useOpenNearWalletConnect } from "../../../../wallet/use-open-near-wallet-connect";
 import { sendFundEscrowTransaction } from "../../../../wallet/send-escrow-funding";
+import { sendNep141StorageDeposit } from "../../../../wallet/send-nep141-storage-deposit";
 import {
-  checkAcceptanceFundingBalance,
+  checkAcceptanceFundingPreflight,
+  type AcceptanceFundingPreflightResult,
   checkAcceptOfferEligibility,
   prepareAcceptanceFunding,
   recoverAcceptanceFundingProgress,
@@ -124,9 +126,20 @@ function AcceptResponseFormInner({
   const [blockToastMessage, setBlockToastMessage] = useState(
     PROVIDER_ACTIVE_ENGAGEMENT_TOAST,
   );
+  const [registrationPreflight, setRegistrationPreflight] =
+    useState<AcceptanceFundingPreflightResult | null>(null);
   const runGuard = useRef(false);
 
   const networkId = parseNearNetworkId(process.env.NEXT_PUBLIC_NEAR_NETWORK_ID);
+  const nearConfig = useMemo(
+    () => ({
+      networkId,
+      rpcUrl:
+        process.env.NEXT_PUBLIC_NEAR_RPC_URL?.trim() ||
+        defaultRpcUrlForNetwork(networkId),
+    }),
+    [networkId],
+  );
 
   const walletMatchesLink =
     !linkedRequesterNearAccountId ||
@@ -203,10 +216,19 @@ function AcceptResponseFormInner({
 
   const executeWalletFunding = useCallback(
     async (starting: AcceptanceFundingPrepareResult) => {
-      const balance = await checkAcceptanceFundingBalance(starting.intentId);
-      if (!balance.ok) {
-        throw new Error(balance.error);
+      const preflight = await checkAcceptanceFundingPreflight(starting.intentId);
+      if (!preflight.ok) {
+        if (
+          preflight.code === "requester_not_registered" &&
+          preflight.registrationActor === "requester" &&
+          preflight.storageDepositYocto &&
+          starting.tokenContractId
+        ) {
+          setRegistrationPreflight(preflight);
+        }
+        throw new Error(preflight.error);
       }
+      setRegistrationPreflight(null);
 
       if (!signedAccountId) {
         throw new Error("Connect your linked NEAR wallet to continue.");
@@ -295,6 +317,64 @@ function AcceptResponseFormInner({
       linkedRequesterNearAccountId,
     ],
   );
+
+  const registerRequesterTokenStorage = useCallback(async () => {
+    if (
+      !intent?.tokenContractId ||
+      !registrationPreflight ||
+      registrationPreflight.ok ||
+      !registrationPreflight.storageDepositYocto
+    ) {
+      return;
+    }
+    setError(null);
+    setBusy(true);
+    setActiveStep("Registering for token storage…");
+    try {
+      if (!signedAccountId) {
+        throw new Error("Connect your linked NEAR wallet first.");
+      }
+      if (!walletMatchesLink) {
+        throw new Error(
+          `Connected wallet must be ${linkedRequesterNearAccountId}.`,
+        );
+      }
+      const signer = await getTransactionSigner();
+      const deposited = await sendNep141StorageDeposit(
+        signer,
+        nearConfig,
+        intent.tokenContractId,
+        BigInt(registrationPreflight.storageDepositYocto),
+      );
+      if (!deposited.ok) {
+        throw new Error(deposited.error);
+      }
+      setRegistrationPreflight(null);
+      const again = await checkAcceptanceFundingPreflight(intent.intentId);
+      if (!again.ok) {
+        throw new Error(again.error);
+      }
+      setActiveStep(null);
+      await executeWalletFunding(intent);
+    } catch (e) {
+      setError(
+        formatAcceptanceFundingError(
+          e instanceof Error ? e.message : "Registration failed.",
+        ),
+      );
+    } finally {
+      setBusy(false);
+    }
+  }, [
+    intent,
+    registrationPreflight,
+    signedAccountId,
+    walletMatchesLink,
+    linkedRequesterNearAccountId,
+    getTransactionSigner,
+    nearConfig,
+    executeWalletFunding,
+  ]);
 
   const showProviderBlockedToast = useCallback((message?: string) => {
     setBlockToastMessage(message ?? PROVIDER_ACTIVE_ENGAGEMENT_TOAST);
@@ -659,6 +739,25 @@ function AcceptResponseFormInner({
                 {error}
               </p>
             )}
+
+            {registrationPreflight &&
+            !registrationPreflight.ok &&
+            registrationPreflight.registrationActor === "requester" ? (
+              <div className="rounded-lg border border-stone-200 bg-stone-50 px-3 py-3 text-sm dark:border-stone-700 dark:bg-stone-900/50">
+                <p className="text-[var(--ink)]">
+                  One-time {assetSymbol} registration requires a small NEAR
+                  storage deposit in your wallet (not {assetSymbol}).
+                </p>
+                <button
+                  type="button"
+                  className="btn-ink mt-3 rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
+                  disabled={busy || walletRequired}
+                  onClick={() => void registerRequesterTokenStorage()}
+                >
+                  {busy ? "Registering…" : `Register for ${assetSymbol}`}
+                </button>
+              </div>
+            ) : null}
 
             {fundTxExplorer && (
               <a

@@ -13,6 +13,28 @@ export {
   type NativeBalanceResult,
 } from "./balances";
 export {
+  assertTokenContractMatchesRegistry,
+  isNep141AccountRegistered,
+  parseNep141StorageBoundsRaw,
+  readNep141StorageBalanceOf,
+  readNep141StorageBounds,
+  storageDepositYoctoForRegistration,
+  type Nep141StorageBalance,
+  type Nep141StorageBalanceResult,
+  type Nep141StorageBounds,
+  type Nep141StorageBoundsResult,
+} from "./nep141-storage";
+export {
+  MIN_NEAR_GAS_YOCTO,
+  runNep141FundingPreflight,
+  runNep141ReleasePreflight,
+  type Nep141FundingPreflightInput,
+  type Nep141PreflightCode,
+  type Nep141PreflightFailure,
+  type Nep141PreflightResult,
+  type Nep141ReleasePreflightInput,
+} from "./nep141-preflight";
+export {
   buildSetMessageCall,
   extractTransactionHash,
   getMessage,
@@ -28,6 +50,7 @@ export {
   assertEscrowRecordMatchesFunding,
   assertEscrowReleasedOnChain,
   assertFundingCompleteOnChain,
+  confirmEscrowIdForEngagement,
   waitForEscrowReleaseSettlement,
   explorerTransactionUrl,
   fetchTxFinalOutcome,

@@ -12,6 +12,7 @@ import {
   validateRequestComposer,
   type RequestComposerValues,
 } from "../../../lib/validation/request";
+import { validateBudgetAssetForCreate } from "../../../lib/requests/request-budget-assets";
 import { validateCreateRequestFormForTests } from "../../../lib/requests/validate-create-input";
 import { formatWalletSnapshotRpcError } from "../../../lib/requests/wallet-snapshot-errors";
 import { chainIdForCurrentNearNetwork } from "../../../lib/near/escrow-config";
@@ -112,21 +113,12 @@ export async function createRequest(
   }
 
   const asset = assets.find((a) => a.id === budgetAssetId);
-  if (!asset) {
-    return {
-      error: null,
-      fieldErrors: { budgetAssetId: "Select a supported asset" },
-    };
-  }
-
   const chainId = chainIdForCurrentNearNetwork();
-  if (asset.chain_id !== chainId || !asset.enabled) {
+  const assetErr = validateBudgetAssetForCreate(asset, chainId);
+  if (assetErr || !asset) {
     return {
       error: null,
-      fieldErrors: {
-        budgetAssetId:
-          "Selected asset does not match your NEAR network. Refresh and try again.",
-      },
+      fieldErrors: { budgetAssetId: assetErr ?? "Select a supported asset" },
     };
   }
 

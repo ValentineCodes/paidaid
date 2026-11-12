@@ -4,12 +4,15 @@ import {
   assertEscrowRecordMatchesFunding,
   assertFundingCompleteOnChain,
   assertTransactionFinalSuccess,
+  confirmEscrowIdForEngagement,
   fetchTxFinalOutcome,
   findEscrowIdForEngagement,
   resolveEscrowIdAfterCreateTx,
   TransactionExecutionFailedError,
   viewEscrowRecord,
+  runNep141FundingPreflight,
   type FundingVerificationExpectation,
+  type Nep141PreflightCode,
 } from "@paidaid/near";
 import {
   bigintToSmallestUnitsString,
@@ -702,10 +705,14 @@ export async function reportAcceptanceFundTx(
   }
 
   const config = nearConfigForIntent(intent);
-  let escrowId =
-    intent.on_chain_escrow_id == null
-      ? null
-      : String(intent.on_chain_escrow_id);
+  let escrowId: string | null = null;
+  if (intent.on_chain_escrow_id != null) {
+    escrowId = await confirmEscrowIdForEngagement(
+      config,
+      String(intent.on_chain_escrow_id),
+      intent.planned_engagement_id,
+    );
+  }
 
   if (!escrowId) {
     try {
@@ -741,7 +748,17 @@ export async function reportAcceptanceFundTx(
       }
     }
 
-    const record = await viewEscrowRecord(config, escrowId);
+    let record = await viewEscrowRecord(config, escrowId);
+    if (!record) {
+      const rediscovered = await findEscrowIdForEngagement(
+        config,
+        intent.planned_engagement_id,
+      );
+      if (rediscovered) {
+        escrowId = rediscovered;
+        record = await viewEscrowRecord(config, escrowId);
+      }
+    }
     if (!record) {
       throw new Error("Escrow record not found");
     }
@@ -847,14 +864,43 @@ export async function reconcileAcceptanceFinalization(
   }
 }
 
-export async function checkAcceptanceFundingBalance(
+export type AcceptanceFundingPreflightResult =
+  | { ok: true }
+  | {
+      ok: false;
+      error: string;
+      code?: Nep141PreflightCode;
+      registrationActor?: "requester" | "provider";
+      storageDepositYocto?: string;
+    };
+
+export async function checkAcceptanceFundingPreflight(
   intentId: string,
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  const loaded = await loadAcceptanceFundingIntent(intentId);
-  if (!loaded.ok) {
-    return { ok: false, error: loaded.error };
+): Promise<AcceptanceFundingPreflightResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: false, error: "Sign in required." };
   }
-  const { intent } = loaded;
+
+  const { data: intentRow, error: intentErr } = await supabase.rpc(
+    "get_acceptance_funding_intent",
+    { p_intent_id: intentId },
+  );
+  if (intentErr || !intentRow) {
+    return { ok: false, error: intentErr?.message ?? "Intent not found." };
+  }
+
+  const bundle = await loadIntentPaymentAsset(supabase, intentRow);
+  if (!bundle) {
+    return { ok: false, error: "Funding record missing." };
+  }
+
+  const intent = mapIntent(intentRow, bundle.asset, bundle.payment);
+  const asset = bundle.asset;
+
   if (intent.status === "finalized") {
     return { ok: true };
   }
@@ -863,28 +909,49 @@ export async function checkAcceptanceFundingBalance(
     escrow_contract_id: intent.escrowContractId,
     chain_id: intent.chainId,
   });
-  const { readAssetBalance } = await import("@paidaid/near");
-  const balance = await readAssetBalance(
+
+  const preflight = await runNep141FundingPreflight({
     config,
-    intent.requesterNearAccountId,
-    {
-      assetStandard: intent.assetStandard,
-      tokenContractId: intent.tokenContractId,
-    },
-  );
-  if (balance.status !== "ok" || !balance.smallestUnits) {
+    assetStandard: intent.assetStandard,
+    tokenContractId: intent.tokenContractId,
+    registryTokenContractId: resolveAssetContractId({
+      id: asset.id,
+      chain_id: asset.chain_id,
+      asset_standard: asset.asset_standard,
+      native_reference: asset.native_reference,
+      token_contract_id: asset.token_contract_id,
+      symbol: asset.symbol,
+      decimals: asset.decimals,
+      canonical_asset_key: asset.canonical_asset_key,
+      enabled: asset.enabled,
+    }),
+    symbol: intent.symbol,
+    decimals: intent.decimals,
+    enabled: asset.enabled,
+    amountSmallestUnits: intent.amountSmallestUnits,
+    requesterNearAccountId: intent.requesterNearAccountId,
+    escrowContractId: intent.escrowContractId,
+  });
+
+  if (!preflight.ok) {
     return {
       ok: false,
-      error: balance.message ?? "Could not read wallet balance.",
-    };
-  }
-  const needed = smallestUnitsStringToBigInt(intent.amountSmallestUnits);
-  const have = smallestUnitsStringToBigInt(balance.smallestUnits);
-  if (have < needed) {
-    return {
-      ok: false,
-      error: `Insufficient balance (need ${bigintToSmallestUnitsString(needed)} smallest units).`,
+      error: preflight.message,
+      code: preflight.code,
+      registrationActor: preflight.registrationActor,
+      storageDepositYocto: preflight.storageDepositYocto,
     };
   }
   return { ok: true };
+}
+
+/** @deprecated Use checkAcceptanceFundingPreflight */
+export async function checkAcceptanceFundingBalance(
+  intentId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const result = await checkAcceptanceFundingPreflight(intentId);
+  if (result.ok) {
+    return { ok: true };
+  }
+  return { ok: false, error: result.error };
 }

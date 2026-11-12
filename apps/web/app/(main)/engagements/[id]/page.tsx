@@ -201,6 +201,7 @@ export default async function EngagementPage({ params }: PageProps) {
     : { data: null };
 
   let linkedRequesterNear: string | null = null;
+  let linkedProviderNear: string | null = null;
   let fundingPrerequisites: {
     requesterWalletLinked: boolean;
     providerWalletLinked: boolean;
@@ -262,6 +263,9 @@ export default async function EngagementPage({ params }: PageProps) {
   }
 
   if (isProvider) {
+    linkedProviderNear =
+      (await loadActiveLinkedNearWallet(supabase, user.id))?.nearAccountId ??
+      null;
     const { data: prerequisites } = await supabase.rpc(
       "get_engagement_funding_prerequisites",
       { p_engagement_id: id },
@@ -302,6 +306,7 @@ export default async function EngagementPage({ params }: PageProps) {
       peerPhone={peerPhone}
       conversationId={conv?.id ?? null}
       linkedRequesterNear={linkedRequesterNear}
+      linkedProviderNear={linkedProviderNear}
       fundingPrerequisites={fundingPrerequisites}
       initialSettlement={initialSettlement}
       delivery={delivery}

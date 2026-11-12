@@ -212,6 +212,7 @@ export function parseEscrowIdFromCreateOutcome(outcome: unknown): string {
   throw new Error("Could not parse escrow id from transaction outcome");
 }
 
+/** Native `fund_escrow` return value. NEP-141 fund txs return tokens-used (often 0) — resolve by engagement id instead. */
 export const parseEscrowIdFromFundOutcome = parseEscrowIdFromCreateOutcome;
 
 /** Parse escrow id from wallet and/or RPC execution outcomes (first match wins). */
@@ -284,6 +285,27 @@ export async function findEscrowIdForEngagement(
   }
 }
 
+/** Escrow ids start at 1; NEP-141 `ft_on_transfer` success returns 0 used tokens — not an escrow id. */
+export async function confirmEscrowIdForEngagement(
+  config: EscrowNearConfig,
+  escrowId: string,
+  engagementId: string,
+): Promise<string | null> {
+  const trimmed = escrowId.trim();
+  if (!trimmed || trimmed === "0") {
+    return null;
+  }
+  try {
+    const record = await viewEscrowRecord(config, trimmed);
+    if (record?.engagement_id === engagementId) {
+      return trimmed;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 export async function viewActiveEscrowIdForEngagement(
   config: EscrowNearConfig,
   engagementId: string,
@@ -322,13 +344,13 @@ export async function resolveEscrowIdAfterCreateTx(
   );
 
   if (trimmedClaim) {
-    try {
-      const record = await viewEscrowRecord(config, trimmedClaim);
-      if (record?.engagement_id === engagementId) {
-        return trimmedClaim;
-      }
-    } catch {
-      // claim invalid — continue resolving
+    const confirmed = await confirmEscrowIdForEngagement(
+      config,
+      trimmedClaim,
+      engagementId,
+    );
+    if (confirmed) {
+      return confirmed;
     }
   }
 
@@ -340,7 +362,15 @@ export async function resolveEscrowIdAfterCreateTx(
       continue;
     }
     try {
-      return parseEscrowIdFromCreateOutcome(rpcOutcome);
+      const parsed = parseEscrowIdFromCreateOutcome(rpcOutcome);
+      const confirmed = await confirmEscrowIdForEngagement(
+        config,
+        parsed,
+        engagementId,
+      );
+      if (confirmed) {
+        return confirmed;
+      }
     } catch {
       // try next sender or fallbacks below
     }
@@ -471,7 +501,7 @@ export async function waitForEscrowReleaseSettlement(
       await delay(SETTLEMENT_POLL_MS);
       continue;
     }
-    if (record.status === "Funded" && attempt < 3) {
+    if (record.status === "Funded" && attempt < 12) {
       await delay(SETTLEMENT_POLL_MS);
       continue;
     }

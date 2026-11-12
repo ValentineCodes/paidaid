@@ -34,6 +34,17 @@ export {
   parseSmallestUnitsString,
   smallestUnitsStringToBigInt,
 } from "./amounts";
+export type { CircleUsdcNetwork } from "./circle-usdc";
+export {
+  CIRCLE_NATIVE_USDC_DECIMALS,
+  CIRCLE_NATIVE_USDC_MAINNET_CONTRACT_ID,
+  CIRCLE_NATIVE_USDC_SYMBOL,
+  CIRCLE_NATIVE_USDC_TESTNET_CONTRACT_ID,
+  LEGACY_TESTNET_FAKE_USDC_CONTRACT_ID,
+  circleNativeUsdcCanonicalAssetKey,
+  circleNativeUsdcForNearNetwork,
+  circleNativeUsdcTokenContractId,
+} from "./circle-usdc";
 
 export type NearConfig = {
   networkId: NearNetworkId;

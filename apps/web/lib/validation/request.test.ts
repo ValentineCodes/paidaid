@@ -159,6 +159,16 @@ test("validateCreateRequestFormForTests accepts fractional NEAR budget", () => {
   assert(!r.fieldErrors);
 });
 
+test("validateCreateRequestFormForTests rejects USDC amount with excess decimals", () => {
+  const r = validateCreateRequestFormForTests({
+    values: { ...baseValues, budgetAssetId: "a2", budgetHuman: "10.1234567" },
+    assets: sampleAssets,
+    photoFiles: [],
+  });
+  assert.ok(r.fieldErrors?.budgetHuman);
+  assert.match(r.fieldErrors!.budgetHuman!, /decimal/i);
+});
+
 test("USDC six decimals whole units", () => {
   const v = {
     ...baseValues,

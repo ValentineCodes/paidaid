@@ -49,6 +49,14 @@ test("normalizeTransactionOutcome unwraps Intear-style entry arrays", () => {
   assert.equal(id, "77");
 });
 
+test("parseEscrowIdFromCreateOutcome may read NEP-141 tokens-used zero (not an escrow id)", () => {
+  const encoded = Buffer.from(JSON.stringify("0"), "utf8").toString("base64");
+  const id = parseEscrowIdFromCreateOutcome({
+    status: { SuccessValue: encoded },
+  });
+  assert.equal(id, "0");
+});
+
 test("parseEscrowIdFromCreateOutcome follows SuccessReceiptId chain", () => {
   const encoded = Buffer.from(JSON.stringify("3"), "utf8").toString("base64");
   const id = parseEscrowIdFromCreateOutcome({

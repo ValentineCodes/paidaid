@@ -32,6 +32,7 @@ export type EngagementDetailContentProps = {
   peerPhone: string | null;
   conversationId: string | null;
   linkedRequesterNear: string | null;
+  linkedProviderNear: string | null;
   fundingPrerequisites: {
     requesterWalletLinked: boolean;
     providerWalletLinked: boolean;
@@ -173,6 +174,7 @@ export function EngagementDetailContent(props: EngagementDetailContentProps) {
     peerPhotoUrl,
     conversationId,
     linkedRequesterNear,
+    linkedProviderNear,
     fundingPrerequisites,
     initialSettlement,
     delivery,
@@ -290,6 +292,7 @@ export function EngagementDetailContent(props: EngagementDetailContentProps) {
             engagementId={engagementId}
             isRequester={!isProvider}
             linkedRequesterNearAccountId={linkedRequesterNear}
+            linkedProviderNearAccountId={linkedProviderNear}
             initialSettlement={initialSettlement}
             deliveryStatus={delivery?.status ?? null}
           />

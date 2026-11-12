@@ -8,9 +8,11 @@ import {
   TransactionExecutionFailedError,
   viewEscrowRecord,
   waitForEscrowReleaseSettlement,
+  runNep141ReleasePreflight,
   type FundingVerificationExpectation,
+  type Nep141PreflightCode,
 } from "@paidaid/near";
-import { normalizeDbNumericAmount } from "@paidaid/shared";
+import { normalizeDbNumericAmount, resolveAssetContractId } from "@paidaid/shared";
 import { createClient } from "../../../lib/supabase/server";
 import { createServiceClient } from "../../../lib/supabase/service";
 import { escrowNearConfigForPayment } from "../../../lib/near/escrow-config";
@@ -125,6 +127,83 @@ async function finalizeEngagementAfterSettlement(
   if (data !== true) {
     throw new Error("Could not complete engagement after settlement.");
   }
+}
+
+export type EngagementReleasePreflightResult =
+  | { ok: true }
+  | {
+      ok: false;
+      error: string;
+      code?: Nep141PreflightCode;
+      registrationActor?: "requester" | "provider";
+      storageDepositYocto?: string;
+      tokenContractId?: string | null;
+      assetSymbol?: string;
+    };
+
+export async function checkEngagementReleasePreflight(
+  engagementId: string,
+): Promise<EngagementReleasePreflightResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: false, error: "Sign in required." };
+  }
+
+  const { data: payment, error: loadErr } = await supabase
+    .from("engagement_escrow_payments")
+    .select("*")
+    .eq("engagement_id", engagementId)
+    .maybeSingle();
+
+  if (loadErr || !payment) {
+    return { ok: false, error: loadErr?.message ?? "Escrow payment not found." };
+  }
+
+  const asset = await loadPaymentAsset(supabase, payment);
+  if (!asset) {
+    return { ok: false, error: "Asset metadata missing." };
+  }
+
+  const config = nearConfigForPayment(payment);
+  const preflight = await runNep141ReleasePreflight(
+    {
+      config,
+      assetStandard: asset.asset_standard,
+      tokenContractId: asset.token_contract_id,
+      registryTokenContractId: resolveAssetContractId({
+        id: asset.id,
+        chain_id: asset.chain_id,
+        asset_standard: asset.asset_standard,
+        native_reference: asset.native_reference,
+        token_contract_id: asset.token_contract_id,
+        symbol: asset.symbol,
+        decimals: asset.decimals,
+        canonical_asset_key: asset.canonical_asset_key,
+        enabled: asset.enabled,
+      }),
+      symbol: asset.symbol,
+      enabled: asset.enabled,
+      providerNearAccountId: payment.provider_near_account_id,
+      requesterNearAccountId: payment.requester_near_account_id,
+    },
+  );
+
+  if (!preflight.ok) {
+    return {
+      ok: false,
+      error: preflight.message,
+      code: preflight.code,
+      registrationActor: preflight.registrationActor,
+      storageDepositYocto: preflight.storageDepositYocto,
+      tokenContractId: asset.token_contract_id,
+      assetSymbol: asset.symbol,
+    };
+  }
+
+  return { ok: true };
 }
 
 export async function loadEngagementSettlementView(

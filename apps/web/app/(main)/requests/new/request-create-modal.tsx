@@ -25,8 +25,17 @@ import { format } from "date-fns";
 import { PaidAidLogo } from "../../../../components/paidaid-logo";
 import { FigmaIcon } from "../../../../components/figma-icons";
 import type { Tables } from "../../../../lib/database.types";
+import {
+  filterTaskBudgetAssetOptions,
+  resolveSelectedBudgetAssetId,
+  type BudgetAssetOption,
+} from "../../../../lib/requests/request-budget-assets";
 import { sanitizeHumanAmountInput } from "../../../../lib/requests/human-amount-input";
 import { humanAmountToSmallestUnits } from "../../../../lib/validation/request";
+import {
+  fetchLinkedWalletBalanceForAsset,
+  type LinkedAssetBalanceResult,
+} from "../../account/wallet-balances-action";
 import { createRequest, type CreateRequestState } from "../actions";
 
 type RequestCreateModalProps = {
@@ -122,13 +131,19 @@ function validateCreateStep1(title: string, description: string) {
 function validateCreateStep2(
   input: {
     budgetHuman: string;
+    budgetAssetId: string;
     deadlineDate: string;
     locationKind: "online" | "in_person";
     locationLabel: string;
   },
-  assetDecimals: number,
+  budgetOptions: readonly BudgetAssetOption[],
 ) {
   const fieldErrors: Record<string, string> = {};
+  const budgetAsset = budgetOptions.find((a) => a.id === input.budgetAssetId);
+  if (!budgetAsset) {
+    fieldErrors.budgetAssetId = "Select a supported asset";
+  }
+  const assetDecimals = budgetAsset?.decimals ?? 24;
   const converted = humanAmountToSmallestUnits(
     input.budgetHuman,
     assetDecimals,
@@ -168,15 +183,33 @@ export function RequestCreateModal({
   );
   const [locationLabel, setLocationLabel] = useState("");
   const [categoryKey, setCategoryKey] = useState(CATEGORY_NONE_KEY);
+  const [budgetAssetId, setBudgetAssetId] = useState(defaultAssetId);
 
-  const budgetAssetId = defaultAssetId;
-  const budgetAsset = assets.find((a) => a.id === budgetAssetId);
+  const budgetAssetOptions = useMemo(
+    () => filterTaskBudgetAssetOptions(assets),
+    [assets],
+  );
+
+  useEffect(() => {
+    setBudgetAssetId((current) =>
+      resolveSelectedBudgetAssetId(
+        budgetAssetOptions,
+        current,
+        defaultAssetId,
+      ),
+    );
+  }, [budgetAssetOptions, defaultAssetId]);
+
+  const budgetAsset = budgetAssetOptions.find((a) => a.id === budgetAssetId);
 
   const [state, formAction] = useActionState(createRequest, initialState);
   const [isPending, startTransition] = useTransition();
   const [clientFieldErrors, setClientFieldErrors] = useState<
     Record<string, string>
   >({});
+  const [linkedBalance, setLinkedBalance] =
+    useState<LinkedAssetBalanceResult | null>(null);
+  const [linkedBalanceLoading, setLinkedBalanceLoading] = useState(false);
 
   const selectedCategory =
     categoryKey === CATEGORY_NONE_KEY
@@ -256,6 +289,23 @@ export function RequestCreateModal({
     return step;
   }, [step, state.fieldErrors]);
 
+  useEffect(() => {
+    if (effectiveStep !== 2 || !budgetAssetId) {
+      return;
+    }
+    let cancelled = false;
+    setLinkedBalanceLoading(true);
+    void fetchLinkedWalletBalanceForAsset(budgetAssetId).then((res) => {
+      if (!cancelled) {
+        setLinkedBalance(res);
+        setLinkedBalanceLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveStep, budgetAssetId]);
+
   const onFilesChange = (list: FileList | null) => {
     if (!list?.length) {
       setPhotoFiles([]);
@@ -272,11 +322,12 @@ export function RequestCreateModal({
           : validateCreateStep2(
               {
                 budgetHuman,
+                budgetAssetId,
                 deadlineDate,
                 locationKind,
                 locationLabel,
               },
-              budgetAsset?.decimals ?? 24,
+              budgetAssetOptions,
             );
       if (Object.keys(stepErrors).length > 0) {
         setClientFieldErrors(stepErrors);
@@ -440,6 +491,58 @@ export function RequestCreateModal({
 
             {effectiveStep === 2 && (
               <div className="form-fields">
+                {budgetAssetOptions.length > 1 ? (
+                  <label>
+                    Payment asset
+                    <Select
+                      modal={false}
+                      items={Object.fromEntries(
+                        budgetAssetOptions.map((a) => [a.id, a.symbol]),
+                      )}
+                      value={budgetAssetId}
+                      onValueChange={(value) => {
+                        if (value == null) {
+                          return;
+                        }
+                        const nextId = String(value);
+                        setBudgetAssetId(nextId);
+                        clearClientFieldError("budgetAssetId");
+                        clearClientFieldError("budgetHuman");
+                        const nextAsset = budgetAssetOptions.find(
+                          (a) => a.id === nextId,
+                        );
+                        if (nextAsset && budgetHuman.trim()) {
+                          const converted = humanAmountToSmallestUnits(
+                            budgetHuman,
+                            nextAsset.decimals,
+                          );
+                          if (!converted.ok) {
+                            setClientFieldErrors((prev) => ({
+                              ...prev,
+                              budgetHuman: converted.error,
+                            }));
+                          }
+                        }
+                      }}
+                    >
+                      <SelectTrigger aria-label="Payment asset">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {budgetAssetOptions.map((a) => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {a.symbol}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {fieldErrors.budgetAssetId ? (
+                      <p className="mb-0 mt-1 text-[11px] text-red-600 dark:text-red-400">
+                        {fieldErrors.budgetAssetId}
+                      </p>
+                    ) : null}
+                  </label>
+                ) : null}
                 <div className="two-col">
                   <label>
                     Budget
@@ -453,9 +556,45 @@ export function RequestCreateModal({
                           setBudgetHuman(sanitizeHumanAmountInput(e.target.value));
                           clearClientFieldError("budgetHuman");
                         }}
+                        aria-describedby="create-budget-asset-hint"
                       />
-                      <span>{budgetAsset?.symbol ?? "—"}</span>
+                      <span aria-hidden>{budgetAsset?.symbol ?? "—"}</span>
                     </div>
+                    <p
+                      id="create-budget-asset-hint"
+                      className="mb-0 mt-1 text-[11px] text-[var(--muted)] sr-only"
+                    >
+                      Amount in {budgetAsset?.symbol ?? "—"}
+                    </p>
+                    {linkedBalanceLoading ? (
+                      <div
+                        className="mb-0 mt-1 h-3.5 w-24 animate-pulse rounded bg-stone-300/60 dark:bg-stone-600/40"
+                        aria-hidden
+                      />
+                    ) : linkedBalance?.ok ? (
+                      <p className="mb-0 mt-1 text-[11px] text-[var(--muted)]">
+                        Balance:{" "}
+                        <span className="font-mono text-[var(--ink)]">
+                          {linkedBalance.line.displayAmount}{" "}
+                          {linkedBalance.line.symbol}
+                        </span>
+                      </p>
+                    ) : linkedBalance && !linkedBalance.ok ? (
+                      <p
+                        className="mb-0 mt-1 text-[11px] text-[var(--muted)]"
+                        title={
+                          linkedBalance.code === "rpc"
+                            ? linkedBalance.error
+                            : undefined
+                        }
+                      >
+                        {linkedBalance.code === "not_linked"
+                          ? "Link a NEAR wallet on Account to see your balance."
+                          : linkedBalance.code === "rpc"
+                            ? "Could not load balance right now."
+                            : linkedBalance.error}
+                      </p>
+                    ) : null}
                     {fieldErrors.budgetHuman ? (
                       <p className="mb-0 mt-1 text-[11px] text-red-600 dark:text-red-400">
                         {fieldErrors.budgetHuman}

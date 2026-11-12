@@ -26,7 +26,14 @@ pnpm db:migrate   # or db:reset
 
 ## Testnet
 
-Deploy escrow to a dedicated account, set env vars, run `add_allowed_ft` for supported NEP-141 tokens, and match `public.assets.chain_id` to `near:testnet`.
+Deploy escrow to a dedicated account, set env vars, allowlist Circle USDC on the escrow contract, and match `public.assets.chain_id` to `near:testnet`.
+
+```bash
+pnpm testnet:escrow-allowlist-circle-usdc:check   # ft_metadata + is_ft_allowed
+pnpm testnet:escrow-allowlist-circle-usdc           # add_allowed_ft when needed
+```
+
+See [escrow-ft-allowlist.md](./escrow-ft-allowlist.md).
 
 ## Authority
 

@@ -40,8 +40,10 @@ Mismatch throws at balance-read time — no silent cross-network reads.
 | Network | Native | NEP-141 (enabled) |
 | --- | --- | --- |
 | localnet | NEAR | — |
-| testnet | NEAR | wNEAR (`wrap.testnet`), USDC (`usdc.fakes.testnet`) |
-| mainnet | NEAR | wNEAR (`wrap.near`), USDT (`usdt.tether-token.near`) |
+| testnet | NEAR | wNEAR (`wrap.testnet`), Circle USDC (`3e2210e1184b45b64c8a434c0a7e7b23cc04ea7eb7a6c3c32520d03d4afcb8af`) |
+| mainnet | NEAR | wNEAR (`wrap.near`), USDT (`usdt.tether-token.near`), Circle USDC (`17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1`) |
+
+Legacy `usdc.fakes.testnet` remains in the database for historical rows but is **disabled** and must not be used for new tasks.
 
 Disable or extend via SQL on `public.assets` only (no client inserts).
 
