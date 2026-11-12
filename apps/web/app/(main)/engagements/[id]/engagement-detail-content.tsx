@@ -4,6 +4,7 @@ import { FigmaIcon } from "../../../../components/figma-icons";
 import { formatPostedRelative } from "../../../../lib/datetime/relative-from-now";
 import type { Database } from "../../../../lib/database.types";
 import type { EngagementSettlementView } from "../../../../lib/engagement/settlement-types";
+import { EngagementCallout } from "./engagement-callout";
 import { EngagementSettlementSection } from "./engagement-settlement-section";
 import { EngagementWorkflow } from "./engagement-workflow";
 
@@ -134,26 +135,6 @@ function EngagementOfferCard({
   );
 }
 
-function EngagementCallout({
-  tone,
-  title,
-  children,
-}: {
-  tone: "info" | "warning";
-  title: string;
-  children: string;
-}) {
-  return (
-    <div
-      className={`engagement-callout engagement-callout--${tone}`}
-      role="note"
-    >
-      <strong>{title}</strong>
-      <p>{children}</p>
-    </div>
-  );
-}
-
 export function EngagementDetailContent(props: EngagementDetailContentProps) {
   const {
     nowMs,
@@ -271,6 +252,23 @@ export function EngagementDetailContent(props: EngagementDetailContentProps) {
 
       {isProvider &&
         engagementStatus === "active" &&
+        delivery?.status === "pending_review" && (
+          <EngagementCallout tone="info" title="Under review">
+            Waiting for the requester to approve your submission.
+          </EngagementCallout>
+        )}
+
+      {isProvider &&
+        engagementStatus === "active" &&
+        delivery?.status === "approved" &&
+        paymentFunded && (
+          <EngagementCallout tone="info" title="Delivery approved">
+            Awaiting on-chain payment release to complete the engagement.
+          </EngagementCallout>
+        )}
+
+      {isProvider &&
+        engagementStatus === "active" &&
         !paymentFunded &&
         !(fundingPrerequisites?.providerWalletLinked ?? false) && (
           <EngagementCallout tone="warning" title="Wallet needed">
@@ -311,6 +309,7 @@ export function EngagementDetailContent(props: EngagementDetailContentProps) {
           existingReview={existingReview}
           paymentFunded={paymentFunded}
           linkedRequesterNearAccountId={linkedRequesterNear}
+          linkedProviderNearAccountId={linkedProviderNear}
         />
       </div>
     </div>

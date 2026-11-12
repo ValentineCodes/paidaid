@@ -1133,6 +1133,28 @@ a.task-card {
   border-radius: 18px;
   box-shadow: 0 25px 80px #0005;
   padding: 24px 38px 30px;
+  color: var(--ink);
+}
+
+/* Portaled modals: follow app theme, not OS `prefers-color-scheme`. */
+body.app:not(.dark) .create-modal {
+  --ink: #15231f;
+  --muted: #68736e;
+  --line: #dde2dc;
+  --surface: #fff;
+  background: #fff;
+  color: #15231f;
+  box-shadow: 0 25px 80px #0005;
+}
+
+body.app.dark .create-modal {
+  --ink: #edf2ed;
+  --muted: #9aa59f;
+  --line: #2b3430;
+  --surface: #171e1b;
+  background: #171e1b;
+  color: #edf2ed;
+  box-shadow: 0 25px 80px rgb(0 0 0 / 55%);
 }
 
 .create-modal .request-create-modal__label-row {
@@ -3161,6 +3183,34 @@ body.app.dark .updates-error {
   color: #9a6b1c;
 }
 
+body.app.dark .engagement-callout--info,
+.dark .engagement-callout--info {
+  background: color-mix(in srgb, #2c6ea8 16%, var(--surface));
+  border-color: color-mix(in srgb, #5a9fd4 32%, var(--line));
+}
+
+body.app.dark .engagement-callout--info strong,
+.dark .engagement-callout--info strong {
+  color: #8ec4f0;
+}
+
+body.app.dark .engagement-callout--warning,
+.dark .engagement-callout--warning {
+  background: color-mix(in srgb, #c9922a 14%, var(--surface));
+  border-color: color-mix(in srgb, #c9922a 28%, var(--line));
+}
+
+body.app.dark .engagement-callout--warning strong,
+.dark .engagement-callout--warning strong {
+  color: #e4c078;
+}
+
+body.app.dark .engagement-delivery-card,
+.dark .engagement-delivery-card {
+  background: color-mix(in srgb, var(--ink) 4%, var(--surface));
+  border-color: var(--line);
+}
+
 .engagement-workflow-wrap {
   max-width: 100%;
 }
@@ -3177,6 +3227,12 @@ body.app.dark .updates-error {
   margin-top: 14px;
   padding-top: 14px;
   border-top: 1px solid var(--line);
+}
+
+.engagement-submission-preview--only {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
 }
 
 .engagement-submission-preview__notes {

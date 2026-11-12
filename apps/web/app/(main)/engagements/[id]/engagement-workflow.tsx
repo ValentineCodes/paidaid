@@ -2,7 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { defaultRpcUrlForNetwork, parseNearNetworkId } from "@paidaid/shared";
 import { FigmaIcon } from "../../../../components/figma-icons";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { createClient } from "../../../../lib/supabase/client";
 import { NearSessionProvider } from "../../../../wallet/near-session-provider";
 import { useNearWalletAccountId } from "../../../../wallet/use-near-wallet-account";
@@ -13,6 +20,11 @@ import {
   loadEngagementSettlementView,
   releaseEscrowForEngagement,
 } from "../../../../lib/engagement/release-escrow-client";
+import {
+  checkEngagementReleasePreflight,
+  type EngagementReleasePreflightResult,
+} from "../engagement-settlement-actions";
+import { sendNep141StorageDeposit } from "../../../../wallet/send-nep141-storage-deposit";
 import {
   CONVERSATION_ATTACHMENTS_BUCKET,
   DELIVERY_ATTACHMENTS_BUCKET,
@@ -41,6 +53,7 @@ type Props = {
   existingReview: ReviewRow | null;
   paymentFunded: boolean;
   linkedRequesterNearAccountId: string | null;
+  linkedProviderNearAccountId: string | null;
 };
 
 function ProofFileTile({
@@ -223,6 +236,7 @@ function EngagementWorkflowInner({
   existingReview,
   paymentFunded,
   linkedRequesterNearAccountId,
+  linkedProviderNearAccountId,
 }: Props) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -240,6 +254,25 @@ function EngagementWorkflowInner({
     !signedAccountId ||
     signedAccountId.toLowerCase() ===
       linkedRequesterNearAccountId.toLowerCase();
+  const providerWalletMatchesLink =
+    !linkedProviderNearAccountId ||
+    !signedAccountId ||
+    signedAccountId.toLowerCase() ===
+      linkedProviderNearAccountId.toLowerCase();
+  const [registerPrompt, setRegisterPrompt] = useState<Extract<
+    EngagementReleasePreflightResult,
+    { ok: false }
+  > | null>(null);
+  const networkId = parseNearNetworkId(process.env.NEXT_PUBLIC_NEAR_NETWORK_ID);
+  const nearConfig = useMemo(
+    () => ({
+      networkId,
+      rpcUrl:
+        process.env.NEXT_PUBLIC_NEAR_RPC_URL?.trim() ||
+        defaultRpcUrlForNetwork(networkId),
+    }),
+    [networkId],
+  );
 
   const [desc, setDesc] = useState(delivery?.description ?? "");
   const [proofFiles, setProofFiles] = useState<File[]>([]);
@@ -285,6 +318,62 @@ function EngagementWorkflowInner({
       void supabase.removeChannel(ch);
     };
   }, [supabase, engagementId, refresh]);
+
+  async function registerThenSubmit() {
+    if (
+      !registerPrompt ||
+      registerPrompt.ok ||
+      !registerPrompt.storageDepositYocto ||
+      !registerPrompt.tokenContractId
+    ) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      if (!signedAccountId) {
+        await openConnect();
+        await syncFromSelectorStore();
+        throw new Error("Connect your linked NEAR wallet, then register.");
+      }
+      if (!providerWalletMatchesLink) {
+        throw new Error(
+          `Connected wallet must be ${linkedProviderNearAccountId}.`,
+        );
+      }
+      const signer = await getTransactionSigner();
+      const deposited = await sendNep141StorageDeposit(
+        signer,
+        nearConfig,
+        registerPrompt.tokenContractId,
+        BigInt(registerPrompt.storageDepositYocto),
+      );
+      if (!deposited.ok) {
+        throw new Error(deposited.error);
+      }
+      setRegisterPrompt(null);
+      await runSubmitDelivery();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Registration failed.");
+      setBusy(false);
+    }
+  }
+
+  async function beginSubmitDelivery() {
+    setError(null);
+    setBusy(true);
+    try {
+      const preflight = await checkEngagementReleasePreflight(engagementId);
+      if (!preflight.ok && preflight.code === "provider_not_registered") {
+        setRegisterPrompt(preflight);
+        setBusy(false);
+        return;
+      }
+    } catch {
+      // Delivery can still be submitted if the registration check is unavailable.
+    }
+    await runSubmitDelivery();
+  }
 
   async function runSubmitDelivery() {
     setBusy(true);
@@ -534,6 +623,70 @@ function EngagementWorkflowInner({
 
   return (
     <div className="flex flex-col gap-4">
+      <Dialog
+        open={registerPrompt != null}
+        onOpenChange={(open) => {
+          if (!open && !busy) {
+            setRegisterPrompt(null);
+          }
+        }}
+      >
+        <DialogContent
+          unstyled
+          showCloseButton={false}
+          overlayClassName="overlay modal-overlay"
+          className="create-modal !w-[min(440px,calc(100%-36px))]"
+          aria-describedby="provider-register-desc"
+        >
+          <DialogTitle className="sr-only">Register to receive payment</DialogTitle>
+          <div className="modal-head">
+            <h2 className="font-heading m-0 text-[22px] leading-tight text-[var(--ink)]">
+              Register to receive payment
+            </h2>
+            <DialogClose
+              render={
+                <button
+                  type="button"
+                  aria-label="Close"
+                  disabled={busy}
+                  className="disabled:opacity-40"
+                />
+              }
+            >
+              <FigmaIcon name="close" size={18} />
+            </DialogClose>
+          </div>
+          <p
+            id="provider-register-desc"
+            className="mt-3 text-[13px] leading-relaxed text-[var(--muted)]"
+          >
+            You will not be able to receive{" "}
+            {registerPrompt?.assetSymbol ?? "this token"} until your wallet is
+            registered on the token contract. Registration is a one-time NEAR
+            storage deposit from your wallet, not the requester&apos;s.
+          </p>
+          <div className="modal-actions">
+            <button
+              type="button"
+              className="secondary"
+              disabled={busy}
+              onClick={() => setRegisterPrompt(null)}
+            >
+              Not now
+            </button>
+            <button
+              type="button"
+              className="primary btn-ink"
+              disabled={busy}
+              onClick={() => void registerThenSubmit()}
+            >
+              {busy
+                ? "Registering…"
+                : `Register for ${registerPrompt?.assetSymbol ?? "tokens"}`}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
       {error ? (
         <p className="engagement-workflow-error" role="alert">
           {error}
@@ -541,10 +694,9 @@ function EngagementWorkflowInner({
       ) : null}
 
       {/* Provider: submit / resubmit */}
-      {isProvider && engagementStatus === "active" && (
+      {isProvider && engagementStatus === "active" && showDeliveryForm ? (
         <section className="engagement-delivery-card">
-          {showDeliveryForm ? (
-            <>
+          <>
               <p className="engagement-delivery-card__eyebrow">Your delivery</p>
               <h3>
                 {deliveryStatus === "revision_requested"
@@ -619,67 +771,57 @@ function EngagementWorkflowInner({
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={() => void runSubmitDelivery()}
+                  onClick={() => void beginSubmitDelivery()}
                   className="primary-wide"
                 >
                   {busy ? "Submitting…" : "Submit for review"}
                   {!busy ? <FigmaIcon name="checks" size={17} /> : null}
                 </button>
               </div>
-            </>
-          ) : null}
-          {deliveryStatus === "pending_review" ? (
-            <>
-              <div
-                className="engagement-callout engagement-callout--info"
-                role="status"
-              >
-                <strong>Under review</strong>
-                <p>Waiting for the requester to approve your submission.</p>
-              </div>
-              {delivery && deliveryHasVisibleContent ? (
-                <div className="engagement-submission-preview">
-                  <p className="engagement-delivery-card__eyebrow">
-                    Your submission
-                  </p>
-                  {delivery.description?.trim() ? (
-                    <p className="engagement-submission-preview__notes">
-                      {delivery.description}
-                    </p>
-                  ) : null}
-                  {deliveryAttachments.length > 0 ? (
-                    <ul className="engagement-proof-grid">
-                      {deliveryAttachments.map((a) => (
-                        <DeliveryAttachmentTile
-                          key={a.id}
-                          path={a.storage_path}
-                          mime={a.mime_type}
-                        />
-                      ))}
-                    </ul>
-                  ) : null}
-                </div>
-              ) : null}
-            </>
-          ) : null}
-          {deliveryStatus === "approved" && engagementStatus === "active" ? (
-            postReleaseLoading ? (
-              <p className="engagement-delivery-status flex items-center gap-2.5">
-                <span
-                  className="inline-block h-2 w-2 shrink-0 animate-pulse rounded-full bg-[var(--deep)]"
-                  aria-hidden
-                />
-                Verifying release and preparing your review…
-              </p>
-            ) : (
-              <p className="engagement-delivery-status">
-                Delivery approved — awaiting on-chain payment release to complete
-                the engagement.
-              </p>
-            )
-          ) : null}
+          </>
         </section>
-      )}
+      ) : null}
+
+      {isProvider &&
+        engagementStatus === "active" &&
+        deliveryStatus === "pending_review" &&
+        delivery &&
+        deliveryHasVisibleContent ? (
+          <section className="engagement-delivery-card">
+            <div className="engagement-submission-preview engagement-submission-preview--only">
+              <p className="engagement-delivery-card__eyebrow">Your submission</p>
+              {delivery.description?.trim() ? (
+                <p className="engagement-submission-preview__notes">
+                  {delivery.description}
+                </p>
+              ) : null}
+              {deliveryAttachments.length > 0 ? (
+                <ul className="engagement-proof-grid">
+                  {deliveryAttachments.map((a) => (
+                    <DeliveryAttachmentTile
+                      key={a.id}
+                      path={a.storage_path}
+                      mime={a.mime_type}
+                    />
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          </section>
+        ) : null}
+
+      {isProvider &&
+        engagementStatus === "active" &&
+        deliveryStatus === "approved" &&
+        postReleaseLoading ? (
+          <p className="engagement-delivery-status flex items-center gap-2.5">
+            <span
+              className="inline-block h-2 w-2 shrink-0 animate-pulse rounded-full bg-[var(--deep)]"
+              aria-hidden
+            />
+            Verifying release and preparing your review…
+          </p>
+        ) : null}
 
       {isRequester && postReleaseLoading && engagementStatus !== "completed" && (
         <section className="engagement-approve-actions" aria-busy="true">
