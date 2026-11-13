@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 
+import { resolvePreAcceptChatForViewer } from "../../../../lib/messages/pre-accept-chat-access";
 import { profileHasUsablePhoto } from "../../../../lib/profiles/photo";
 import { resolveProfileDisplayUrl } from "../../../../lib/profiles/resolve-photo";
 import { createClient } from "../../../../lib/supabase/server";
@@ -35,6 +36,11 @@ function parsePhotoPaths(raw: Json | undefined): string[] {
   return raw.filter((p): p is string => typeof p === "string");
 }
 
+export type PreAcceptChatLinkState = {
+  conversationId: string;
+  hasUnread: boolean;
+};
+
 export type ProviderPendingResponse = {
   id: string;
   message: string | null;
@@ -67,7 +73,7 @@ export type RequestDetailPageData = {
   displayDecimals: number;
   photoUrls: string[];
   pendingResponse: ProviderPendingResponse | null;
-  preConversationId: string | null;
+  preAcceptChat: PreAcceptChatLinkState | null;
   showRespond: boolean;
   canAcceptOffers: boolean;
   assignmentRow: {
@@ -181,8 +187,7 @@ export async function loadRequestDetailPageData(
         ? await loadTagsForOwner(supabase, id)
         : [];
 
-  const budgetAmount =
-    pub?.budget_amount ?? row?.budget_amount ?? null;
+  const budgetAmount = pub?.budget_amount ?? row?.budget_amount ?? null;
   const budgetAssetId = row?.budget_asset_id ?? pub?.budget_asset_id;
   const assetSymbol = pub?.asset_symbol;
   const assetDecimals = pub?.asset_decimals;
@@ -266,9 +271,7 @@ export async function loadRequestDetailPageData(
         .maybeSingle();
       if (pend) {
         const ppJoin = pend.provider_profiles as
-          | { headline: string | null }
-          | { headline: string | null }[]
-          | null;
+          { headline: string | null } | { headline: string | null }[] | null;
         const headline =
           (Array.isArray(ppJoin) ? ppJoin[0]?.headline : ppJoin?.headline) ??
           null;
@@ -290,8 +293,13 @@ export async function loadRequestDetailPageData(
     isPublicListing
   );
 
-  let preConversationId: string | null = null;
+  let preAcceptChat: PreAcceptChatLinkState | null = null;
   if (user && !isOwner && status === "open" && pub && pendingResponse) {
+    const { data: reqMeta } = await supabase
+      .from("requests")
+      .select("requester_id")
+      .eq("id", id)
+      .maybeSingle();
     const { data: preConv } = await supabase
       .from("conversations")
       .select("id")
@@ -299,7 +307,20 @@ export async function loadRequestDetailPageData(
       .eq("kind", "pre_accept")
       .eq("response_id", pendingResponse.id)
       .maybeSingle();
-    preConversationId = preConv?.id ?? null;
+    if (preConv?.id && reqMeta?.requester_id) {
+      const access = await resolvePreAcceptChatForViewer(supabase, {
+        conversationId: preConv.id,
+        viewerId: user.id,
+        requesterId: reqMeta.requester_id,
+        providerUserId: user.id,
+      });
+      if (access.showChatLink) {
+        preAcceptChat = {
+          conversationId: preConv.id,
+          hasUnread: access.hasUnread,
+        };
+      }
+    }
   }
 
   const expiresAt = row?.expires_at ?? null;
@@ -341,9 +362,12 @@ export async function loadRequestDetailPageData(
       avatarUrl,
     };
   } else if (pub) {
-    const { data: cardRows } = await supabase.rpc("request_requester_public_card", {
-      p_request_id: id,
-    });
+    const { data: cardRows } = await supabase.rpc(
+      "request_requester_public_card",
+      {
+        p_request_id: id,
+      },
+    );
     const card = Array.isArray(cardRows) ? cardRows[0] : cardRows;
     if (
       card &&
@@ -394,7 +418,7 @@ export async function loadRequestDetailPageData(
     displayDecimals,
     photoUrls,
     pendingResponse,
-    preConversationId,
+    preAcceptChat,
     showRespond,
     canAcceptOffers,
     assignmentRow,

@@ -64,6 +64,7 @@ export default async function MessageThreadPage({ params }: PageProps) {
           chatSubtitle={thread.chatSubtitle}
           peerPhone={thread.peerPhone}
           hideChatHead={false}
+          providerAwaitingRequester={thread.providerAwaitingRequester}
         />
       </MessagesShell>
     </main>

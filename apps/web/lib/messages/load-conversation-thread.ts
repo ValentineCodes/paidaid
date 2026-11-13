@@ -4,6 +4,7 @@ import type { createClient } from "../supabase/server";
 import type { Database } from "../database.types";
 import type { ChatMessagePayload } from "./chat-types";
 import { mapListConversationMessagesRpc } from "./map-list-messages-rpc";
+import { requesterHasMessagedInPreAccept } from "./pre-accept-chat-access";
 
 type Client = Awaited<ReturnType<typeof createClient>>;
 
@@ -42,6 +43,8 @@ export type ConversationThreadData = {
   chatSubtitle: string;
   reqRow: ConversationRequestRow;
   initialMessages: ChatMessagePayload[];
+  /** Pre-accept: provider cannot reply until the requester sends the first message. */
+  providerAwaitingRequester: boolean;
 };
 
 export async function loadConversationThreadData(
@@ -208,6 +211,19 @@ export async function loadConversationThreadData(
       ? `${req.title} · ${statusWord}`
       : `${req.title} · Offer`;
 
+  let providerAwaitingRequester = false;
+  if (conv.kind === "pre_accept" && peerId === reqRow.requester_id) {
+    const messaged = await requesterHasMessagedInPreAccept(
+      supabase,
+      conversationId,
+      reqRow.requester_id,
+    );
+    providerAwaitingRequester = !messaged;
+    if (providerAwaitingRequester) {
+      notFound();
+    }
+  }
+
   return {
     conv,
     peerId,
@@ -218,5 +234,6 @@ export async function loadConversationThreadData(
     chatSubtitle,
     reqRow: req,
     initialMessages,
+    providerAwaitingRequester,
   };
 }

@@ -71,7 +71,7 @@ export function RequestDetailContent({ data, variant }: Props) {
     displayDecimals,
     photoUrls,
     pendingResponse,
-    preConversationId,
+    preAcceptChat,
     showRespond,
     canAcceptOffers,
     assignmentRow,
@@ -209,7 +209,7 @@ export function RequestDetailContent({ data, variant }: Props) {
               assetDecimals={displayDecimals}
               nowMs={nowMs}
               pendingResponse={pendingResponse}
-              preConversationId={preConversationId}
+              preAcceptChat={preAcceptChat}
             />
         )}
         {!user && (
@@ -409,7 +409,7 @@ export function RequestDetailContent({ data, variant }: Props) {
           assetDecimals={displayDecimals}
           nowMs={nowMs}
           pendingResponse={pendingResponse}
-          preConversationId={preConversationId}
+          preAcceptChat={preAcceptChat}
         />
       )}
     </main>

@@ -2,6 +2,8 @@ import Link from "next/link";
 
 import { DismissDrawerLink } from "../../../../components/dismiss-drawer-link";
 import { FigmaIcon } from "../../../../components/figma-icons";
+import { PreAcceptChatLink } from "../../../../components/pre-accept-chat-link";
+import { resolvePreAcceptChatForViewer } from "../../../../lib/messages/pre-accept-chat-access";
 import { createClient } from "../../../../lib/supabase/server";
 import { loadActiveLinkedNearWallet } from "../../../../lib/near/load-linked-wallet";
 import {
@@ -24,6 +26,7 @@ type Row = {
   created_at: string;
   conversations?: { id: string; kind: string }[] | null;
   provider_profiles: {
+    user_id: string;
     headline: string | null;
     profiles: {
       display_name: string;
@@ -116,6 +119,7 @@ export async function RequestResponsesOwnerList({
         kind
       ),
       provider_profiles (
+        user_id,
         headline,
         profiles ( display_name, avatar_url, live_profile_photo_path )
       )
@@ -138,6 +142,29 @@ export async function RequestResponsesOwnerList({
       <p className="text-sm text-stone-600 dark:text-stone-400">
         No responses yet.
       </p>
+    );
+  }
+
+  const requesterId = user?.id ?? null;
+  const chatUnreadByConv = new Map<string, boolean>();
+  if (requesterId) {
+    await Promise.all(
+      list.map(async (r) => {
+        const conversationId = preAcceptConversationId(r);
+        const providerUserId = r.provider_profiles?.user_id;
+        if (!conversationId || !providerUserId) {
+          return;
+        }
+        const access = await resolvePreAcceptChatForViewer(supabase, {
+          conversationId,
+          viewerId: requesterId,
+          requesterId,
+          providerUserId,
+        });
+        if (access.showChatLink) {
+          chatUnreadByConv.set(conversationId, access.hasUnread);
+        }
+      }),
     );
   }
 
@@ -207,15 +234,16 @@ export async function RequestResponsesOwnerList({
                 </div>
               </div>
               {conversationId ? (
-                <ChatLink
+                <PreAcceptChatLink
+                  as={ChatLink}
                   href={`/messages/${conversationId}`}
-                  className="engagement-person-card__chat"
-                  aria-label={`Chat with ${name}`}
-                >
-                  <span className="engagement-connect-icon" aria-hidden>
-                    <FigmaIcon name="message" size={20} />
-                  </span>
-                </ChatLink>
+                  hasUnread={chatUnreadByConv.get(conversationId) ?? false}
+                  aria-label={
+                    chatUnreadByConv.get(conversationId)
+                      ? `Chat with ${name} (unread)`
+                      : `Chat with ${name}`
+                  }
+                />
               ) : null}
             </div>
             <time

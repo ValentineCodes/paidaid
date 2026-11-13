@@ -38,6 +38,8 @@ type Props = {
   hideChatHead?: boolean;
   /** Mobile back control to inbox (left of peer avatar in header). */
   backHref?: string;
+  /** Pre-accept lobby: worker must wait for requester’s first message. */
+  providerAwaitingRequester?: boolean;
 };
 
 function dedupeById(rows: ChatMessagePayload[]): ChatMessagePayload[] {
@@ -119,7 +121,9 @@ export function ConversationChat({
   peerPhone,
   hideChatHead = false,
   backHref,
+  providerAwaitingRequester = false,
 }: Props) {
+  const canCompose = !providerAwaitingRequester;
   const supabase = useMemo(() => createClient(), []);
   const [user, setUser] = useState<User | null>(null);
   const [messages, setMessages] = useState<ChatMessagePayload[]>(() =>
@@ -299,6 +303,9 @@ export function ConversationChat({
     if (sending || (!t && pendingFiles.length === 0)) {
       return;
     }
+    if (!canCompose) {
+      return;
+    }
     if (pendingFiles.length > 0) {
       const val = validateChatFiles(pendingFiles);
       if (!val.ok) {
@@ -382,6 +389,9 @@ export function ConversationChat({
   }
 
   async function shareLocation() {
+    if (!canCompose) {
+      return;
+    }
     if (!navigator.geolocation) {
       setError("Location is not available in this browser.");
       return;
@@ -446,7 +456,7 @@ export function ConversationChat({
           <button
             type="button"
             onClick={() => void shareLocation()}
-            disabled={sending || !user}
+            disabled={sending || !user || !canCompose}
           >
             <FigmaIcon name="pin" size={17} /> Share location
           </button>
@@ -456,7 +466,9 @@ export function ConversationChat({
       <div className="chat-body min-h-0 flex-1 overflow-auto">
         {messages.length === 0 && (
           <p className="text-[12px] text-[var(--muted)]">
-            No messages yet. Say hello.
+            {providerAwaitingRequester
+              ? "Waiting for the requester to message you first."
+              : "No messages yet. Say hello."}
           </p>
         )}
         {messages.map((m, i) => {
@@ -549,7 +561,7 @@ export function ConversationChat({
           type="button"
           className="attach-trigger icon-button shrink-0"
           aria-label="Attach files"
-          disabled={!user}
+          disabled={!user || !canCompose}
           onClick={() => fileInputRef.current?.click()}
         >
           <FigmaIcon name="attach" size={18} />
@@ -573,7 +585,7 @@ export function ConversationChat({
         <button
           type="button"
           className="send"
-          disabled={sending || !user}
+          disabled={sending || !user || !canCompose}
           aria-label="Send message"
           onClick={() => void sendText()}
         >
@@ -581,6 +593,11 @@ export function ConversationChat({
         </button>
       </div>
 
+      {providerAwaitingRequester ? (
+        <p className="border-t border-[var(--line)] px-4 py-2 text-[11px] text-[var(--muted)]">
+          You can reply after the requester sends the first message.
+        </p>
+      ) : null}
       {error ? (
         <p className="border-t border-[var(--line)] px-4 py-2 text-[11px] text-red-700 dark:text-red-300">
           {error}

@@ -3134,6 +3134,7 @@ body.app.dark .updates-error {
 }
 
 .engagement-connect-icon {
+  position: relative;
   display: grid;
   place-items: center;
   width: 44px;
@@ -3141,6 +3142,19 @@ body.app.dark .updates-error {
   border-radius: 50%;
   background: #e6f6ed;
   color: #378c62;
+}
+
+.engagement-connect-icon--unread::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #ff6e54;
+  border: 2px solid var(--surface);
+  box-shadow: 0 0 0 1px rgb(20 30 24 / 8%);
 }
 
 .engagement-callout {

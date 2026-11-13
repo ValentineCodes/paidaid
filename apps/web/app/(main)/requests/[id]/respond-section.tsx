@@ -4,9 +4,13 @@ import { useState } from "react";
 
 import { DismissDrawerLink } from "../../../../components/dismiss-drawer-link";
 import { FigmaIcon } from "../../../../components/figma-icons";
+import { PreAcceptChatLink } from "../../../../components/pre-accept-chat-link";
 import { formatPostedRelative } from "../../../../lib/datetime/relative-from-now";
 import { formatBudgetSmallestUnits } from "../../../../lib/requests/format-budget";
-import type { ProviderPendingResponse } from "./request-detail-data";
+import type {
+  PreAcceptChatLinkState,
+  ProviderPendingResponse,
+} from "./request-detail-data";
 import { ResponseOfferForm } from "./response-offer-form";
 import { WithdrawResponseForm } from "./withdraw-response-form";
 
@@ -18,7 +22,7 @@ type Props = {
   assetDecimals: number;
   nowMs: number;
   pendingResponse: ProviderPendingResponse | null;
-  preConversationId: string | null;
+  preAcceptChat: PreAcceptChatLinkState | null;
 };
 
 export function RespondSection({
@@ -28,7 +32,7 @@ export function RespondSection({
   assetDecimals,
   nowMs,
   pendingResponse,
-  preConversationId,
+  preAcceptChat,
 }: Props) {
   const [offering, setOffering] = useState(false);
 
@@ -56,16 +60,18 @@ export function RespondSection({
                 </time>
               </p>
             </div>
-            {preConversationId ? (
-              <DismissDrawerLink
-                href={`/messages/${preConversationId}`}
-                className="engagement-person-card__chat shrink-0"
-                aria-label="Chat with requester"
-              >
-                <span className="engagement-connect-icon" aria-hidden>
-                  <FigmaIcon name="message" size={20} />
-                </span>
-              </DismissDrawerLink>
+            {preAcceptChat ? (
+              <PreAcceptChatLink
+                as={DismissDrawerLink}
+                href={`/messages/${preAcceptChat.conversationId}`}
+                hasUnread={preAcceptChat.hasUnread}
+                aria-label={
+                  preAcceptChat.hasUnread
+                    ? "Chat with requester (unread)"
+                    : "Chat with requester"
+                }
+                className="shrink-0"
+              />
             ) : null}
           </header>
 
