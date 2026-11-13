@@ -1,13 +1,20 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { explorerTransactionUrl } from "@paidaid/near";
+import { AppToast } from "../../../../components/app-toast";
+import { FigmaIcon } from "../../../../components/figma-icons";
 import { defaultRpcUrlForNetwork, parseNearNetworkId } from "@paidaid/shared";
 import { NearSessionProvider } from "../../../../wallet/near-session-provider";
 import { useNearWalletAccountId } from "../../../../wallet/use-near-wallet-account";
 import { usePaidAidNearWallet } from "../../../../wallet/paidaid-near-wallet-context";
 import { useOpenNearWalletConnect } from "../../../../wallet/use-open-near-wallet-connect";
 import { formatWalletConnectionError } from "../../../../wallet/errors";
+import {
+  formatNearTransactionError,
+  isUserRejectedTransaction,
+} from "../../../../wallet/near-transaction-errors";
 import {
   checkEngagementReleasePreflight,
   loadEngagementSettlementView,
@@ -38,6 +45,7 @@ function SettlementSectionInner({
   initialSettlement,
   deliveryStatus,
 }: Props) {
+  const router = useRouter();
   const { getTransactionSigner } = usePaidAidNearWallet();
   const openConnect = useOpenNearWalletConnect();
   const { accountId: signedAccountId, syncFromSelectorStore } =
@@ -45,8 +53,12 @@ function SettlementSectionInner({
   const [settlement, setSettlement] = useState(initialSettlement);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorToastOpen, setErrorToastOpen] = useState(false);
+  const [errorToastMessage, setErrorToastMessage] = useState("");
   const [providerPreflight, setProviderPreflight] =
     useState<EngagementReleasePreflightResult | null>(null);
+  const [providerPreflightChecked, setProviderPreflightChecked] =
+    useState(false);
   const networkId = parseNearNetworkId(process.env.NEXT_PUBLIC_NEAR_NETWORK_ID);
   const nearConfig = {
     networkId,
@@ -65,12 +77,9 @@ function SettlementSectionInner({
     !signedAccountId ||
     signedAccountId.toLowerCase() === linkedProviderNearAccountId.toLowerCase();
 
-  const refresh = useCallback(async () => {
-    const res = await loadEngagementSettlementView(engagementId);
-    if (res.ok) {
-      setSettlement(res.settlement);
-    }
-  }, [engagementId]);
+  useEffect(() => {
+    setSettlement(initialSettlement);
+  }, [initialSettlement]);
 
   const connectWallet = useCallback(async () => {
     setError(null);
@@ -132,7 +141,19 @@ function SettlementSectionInner({
       }
       setSettlement(reported.settlement);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Release failed.");
+      const message = formatNearTransactionError(e);
+      if (isUserRejectedTransaction(e)) {
+        setError(null);
+        setErrorToastMessage(message);
+        setErrorToastOpen(true);
+      } else {
+        setError(message);
+      }
+      const res = await loadEngagementSettlementView(engagementId);
+      if (res.ok) {
+        setSettlement(res.settlement);
+      }
+      router.refresh();
     } finally {
       setBusy(false);
     }
@@ -143,6 +164,7 @@ function SettlementSectionInner({
     walletMatchesLink,
     linkedRequesterNearAccountId,
     getTransactionSigner,
+    router,
   ]);
 
   const refreshProviderPreflight = useCallback(async () => {
@@ -152,6 +174,7 @@ function SettlementSectionInner({
     } else {
       setProviderPreflight(null);
     }
+    setProviderPreflightChecked(true);
   }, [engagementId]);
 
   const registerProviderTokenStorage = useCallback(async () => {
@@ -211,6 +234,7 @@ function SettlementSectionInner({
     if (!awaitingRelease) {
       return;
     }
+    setProviderPreflightChecked(false);
     void refreshProviderPreflight();
   }, [
     isRequester,
@@ -228,21 +252,40 @@ function SettlementSectionInner({
     : null;
 
   if (settlement.settlementStatus === "released") {
+    const releasedLabel = settlement.releasedAt
+      ? new Date(settlement.releasedAt).toLocaleString(undefined, {
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        })
+      : null;
+
     return (
-      <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm dark:border-emerald-900 dark:bg-emerald-950/40">
-        <p className="font-medium text-emerald-900 dark:text-emerald-100">
-          Payment released to provider
+      <div className="accept-funding-success" role="status">
+        <div className="accept-funding-success__icon" aria-hidden>
+          <FigmaIcon name="check" size={22} />
+        </div>
+        <p className="accept-funding-success__lead">
+          {isRequester
+            ? "Payment released to your provider"
+            : "Payment received from escrow"}
         </p>
-        {releaseExplorer && (
+        <p className="accept-funding-success__meta">
+          {releasedLabel
+            ? `Confirmed ${releasedLabel}`
+            : "Escrow payout is complete on NEAR."}
+        </p>
+        {releaseExplorer ? (
           <a
             href={releaseExplorer}
             target="_blank"
             rel="noreferrer"
-            className="mt-2 inline-block underline"
+            className="accept-funding-success__tx"
           >
             View release transaction
           </a>
-        )}
+        ) : null}
       </div>
     );
   }
@@ -270,7 +313,15 @@ function SettlementSectionInner({
               {error}
             </p>
           ) : null}
-          {providerPreflight && !providerPreflight.ok ? (
+          {!providerPreflightChecked ? (
+            <p
+              className="mt-4 text-[13px] text-[var(--muted)]"
+              role="status"
+              aria-live="polite"
+            >
+              Checking payout readiness…
+            </p>
+          ) : providerPreflight && !providerPreflight.ok ? (
             <div className="mt-4 rounded-xl border border-amber-200/80 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/30">
               <p className="text-[13px] leading-relaxed text-amber-950 dark:text-amber-100">
                 {providerPreflight.error}
@@ -286,21 +337,7 @@ function SettlementSectionInner({
                   : `Register to receive ${providerPreflight.assetSymbol ?? "tokens"}`}
               </button>
             </div>
-          ) : (
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <p className="text-[13px] text-[var(--muted)]">
-                Token registration is required before you can receive this payout.
-              </p>
-              <button
-                type="button"
-                className="rounded-xl border border-[var(--line)] px-3 py-2 text-sm font-semibold text-[var(--ink)] disabled:opacity-50"
-                disabled={busy}
-                onClick={() => void refreshProviderPreflight()}
-              >
-                Check registration
-              </button>
-            </div>
-          )}
+          ) : null}
         </section>
       );
     }
@@ -323,7 +360,14 @@ function SettlementSectionInner({
   }
 
   return (
-    <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 text-sm">
+    <>
+      <AppToast
+        message={errorToastMessage}
+        visible={errorToastOpen}
+        onClose={() => setErrorToastOpen(false)}
+        variant="error"
+      />
+      <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 text-sm">
       <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">
         Settlement
       </p>
@@ -365,16 +409,9 @@ function SettlementSectionInner({
             {busy ? "Checking release…" : "Release payment"}
           </button>
         )}
-        <button
-          type="button"
-          className="rounded-xl border border-[var(--line)] px-4 py-2.5 text-sm font-semibold text-[var(--ink)] disabled:opacity-50"
-          onClick={() => void refresh()}
-          disabled={busy}
-        >
-          Refresh status
-        </button>
       </div>
     </section>
+    </>
   );
 }
 

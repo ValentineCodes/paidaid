@@ -248,48 +248,48 @@ export function EngagementDetailContent(props: EngagementDetailContentProps) {
         </div>
       </section>
 
-      {showPaymentSecured ? (
-        <EngagementCallout tone="info" title="Payment secured">
-          Approving the submission releases escrow to your provider in one step.
-        </EngagementCallout>
-      ) : null}
+      <div className="engagement-flow__below">
+        {showPaymentSecured ? (
+          <EngagementCallout tone="info" title="Payment secured">
+            Approving the submission releases escrow to your provider in one step.
+          </EngagementCallout>
+        ) : null}
 
-      {isProvider &&
-        engagementStatus === "active" &&
-        delivery?.status === "pending_review" && (
-          <EngagementCallout tone="info" title="Under review">
-            Waiting for the requester to approve your submission.
+        {isProvider &&
+          engagementStatus === "active" &&
+          delivery?.status === "pending_review" && (
+            <EngagementCallout tone="info" title="Under review">
+              Waiting for the requester to approve your submission.
+            </EngagementCallout>
+          )}
+
+        {isProvider &&
+          engagementStatus === "active" &&
+          delivery?.status === "approved" &&
+          paymentFunded && (
+            <EngagementCallout tone="info" title="Delivery approved">
+              Awaiting on-chain payment release to complete the engagement.
+            </EngagementCallout>
+          )}
+
+        {isProvider &&
+          engagementStatus === "active" &&
+          !paymentFunded &&
+          !(fundingPrerequisites?.providerWalletLinked ?? false) && (
+            <EngagementCallout tone="warning" title="Wallet needed">
+              The requester cannot fund escrow until you sign in with your NEAR
+              wallet.
+            </EngagementCallout>
+          )}
+
+        {!isProvider && engagementStatus === "active" && !paymentFunded && (
+          <EngagementCallout tone="warning" title="Escrow not funded">
+            This engagement has no funded escrow. Funding happens when you accept a
+            provider on the request — open the request to complete funding.
           </EngagementCallout>
         )}
 
-      {isProvider &&
-        engagementStatus === "active" &&
-        delivery?.status === "approved" &&
-        paymentFunded && (
-          <EngagementCallout tone="info" title="Delivery approved">
-            Awaiting on-chain payment release to complete the engagement.
-          </EngagementCallout>
-        )}
-
-      {isProvider &&
-        engagementStatus === "active" &&
-        !paymentFunded &&
-        !(fundingPrerequisites?.providerWalletLinked ?? false) && (
-          <EngagementCallout tone="warning" title="Wallet needed">
-            The requester cannot fund escrow until you sign in with your NEAR
-            wallet.
-          </EngagementCallout>
-        )}
-
-      {!isProvider && engagementStatus === "active" && !paymentFunded && (
-        <EngagementCallout tone="warning" title="Escrow not funded">
-          This engagement has no funded escrow. Funding happens when you accept a
-          provider on the request — open the request to complete funding.
-        </EngagementCallout>
-      )}
-
-      {paymentFunded && (
-        <div className="detail-section">
+        {paymentFunded ? (
           <EngagementSettlementSection
             engagementId={engagementId}
             isRequester={!isProvider}
@@ -298,23 +298,23 @@ export function EngagementDetailContent(props: EngagementDetailContentProps) {
             initialSettlement={initialSettlement}
             deliveryStatus={delivery?.status ?? null}
           />
-        </div>
-      )}
+        ) : null}
 
-      <div className="engagement-workflow-wrap">
-        <EngagementWorkflow
-          engagementId={engagementId}
-          conversationId={conversationId}
-          isProvider={isProvider}
-          isRequester={!isProvider}
-          engagementStatus={engagementStatus}
-          delivery={delivery}
-          deliveryAttachments={deliveryAttachments}
-          existingReview={existingReview}
-          paymentFunded={paymentFunded}
-          linkedRequesterNearAccountId={linkedRequesterNear}
-          linkedProviderNearAccountId={linkedProviderNear}
-        />
+        <div className="engagement-workflow-wrap">
+          <EngagementWorkflow
+            engagementId={engagementId}
+            conversationId={conversationId}
+            isProvider={isProvider}
+            isRequester={!isProvider}
+            engagementStatus={engagementStatus}
+            delivery={delivery}
+            deliveryAttachments={deliveryAttachments}
+            existingReview={existingReview}
+            paymentFunded={paymentFunded}
+            linkedRequesterNearAccountId={linkedRequesterNear}
+            linkedProviderNearAccountId={linkedProviderNear}
+          />
+        </div>
       </div>
     </div>
   );

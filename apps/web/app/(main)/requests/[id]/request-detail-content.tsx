@@ -176,8 +176,8 @@ export function RequestDetailContent({ data, variant }: Props) {
                 </DismissDrawerLink>
               </section>
             ) : null}
-            <section className="detail-section flex flex-col gap-3">
-              <h4>Responses</h4>
+            <section className="detail-section request-responses-section">
+              <h4 className="request-responses-section__title">Responses</h4>
               {!canAcceptOffers && status !== "open" && (
                 <p className="text-sm text-[var(--muted)]">
                   This request is not open for accepting new offers
@@ -373,8 +373,8 @@ export function RequestDetailContent({ data, variant }: Props) {
               Open engagement
             </Link>
           ) : null}
-          <section className="flex flex-col gap-3">
-            <h2 className="text-lg font-medium text-stone-900 dark:text-stone-100">
+          <section className="request-responses-section">
+            <h2 className="request-responses-section__title request-responses-section__title--page">
               Responses
             </h2>
             {!canAcceptOffers && status !== "open" && (

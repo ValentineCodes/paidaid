@@ -36,7 +36,12 @@ import {
   extensionForDeliveryMime,
   validateDeliveryProofFiles,
 } from "../../../../lib/delivery/allowed-delivery-attachment";
+import type { EngagementSettlementView } from "../../../../lib/engagement/settlement-types";
 import type { Database } from "../../../../lib/database.types";
+import {
+  formatNearTransactionError,
+  isUserRejectedTransaction,
+} from "../../../../wallet/near-transaction-errors";
 
 type DeliveryRow = Database["public"]["Tables"]["deliveries"]["Row"];
 type DeliveryAttRow =
@@ -56,6 +61,12 @@ type Props = {
   linkedRequesterNearAccountId: string | null;
   linkedProviderNearAccountId: string | null;
 };
+
+function settlementNeedsRelease(
+  status: EngagementSettlementView["settlementStatus"],
+): boolean {
+  return status === "eligible" || status === "release_failed";
+}
 
 function ProofFileTile({
   file,
@@ -251,6 +262,8 @@ function EngagementWorkflowInner({
   const [approveFlowActive, setApproveFlowActive] = useState(false);
   const [successToastOpen, setSuccessToastOpen] = useState(false);
   const [successToastMessage, setSuccessToastMessage] = useState("");
+  const [errorToastOpen, setErrorToastOpen] = useState(false);
+  const [errorToastMessage, setErrorToastMessage] = useState("");
 
   const walletMatchesLink =
     !linkedRequesterNearAccountId ||
@@ -575,13 +588,20 @@ function EngagementWorkflowInner({
         );
       }
 
-      setApproveStep("Recording approval…");
-      const { error: rpcErr } = await supabase.rpc("review_delivery", {
-        p_engagement_id: engagementId,
-        p_action: "approve",
-      });
-      if (rpcErr) {
-        throw new Error(rpcErr.message);
+      const loadedBefore = await loadEngagementSettlementView(engagementId);
+      const skipReview =
+        loadedBefore.ok &&
+        settlementNeedsRelease(loadedBefore.settlement.settlementStatus);
+
+      if (!skipReview) {
+        setApproveStep("Recording approval…");
+        const { error: rpcErr } = await supabase.rpc("review_delivery", {
+          p_engagement_id: engagementId,
+          p_action: "approve",
+        });
+        if (rpcErr) {
+          throw new Error(rpcErr.message);
+        }
       }
 
       setApproveStep(
@@ -612,7 +632,15 @@ function EngagementWorkflowInner({
       setApproveFlowActive(false);
       setApproveStep(null);
       setBusy(false);
-      setError(e instanceof Error ? e.message : "Approval failed.");
+      const raw = e instanceof Error ? e.message : "Approval failed.";
+      if (isUserRejectedTransaction(e)) {
+        setError(null);
+        setErrorToastMessage(formatNearTransactionError(e));
+        setErrorToastOpen(true);
+      } else {
+        setError(raw);
+      }
+      refresh();
     }
   }
 
@@ -636,6 +664,7 @@ function EngagementWorkflowInner({
   }
 
   const deliveryStatus = delivery?.status ?? null;
+
   const deliveryHasVisibleContent =
     Boolean(delivery?.description?.trim()) || deliveryAttachments.length > 0;
 
@@ -649,6 +678,12 @@ function EngagementWorkflowInner({
         visible={successToastOpen}
         onClose={() => setSuccessToastOpen(false)}
         variant="success"
+      />
+      <AppToast
+        message={errorToastMessage}
+        visible={errorToastOpen}
+        onClose={() => setErrorToastOpen(false)}
+        variant="error"
       />
       <Dialog
         open={registerPrompt != null}

@@ -139,9 +139,16 @@ export async function RequestResponsesOwnerList({
 
   if (list.length === 0) {
     return (
-      <p className="text-sm text-stone-600 dark:text-stone-400">
-        No responses yet.
-      </p>
+      <div className="request-responses-empty" role="status">
+        <div className="request-responses-empty__icon" aria-hidden>
+          <FigmaIcon name="message" size={20} />
+        </div>
+        <p className="request-responses-empty__title">No offers yet</p>
+        <p className="request-responses-empty__lead">
+          When providers respond, their offers show up here — compare messages,
+          amounts, and accept the one that fits.
+        </p>
+      </div>
     );
   }
 
