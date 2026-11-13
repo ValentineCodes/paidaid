@@ -7,6 +7,8 @@ import {
   canRetryAcceptanceFunding,
   deriveAcceptanceFundingUiPhase,
   shouldShowContinueFunding,
+  canCancelAcceptanceFunding,
+  acceptanceFundingNeedsOnChainRecovery,
 } from "./acceptance-funding-ui";
 import type { AcceptanceFundingPrepareResult } from "./acceptance-funding-types";
 
@@ -124,5 +126,32 @@ describe("action affordances", () => {
   it("continue hidden for failed terminal phase", () => {
     assert.equal(shouldShowContinueFunding("failed", true), false);
     assert.equal(shouldShowContinueFunding("resume", true), true);
+  });
+
+  it("cancel allowed only for in-flight intent statuses", () => {
+    assert.equal(canCancelAcceptanceFunding(null), false);
+    assert.equal(canCancelAcceptanceFunding(baseIntent), true);
+    assert.equal(
+      canCancelAcceptanceFunding({ ...baseIntent, status: "finalized" }),
+      false,
+    );
+  });
+
+  it("on-chain recovery only when tx or escrow exists", () => {
+    assert.equal(acceptanceFundingNeedsOnChainRecovery(baseIntent), false);
+    assert.equal(
+      acceptanceFundingNeedsOnChainRecovery({
+        ...baseIntent,
+        fundTxHash: "abc",
+      }),
+      true,
+    );
+    assert.equal(
+      acceptanceFundingNeedsOnChainRecovery({
+        ...baseIntent,
+        status: "fund_submitted",
+      }),
+      true,
+    );
   });
 });

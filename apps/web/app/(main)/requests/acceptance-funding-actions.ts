@@ -443,6 +443,88 @@ export async function loadInFlightAcceptanceResponseId(
   return { ok: true, responseId: row.response_id };
 }
 
+export type CancelAcceptanceFundingResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
+/** Expire in-flight fund-on-acceptance for this offer so other responses may be accepted. */
+export async function cancelAcceptanceFunding(
+  requestId: string,
+  responseId: string,
+): Promise<CancelAcceptanceFundingResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: false, error: "Sign in required." };
+  }
+
+  const { data: request, error: requestErr } = await supabase
+    .from("requests")
+    .select("id, requester_id, status")
+    .eq("id", requestId)
+    .maybeSingle();
+
+  if (requestErr || !request) {
+    return { ok: false, error: requestErr?.message ?? "Request not found." };
+  }
+  if (request.requester_id !== user.id) {
+    return {
+      ok: false,
+      error: "Only the requester may cancel acceptance funding.",
+    };
+  }
+
+  const { data: response, error: responseErr } = await supabase
+    .from("request_responses")
+    .select("id, request_id, status")
+    .eq("id", responseId)
+    .maybeSingle();
+
+  if (responseErr || !response || response.request_id !== requestId) {
+    return { ok: false, error: responseErr?.message ?? "Response not found." };
+  }
+  if (response.status !== "pending") {
+    return { ok: false, error: "This offer is no longer pending." };
+  }
+
+  const { data: activeIntent, error: intentErr } = await supabase
+    .from("acceptance_funding_intents")
+    .select("id")
+    .eq("response_id", responseId)
+    .in("status", [
+      "awaiting_wallet",
+      "create_submitted",
+      "fund_submitted",
+      "funding_verified",
+    ])
+    .limit(1)
+    .maybeSingle();
+
+  if (intentErr) {
+    return { ok: false, error: intentErr.message };
+  }
+  if (!activeIntent) {
+    return {
+      ok: false,
+      error: "No acceptance funding in progress for this offer.",
+    };
+  }
+
+  const { error: expireErr } = await supabase.rpc(
+    "expire_active_acceptance_intents_for_response",
+    { p_response_id: responseId },
+  );
+  if (expireErr) {
+    return { ok: false, error: expireErr.message };
+  }
+
+  revalidatePath(`/requests/${requestId}`);
+  revalidatePath("/activity");
+  return { ok: true };
+}
+
 export async function loadAcceptanceFundingIntent(
   intentId: string,
 ): Promise<AcceptanceFundingActionResult> {

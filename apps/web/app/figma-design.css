@@ -1217,6 +1217,99 @@ body.app.dark .create-modal {
   margin-bottom: 8px;
 }
 
+.accept-funding-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 6px;
+  padding: 26px 22px 24px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, #34d399 38%, var(--line));
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, #10b981 11%, var(--surface)) 0%,
+    var(--surface) 52%
+  );
+  text-align: center;
+}
+
+.accept-funding-success__icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: color-mix(in srgb, #10b981 16%, transparent);
+  color: #047857;
+  box-shadow: 0 0 0 6px color-mix(in srgb, #10b981 9%, transparent);
+}
+
+body.app.dark .accept-funding-success__icon,
+.dark .accept-funding-success__icon {
+  color: #6ee7b7;
+  background: color-mix(in srgb, #10b981 22%, transparent);
+}
+
+.accept-funding-success__lead {
+  margin: 0;
+  max-width: 28rem;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+.accept-funding-success__meta {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.accept-funding-success__tx {
+  margin-top: 2px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #047857;
+  text-decoration: none;
+}
+
+.accept-funding-success__tx:hover {
+  text-decoration: underline;
+}
+
+body.app.dark .accept-funding-success__tx,
+.dark .accept-funding-success__tx {
+  color: #6ee7b7;
+}
+
+.accept-funding-success-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, #34d399 45%, var(--line));
+  background: color-mix(in srgb, #10b981 9%, var(--surface));
+  font-size: 13px;
+  font-weight: 700;
+  color: #047857;
+  text-decoration: none;
+  transition: background 160ms ease;
+}
+
+.accept-funding-success-inline:hover {
+  background: color-mix(in srgb, #10b981 15%, var(--surface));
+}
+
+body.app.dark .accept-funding-success-inline,
+.dark .accept-funding-success-inline {
+  color: #6ee7b7;
+}
+
 .modal-head {
   display: flex;
   justify-content: space-between;
@@ -1354,7 +1447,9 @@ body.app.dark .create-modal {
 
 .modal-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
+  gap: 12px;
   margin-top: 25px;
   padding-top: 20px;
   border-top: 1px solid var(--line);
@@ -3582,6 +3677,99 @@ body.app.dark .my-pending-offer__withdraw:hover:not(:disabled) {
   flex-wrap: wrap;
   align-items: flex-start;
   gap: 8px;
+}
+
+/* In-flight acceptance funding (continue + cancel) */
+.acceptance-inflight-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  min-width: min(100%, 16rem);
+}
+
+.acceptance-inflight-actions__row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: stretch;
+}
+
+.acceptance-inflight-actions__row--solo {
+  grid-template-columns: 1fr;
+}
+
+.acceptance-inflight-actions__continue,
+.acceptance-inflight-actions__cancel {
+  min-height: 44px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    opacity 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+}
+
+.acceptance-inflight-actions__continue {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: auto;
+  padding: 0 20px;
+  border: none;
+}
+
+.acceptance-inflight-actions__continue:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.acceptance-inflight-actions__cancel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 18px;
+  border: 1px solid color-mix(in srgb, var(--line) 88%, transparent);
+  background: color-mix(in srgb, var(--muted) 7%, var(--surface));
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.acceptance-inflight-actions__cancel:hover:not(:disabled) {
+  color: #b91c1c;
+  border-color: color-mix(in srgb, #dc2626 38%, var(--line));
+  background: color-mix(in srgb, #dc2626 7%, transparent);
+}
+
+.acceptance-inflight-actions__cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+body.app.dark .acceptance-inflight-actions__cancel:hover:not(:disabled),
+.dark .acceptance-inflight-actions__cancel:hover:not(:disabled) {
+  color: #fca5a5;
+  border-color: color-mix(in srgb, #fca5a5 35%, var(--line));
+  background: color-mix(in srgb, #7f1d1d 32%, transparent);
+}
+
+.acceptance-inflight-actions--modal {
+  flex-basis: 100%;
+  width: 100%;
+}
+
+.acceptance-inflight-actions--modal .acceptance-inflight-actions__row {
+  max-width: 100%;
+}
+
+@media (max-width: 400px) {
+  .acceptance-inflight-actions__row:not(.acceptance-inflight-actions__row--solo) {
+    grid-template-columns: 1fr;
+  }
 }
 
 .app-toast {

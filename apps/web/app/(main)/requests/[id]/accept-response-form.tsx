@@ -35,6 +35,7 @@ import {
   reportAcceptanceFundTx,
   reconcileAcceptanceFinalization,
   loadActiveAcceptanceFundingForResponse,
+  cancelAcceptanceFunding,
 } from "../acceptance-funding-actions";
 import { acceptanceIntentToWalletTerms } from "../../../../lib/acceptance/acceptance-intent-wallet-terms";
 import type { AcceptanceFundingPrepareResult } from "../../../../lib/acceptance/acceptance-funding-types";
@@ -49,6 +50,8 @@ import {
   canRetryAcceptanceFunding,
   deriveAcceptanceFundingUiPhase,
   shouldShowContinueFunding,
+  canCancelAcceptanceFunding,
+  acceptanceFundingNeedsOnChainRecovery,
 } from "../../../../lib/acceptance/acceptance-funding-ui";
 
 type Props = {
@@ -163,6 +166,19 @@ function AcceptResponseFormInner({
     busy && activeStep
       ? activeStep
       : acceptanceFundingPhaseLabel(phase) || null;
+
+  const showStatusBanner =
+    phase !== "idle" &&
+    phase !== "confirm" &&
+    phase !== "succeeded" &&
+    !busy &&
+    Boolean(phaseLabel) &&
+    !(
+      error &&
+      (phase === "wallet_rejected" ||
+        phase === "failed" ||
+        phase === "expired")
+    );
 
   const refreshSnapshot = useCallback(async () => {
     const snap = await loadActiveAcceptanceFundingForResponse(
@@ -384,6 +400,20 @@ function AcceptResponseFormInner({
     setError(null);
   }, []);
 
+  const syncAcceptedSnapshot = useCallback(async (): Promise<boolean> => {
+    const snap = await loadActiveAcceptanceFundingForResponse(
+      requestId,
+      responseId,
+    );
+    if (!snap.ok || snap.intent?.status !== "finalized") {
+      return false;
+    }
+    setIntent(snap.intent);
+    setFinalizedEngagementId(snap.intent.plannedEngagementId);
+    setConfirmOpen(false);
+    return true;
+  }, [requestId, responseId]);
+
   const runFundingFlow = useCallback(
     async (options: { skipPrepare?: boolean; continueOnly?: boolean }) => {
       if (runGuard.current) return;
@@ -405,36 +435,44 @@ function AcceptResponseFormInner({
 
         if (current.status === "finalized") {
           setFinalizedEngagementId(current.plannedEngagementId);
-          router.refresh();
+          setActiveStep(null);
+          setModalOpen(true);
           return;
         }
 
-        if (options.continueOnly) {
+        const recoverOnly =
+          options.continueOnly ||
+          acceptanceFundingNeedsOnChainRecovery(current);
+
+        if (recoverOnly) {
           setActiveStep("Verifying funding on-chain…");
           const recovered = await recoverAcceptanceFundingProgress(
             current.intentId,
           );
           if (!recovered.ok) {
-            if (
+            const nothingOnChainYet =
               !recovered.recoverable &&
-              recovered.error.includes("No on-chain escrow")
-            ) {
-              throw new Error(
-                "No fund transaction yet. Confirm funding in your wallet first, then use Continue.",
-              );
+              recovered.error.includes("No on-chain escrow");
+            if (nothingOnChainYet) {
+              await executeWalletFunding(current);
+            } else {
+              throw new Error(recovered.error);
             }
-            throw new Error(recovered.error);
-          }
-          setIntent(recovered.intent);
-          if (recovered.engagementId) {
-            setFinalizedEngagementId(recovered.engagementId);
+          } else {
+            setIntent(recovered.intent);
+            if (recovered.engagementId) {
+              setFinalizedEngagementId(recovered.engagementId);
+            }
           }
         } else {
           await executeWalletFunding(current);
         }
         setActiveStep(null);
         setModalOpen(true);
-        router.refresh();
+        const accepted = await syncAcceptedSnapshot();
+        if (!accepted) {
+          router.refresh();
+        }
       } catch (e) {
         const raw =
           e instanceof Error ? e.message : "Acceptance funding failed.";
@@ -461,6 +499,7 @@ function AcceptResponseFormInner({
       router,
       refreshSnapshot,
       showProviderBlockedToast,
+      syncAcceptedSnapshot,
     ],
   );
 
@@ -477,10 +516,15 @@ function AcceptResponseFormInner({
 
   const closeModal = useCallback(() => {
     if (busy) return;
+    const refreshAfterClose =
+      phase === "succeeded" && Boolean(finalizedEngagementId);
     setModalOpen(false);
     setConfirmOpen(false);
     setError(null);
-  }, [busy]);
+    if (refreshAfterClose) {
+      router.refresh();
+    }
+  }, [busy, phase, finalizedEngagementId, router]);
 
   const openFundingModal = useCallback((options?: { confirm?: boolean }) => {
     setError(null);
@@ -489,6 +533,54 @@ function AcceptResponseFormInner({
     }
     setModalOpen(true);
   }, []);
+
+  const handleRetryAcceptance = useCallback(async () => {
+    if (busy || runGuard.current) return;
+    setError(null);
+    setConfirmOpen(false);
+    setModalOpen(true);
+
+    let currentIntent = intent;
+    if (!currentIntent) {
+      const snap = await loadActiveAcceptanceFundingForResponse(
+        requestId,
+        responseId,
+      );
+      if (snap.ok && snap.intent) {
+        currentIntent = snap.intent;
+        setIntent(snap.intent);
+      }
+    }
+
+    const resumeExisting = Boolean(
+      currentIntent && canCancelAcceptanceFunding(currentIntent),
+    );
+    await runFundingFlow({
+      skipPrepare: resumeExisting,
+      continueOnly: false,
+    });
+  }, [busy, intent, requestId, responseId, runFundingFlow]);
+
+  const handleCancelAcceptance = useCallback(async () => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await cancelAcceptanceFunding(requestId, responseId);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      setIntent(null);
+      setConfirmOpen(false);
+      setModalOpen(false);
+      setActiveStep(null);
+      resumeOpenGuard.current = false;
+      router.refresh();
+    } finally {
+      setBusy(false);
+    }
+  }, [busy, requestId, responseId, router]);
 
   const handleAcceptClick = useCallback(async () => {
     if (acceptGateLoading || blocked || walletRequired) {
@@ -542,8 +634,18 @@ function AcceptResponseFormInner({
         ? "Review & fund escrow"
         : acceptanceFundingPhaseLabel(phase) || "Accept offer";
 
+  const showInflightActions =
+    shouldShowContinueFunding(phase, Boolean(intent)) && !modalOpen;
+  const showInflightCancel = canCancelAcceptanceFunding(intent);
+
   return (
-    <div className="flex w-fit shrink-0 flex-col gap-2">
+    <div
+      className={
+        showInflightActions && variant !== "drawer"
+          ? "flex w-full min-w-0 shrink-0 flex-col gap-2"
+          : "flex w-fit shrink-0 flex-col gap-2"
+      }
+    >
       <AppToast
         message={blockToastMessage}
         visible={blockToastOpen}
@@ -553,8 +655,9 @@ function AcceptResponseFormInner({
       {phase === "succeeded" && finalizedEngagementId && !modalOpen && (
         <Link
           href={`/engagements/${finalizedEngagementId}`}
-          className="text-sm font-medium text-emerald-800 underline dark:text-emerald-200"
+          className="accept-funding-success-inline"
         >
+          <FigmaIcon name="check" size={16} />
           Accepted · open engagement
         </Link>
       )}
@@ -596,23 +699,37 @@ function AcceptResponseFormInner({
         </>
       )}
 
-      {shouldShowContinueFunding(phase, Boolean(intent)) && !modalOpen && (
-        <button
-          type="button"
-          onClick={() => openFundingModal()}
-          className="secondary w-fit shrink-0 text-sm"
-        >
-          Continue funding
-        </button>
+      {showInflightActions && (
+        <div className="acceptance-inflight-actions">
+          <div
+            className={`acceptance-inflight-actions__row${showInflightCancel ? "" : " acceptance-inflight-actions__row--solo"}`}
+          >
+            {showInflightCancel ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void handleCancelAcceptance()}
+                className="acceptance-inflight-actions__cancel"
+              >
+                Cancel
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => openFundingModal()}
+              className="btn-ink acceptance-inflight-actions__continue"
+            >
+              Continue funding
+              <FigmaIcon name="arrow" size={16} />
+            </button>
+          </div>
+        </div>
       )}
 
       {canRetryAcceptanceFunding(phase) && !busy && !modalOpen && (
         <button
           type="button"
-          onClick={() => {
-            setIntent(null);
-            openFundingModal({ confirm: true });
-          }}
+          onClick={() => void handleRetryAcceptance()}
           className="w-fit text-sm font-medium underline"
         >
           Try acceptance again
@@ -643,9 +760,6 @@ function AcceptResponseFormInner({
               <h2 className="font-heading m-0 text-[22px] leading-tight text-[var(--ink)]">
                 {modalTitle}
               </h2>
-              <p className="mt-1 text-[13px] text-[var(--muted)]">
-                {providerDisplayName} · NEAR {networkId}
-              </p>
             </div>
             <DialogClose
               render={
@@ -661,34 +775,29 @@ function AcceptResponseFormInner({
             </DialogClose>
           </div>
 
-          <div className="accept-funding-summary">
-            <div>
-              <p className="accept-funding-summary__label">Escrow amount</p>
-              <p className="accept-funding-summary__amount">
-                {offerAmountDisplay}{" "}
-                <span className="font-sans font-medium">{assetSymbol}</span>
+          {phase !== "succeeded" ? (
+            <div className="accept-funding-summary">
+              <div>
+                <p className="accept-funding-summary__label">Escrow amount</p>
+                <p className="accept-funding-summary__amount">
+                  {offerAmountDisplay}{" "}
+                  <span className="font-sans font-medium">{assetSymbol}</span>
+                </p>
+              </div>
+              <p className="accept-funding-summary__provider">
+                {providerDisplayName}
               </p>
             </div>
-            <p className="accept-funding-summary__provider">
-              {providerDisplayName}
-            </p>
-          </div>
+          ) : null}
 
           <DialogDescription id="accept-funding-desc" className="sr-only">
             Accept this response by funding escrow on NEAR. Verification happens
             on-chain before the offer is accepted.
           </DialogDescription>
 
-          {phase !== "idle" &&
-            phase !== "confirm" &&
-            !busy &&
-            phaseLabel && (
-              <StatusBanner
-                phase={phase}
-                busy={false}
-                label={phaseLabel}
-              />
-            )}
+          {showStatusBanner && phaseLabel ? (
+            <StatusBanner phase={phase} busy={false} label={phaseLabel} />
+          ) : null}
 
           <div className="accept-funding-body">
             {phase === "confirm" && (
@@ -706,23 +815,33 @@ function AcceptResponseFormInner({
                     </Link>{" "}
                     before continuing.
                   </p>
-                ) : (
-                  <p className="text-xs text-[var(--muted)]">
-                    Funding wallet:{" "}
-                    <span className="font-mono">
-                      {linkedRequesterNearAccountId}
-                    </span>
-                  </p>
-                )}
+                ) : null}
               </>
             )}
 
-            {phase === "succeeded" && finalizedEngagementId && (
-              <p className="text-sm text-emerald-800 dark:text-emerald-200">
-                Escrow is funded on {networkId}. You can message and coordinate
-                from the engagement page.
-              </p>
-            )}
+            {phase === "succeeded" && finalizedEngagementId ? (
+              <div className="accept-funding-success" role="status">
+                <div className="accept-funding-success__icon" aria-hidden>
+                  <FigmaIcon name="check" size={22} />
+                </div>
+                <p className="accept-funding-success__lead">
+                  Escrow is funded on-chain and this offer is accepted.
+                </p>
+                <p className="accept-funding-success__meta">
+                  {offerAmountDisplay} {assetSymbol} with {providerDisplayName}
+                </p>
+                {fundTxExplorer ? (
+                  <a
+                    href={fundTxExplorer}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="accept-funding-success__tx"
+                  >
+                    View funding transaction
+                  </a>
+                ) : null}
+              </div>
+            ) : null}
 
             {shouldShowContinueFunding(phase, Boolean(intent)) && (
               <p className="mt-4 text-[13px] leading-relaxed text-[var(--ink)]">
@@ -759,7 +878,7 @@ function AcceptResponseFormInner({
               </div>
             ) : null}
 
-            {fundTxExplorer && (
+            {fundTxExplorer && phase !== "succeeded" ? (
               <a
                 href={fundTxExplorer}
                 target="_blank"
@@ -768,7 +887,7 @@ function AcceptResponseFormInner({
               >
                 View on-chain transaction
               </a>
-            )}
+            ) : null}
           </div>
 
           <div className="modal-actions">
@@ -794,61 +913,80 @@ function AcceptResponseFormInner({
               </>
             )}
 
-            {phase === "succeeded" && finalizedEngagementId && (
-              <>
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="secondary"
-                >
-                  Done
-                </button>
-                <Link
-                  href={`/engagements/${finalizedEngagementId}`}
-                  className="primary"
-                  onClick={() => setModalOpen(false)}
-                >
-                  Open engagement
-                  <FigmaIcon name="arrow" size={17} />
-                </Link>
-              </>
-            )}
+            {phase === "succeeded" && finalizedEngagementId ? (
+              <div className="acceptance-inflight-actions acceptance-inflight-actions--modal">
+                <div className="acceptance-inflight-actions__row">
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="acceptance-inflight-actions__cancel"
+                  >
+                    Done
+                  </button>
+                  <Link
+                    href={`/engagements/${finalizedEngagementId}`}
+                    className="btn-ink acceptance-inflight-actions__continue"
+                    onClick={() => {
+                      setModalOpen(false);
+                      router.refresh();
+                    }}
+                  >
+                    Open engagement
+                    <FigmaIcon name="arrow" size={17} />
+                  </Link>
+                </div>
+              </div>
+            ) : null}
 
             {shouldShowContinueFunding(phase, Boolean(intent)) && (
-              <>
-                {!signedAccountId && !walletRequired && (
+              <div className="acceptance-inflight-actions acceptance-inflight-actions--modal">
+                {!signedAccountId && !walletRequired ? (
                   <button
                     type="button"
                     onClick={() => void connectWallet()}
-                    className="secondary"
+                    className="secondary w-full max-w-full"
                   >
-                    Connect
+                    Connect wallet
                   </button>
-                )}
-                {signedAccountId && !walletMatchesLink && (
-                  <p className="w-full text-sm text-amber-800 dark:text-amber-200">
+                ) : null}
+                {signedAccountId && !walletMatchesLink ? (
+                  <p className="m-0 text-sm text-amber-800 dark:text-amber-200">
                     Connected as {signedAccountId}. Switch to{" "}
                     {linkedRequesterNearAccountId}.
                   </p>
-                )}
-                <button
-                  type="button"
-                  disabled={duplicateBlocked || walletRequired || busy}
-                  onClick={() =>
-                    void runFundingFlow({
-                      skipPrepare: Boolean(intent),
-                      continueOnly:
-                        phase === "resume" ||
-                        phase === "fund_submitted" ||
-                        phase === "pending_tx",
-                    })
-                  }
-                  className="primary"
+                ) : null}
+                <div
+                  className={`acceptance-inflight-actions__row${showInflightCancel ? "" : " acceptance-inflight-actions__row--solo"}`}
                 >
-                  {busy ? (activeStep ?? "Working…") : "Continue"}
-                  {!busy && <FigmaIcon name="arrow" size={17} />}
-                </button>
-              </>
+                  {showInflightCancel ? (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void handleCancelAcceptance()}
+                      className="acceptance-inflight-actions__cancel"
+                    >
+                      Cancel
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    disabled={duplicateBlocked || walletRequired || busy}
+                    onClick={() =>
+                      void runFundingFlow({
+                        skipPrepare: Boolean(intent),
+                        continueOnly: Boolean(
+                          intent &&
+                            acceptanceFundingNeedsOnChainRecovery(intent),
+                        ),
+                      })
+                    }
+                    className="btn-ink acceptance-inflight-actions__continue"
+                  >
+                    {busy ? (activeStep ?? "Working…") : "Continue funding"}
+                    {!busy && <FigmaIcon name="arrow" size={17} />}
+                  </button>
+                </div>
+              </div>
             )}
 
             {canRetryAcceptanceFunding(phase) &&
@@ -864,10 +1002,7 @@ function AcceptResponseFormInner({
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      setIntent(null);
-                      setConfirmOpen(true);
-                    }}
+                    onClick={() => void handleRetryAcceptance()}
                     className="primary"
                   >
                     Try again

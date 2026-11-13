@@ -155,6 +155,37 @@ export function blocksDuplicateFundingAttempt(
   );
 }
 
+const IN_FLIGHT_ACCEPTANCE_INTENT_STATUSES = [
+  "awaiting_wallet",
+  "create_submitted",
+  "fund_submitted",
+  "funding_verified",
+] as const;
+
+export function canCancelAcceptanceFunding(
+  intent: AcceptanceFundingPrepareResult | null,
+): boolean {
+  if (!intent) return false;
+  return (
+    IN_FLIGHT_ACCEPTANCE_INTENT_STATUSES as readonly string[]
+  ).includes(intent.status);
+}
+
+/** True when Continue should verify/sync chain state — not open the wallet for a new fund tx. */
+export function acceptanceFundingNeedsOnChainRecovery(
+  intent: AcceptanceFundingPrepareResult,
+): boolean {
+  if (intent.onChainEscrowId != null && intent.onChainEscrowId !== "") {
+    return true;
+  }
+  if (intent.fundTxHash || intent.createTxHash) {
+    return true;
+  }
+  return (
+    intent.status === "fund_submitted" || intent.status === "funding_verified"
+  );
+}
+
 export function shouldShowContinueFunding(
   phase: AcceptanceFundingUiPhase,
   hasIntent: boolean,
