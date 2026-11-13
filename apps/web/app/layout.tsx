@@ -27,6 +27,10 @@ export const metadata: Metadata = {
   title: "PaidAid",
   description:
     "If you can pay for it, someone can do it. Open marketplace for real tasks between people.",
+  icons: {
+    icon: "/favicon.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
