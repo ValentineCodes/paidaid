@@ -139,6 +139,7 @@ export default async function MarketplaceHomePage({ searchParams }: PageProps) {
       : null;
 
   const q = typeof sp.q === "string" ? sp.q : "";
+  const feedIsFiltered = Boolean(parsed.search.trim());
   const openCreate = sp.create === "1" || sp.create === "true";
   let createCatalog = null;
   try {
@@ -208,10 +209,29 @@ export default async function MarketplaceHomePage({ searchParams }: PageProps) {
         )}
 
         {!error && feed.length === 0 && (
-          <div className="empty">
-            <Icon name="search" size={30} />
-            <h3>No tasks found</h3>
-            <p>Try another search or check back later.</p>
+          <div className="empty" role="status">
+            {feedIsFiltered ? (
+              <>
+                <Icon name="search" size={30} />
+                <h3>No tasks match your search</h3>
+                <p>Try different words, or browse everything that&apos;s open.</p>
+                <Link href="/" className="empty__action">
+                  Clear search
+                </Link>
+              </>
+            ) : (
+              <>
+                <Icon name="briefcase" size={30} />
+                <h3>No open tasks yet</h3>
+                <p>
+                  The marketplace is quiet. Post what you need and providers can
+                  send offers.
+                </p>
+                <Link href="/?create=1" className="empty__action">
+                  Post a task
+                </Link>
+              </>
+            )}
           </div>
         )}
 
