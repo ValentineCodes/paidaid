@@ -3450,13 +3450,26 @@ body.app.dark .engagement-delivery-card,
 }
 
 .app-toast--error {
-  border-color: #fecaca;
+  border-color: color-mix(in srgb, #dc2626 28%, var(--line));
   color: #991b1b;
 }
 
 .app-toast--error .app-toast__icon {
   background: #fee2e2;
   color: #b91c1c;
+}
+
+body.app.dark .app-toast--error,
+.dark .app-toast--error {
+  border-color: color-mix(in srgb, #fca5a5 32%, var(--line));
+  background: color-mix(in srgb, #2a1515 55%, var(--surface));
+  color: #fecaca;
+}
+
+body.app.dark .app-toast--error .app-toast__icon,
+.dark .app-toast--error .app-toast__icon {
+  background: color-mix(in srgb, #7f1d1d 70%, transparent);
+  color: #fca5a5;
 }
 
 .app-toast__close {

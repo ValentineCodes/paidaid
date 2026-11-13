@@ -358,15 +358,31 @@ function MarketplaceWalletControlInner({
   const showBalanceSkeleton =
     syncState === "aligned" && balanceLoading && !balanceDisplay;
 
+  const showSignInRequiredPill =
+    (syncState === "wallet_only" || syncState === "mismatch") &&
+    Boolean(selectorAccountId) &&
+    !authBusy;
+
   return (
     <>
-    <div className="relative" ref={menuRef}>
+    <div className="relative overflow-visible" ref={menuRef}>
+        {showSignInRequiredPill ? (
+          <SignInRequiredPill
+            disabled={menuInteractionBusy}
+            onSignIn={() => void runAuthenticate()}
+          />
+        ) : null}
         <button
           type="button"
           disabled={menuInteractionBusy}
           aria-expanded={open}
           aria-haspopup="menu"
           aria-controls={menuId}
+          aria-label={
+            showSignInRequiredPill
+              ? "Wallet connected — sign in required"
+              : undefined
+          }
           onClick={() => setOpen((v) => !v)}
           className="flex h-[34px] max-w-[min(100%,14rem)] items-center gap-2 rounded-full border border-border bg-card py-0 pl-1.5 pr-2.5 text-left text-xs text-foreground shadow-sm backdrop-blur-sm transition hover:border-stone-300 hover:bg-muted"
         >
@@ -516,6 +532,29 @@ function MarketplaceWalletControlInner({
       durationMs={6000}
     />
     </>
+  );
+}
+
+function SignInRequiredPill({
+  disabled,
+  onSignIn,
+}: {
+  disabled?: boolean;
+  onSignIn: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={(e) => {
+        e.stopPropagation();
+        onSignIn();
+      }}
+      className="absolute -right-1 -top-2.5 z-20 max-w-[calc(100%+0.5rem)] truncate rounded-full border border-amber-400/80 bg-amber-400 px-2 py-px text-[9px] font-bold uppercase leading-tight tracking-wide text-amber-950 shadow-sm ring-2 ring-card transition hover:border-amber-500 hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-50"
+      aria-label="Sign in with connected wallet"
+    >
+      Sign in required
+    </button>
   );
 }
 
