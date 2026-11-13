@@ -10,6 +10,8 @@ import {
 } from "../../lib/discovery/feed-params";
 import { discoverySearchString } from "../../lib/discovery/build-url";
 import { loadRequestCreateCatalog } from "../../lib/requests/load-create-catalog";
+import { loadHeroActiveRequest } from "../../lib/home/load-hero-active-request";
+import { HomeHeroEyebrow } from "./home-hero-eyebrow";
 import { HomePostTask } from "./home-post-task";
 import { RequestFeedCard, type FeedCardRow } from "./request-feed-card";
 
@@ -108,6 +110,13 @@ export default async function MarketplaceHomePage({ searchParams }: PageProps) {
   const nowMs = getRequestWallTimeMs();
 
   const supabase = await createClient();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+  const heroActive = authUser
+    ? await loadHeroActiveRequest(supabase, authUser.id)
+    : null;
+
   const parsed = parseDiscoveryParams(sp);
 
   const { data: rows, error } = await supabase.rpc("list_requests_public", {
@@ -149,9 +158,7 @@ export default async function MarketplaceHomePage({ searchParams }: PageProps) {
   return (
     <main>
       <section className="hero">
-        <div className="eyebrow">
-          <span /> Open marketplace · Built for people
-        </div>
+        <HomeHeroEyebrow active={heroActive} />
         <h1>
           Get help
           <br />

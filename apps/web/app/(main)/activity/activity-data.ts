@@ -219,32 +219,11 @@ export async function loadActivityPageData(
         .order("created_at", { ascending: false })
     : { data: [] };
 
-  const acceptedIds = (responseRows ?? [])
-    .filter((x) => (x as { status: string }).status === "accepted")
-    .map((x) => (x as { id: string }).id);
+  const offerRows = (responseRows ?? []).filter(
+    (x) => (x as { status: string }).status !== "accepted",
+  );
 
-  const { data: acceptLinks } =
-    acceptedIds.length > 0
-      ? await supabase
-          .from("assignments")
-          .select("accepted_response_id, engagements ( id )")
-          .in("accepted_response_id", acceptedIds)
-      : { data: [] };
-
-  const engagementByAcceptedResponse = new Map<string, string>();
-  for (const row of acceptLinks ?? []) {
-    const r = row as {
-      accepted_response_id: string;
-      engagements: { id: string } | { id: string }[] | null;
-    };
-    const eng = r.engagements;
-    const eid = Array.isArray(eng) ? eng[0]?.id : eng?.id;
-    if (eid) {
-      engagementByAcceptedResponse.set(r.accepted_response_id, eid);
-    }
-  }
-
-  const offers: ActivityOfferCard[] = (responseRows ?? []).map((raw) => {
+  const offers: ActivityOfferCard[] = offerRows.map((raw) => {
     const r = raw as {
       id: string;
       status: Database["public"]["Enums"]["response_status"];
@@ -268,9 +247,6 @@ export async function loadActivityPageData(
     if (rs === "pending") {
       statusClass = "open";
       statusText = "PENDING OFFER";
-    } else if (rs === "accepted") {
-      statusClass = "review";
-      statusText = "ACCEPTED";
     } else if (rs === "rejected") {
       statusText = "REJECTED";
     } else {
@@ -280,15 +256,8 @@ export async function loadActivityPageData(
     const req = r.requests;
     const due = req?.deadline_at ? formatDueShort(req.deadline_at) : "—";
 
-    let ctaLabel = "View request";
-    let href = `/requests/${r.request_id}`;
-    if (rs === "accepted") {
-      const eid = engagementByAcceptedResponse.get(r.id);
-      if (eid) {
-        ctaLabel = "Open engagement";
-        href = `/engagements/${eid}`;
-      }
-    }
+    const ctaLabel = "View request";
+    const href = `/requests/${r.request_id}`;
 
     return {
       id: r.id,
