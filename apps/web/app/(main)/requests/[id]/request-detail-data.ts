@@ -146,35 +146,30 @@ export async function loadRequestDetailPageData(
         .maybeSingle()
     : { data: null };
 
-  const { data: ownRow } = user
-    ? await supabase
-        .from("requests")
-        .select("*")
-        .eq("id", id)
-        .eq("requester_id", user.id)
-        .maybeSingle()
-    : { data: null };
-
   const { data: publicRow } = await supabase
     .from("requests_public")
     .select("*")
     .eq("id", id)
     .maybeSingle();
 
-  if (!ownRow && !publicRow) {
+  /** Full row when RLS allows (owner, assigned provider, provider with an offer). */
+  const { data: participantRow } = user
+    ? await supabase.from("requests").select("*").eq("id", id).maybeSingle()
+    : { data: null };
+
+  const canView =
+    publicRow != null || (user != null && participantRow != null);
+
+  if (!canView) {
     return null;
   }
 
-  const isOwner = !!ownRow;
-  const row = ownRow;
+  const row = participantRow;
   const pub = publicRow;
+  const isOwner = !!user && row?.requester_id === user.id;
 
   const isPublicListing =
     pub != null || (row?.status === "open" && row.published_at != null);
-
-  if (!isOwner && !isPublicListing) {
-    return null;
-  }
 
   const title = row?.title ?? pub?.title ?? "Request";
   const description = row?.description ?? pub?.description ?? "";
@@ -273,7 +268,7 @@ export async function loadRequestDetailPageData(
           : "In person";
 
   let pendingResponse: ProviderPendingResponse | null = null;
-  if (user && !isOwner && status === "open" && pub) {
+  if (user && !isOwner && status === "open" && isPublicListing) {
     const { data: pp } = await supabase
       .from("provider_profiles")
       .select("id")
@@ -329,7 +324,7 @@ export async function loadRequestDetailPageData(
   );
 
   let preAcceptChat: PreAcceptChatLinkState | null = null;
-  if (user && !isOwner && status === "open" && pub && pendingResponse) {
+  if (user && !isOwner && status === "open" && isPublicListing && pendingResponse) {
     const { data: reqMeta } = await supabase
       .from("requests")
       .select("requester_id")
