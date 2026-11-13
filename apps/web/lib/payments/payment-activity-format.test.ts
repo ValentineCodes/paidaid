@@ -14,8 +14,12 @@ test("normalizeSummaryAmount keeps integer strings", () => {
   assert.equal(normalizeSummaryAmount(null), "0");
 });
 
-test("normalizeSummaryAmount handles small scientific notation", () => {
+test("normalizeSummaryAmount handles scientific notation without float loss", () => {
   assert.equal(normalizeSummaryAmount("1e+3"), "1000");
+  assert.equal(
+    normalizeSummaryAmount("5e+24"),
+    "5000000000000000000000000",
+  );
 });
 
 test("paymentActivityCompletedCopy is true only for success", () => {

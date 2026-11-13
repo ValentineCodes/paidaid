@@ -85,6 +85,9 @@ function mapSummary(
     lockedCount: Number(row.locked_count),
     receivedCount: Number(row.received_count),
     refundCount: Number(row.refund_count),
+    primaryAssetSymbol: row.primary_asset_symbol ?? "NEAR",
+    primaryAssetDecimals: Number(row.primary_asset_decimals ?? 24),
+    distinctAssetCount: Number(row.distinct_asset_count ?? 1),
   };
 }
 
@@ -164,6 +167,9 @@ export async function loadPaymentActivityPage(options?: {
     locked_count: 0,
     received_count: 0,
     refund_count: 0,
+    primary_asset_symbol: "NEAR",
+    primary_asset_decimals: 24,
+    distinct_asset_count: 0,
   });
 
   const { data: rows, error: listErr } = await supabase.rpc(

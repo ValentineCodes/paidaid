@@ -22,23 +22,28 @@ const TABS: ActivityTab[] = [
   "Payments",
 ];
 
-function CardButton({
+function ActivityNavCard({
   href,
-  label,
+  ctaLabel,
+  children,
 }: {
   href: string;
-  label: string;
+  ctaLabel: string;
+  children: React.ReactNode;
 }) {
   return (
-    <Link href={href}>
-      {label} <FigmaIcon name="arrow" size={16} />
+    <Link href={href} className="activity-card activity-card--nav">
+      {children}
+      <span className="activity-card__cta">
+        {ctaLabel} <FigmaIcon name="arrow" size={16} />
+      </span>
     </Link>
   );
 }
 
 function PostedCard({ c }: { c: ActivityPostedCard }) {
   return (
-    <div className="activity-card">
+    <ActivityNavCard href={c.href} ctaLabel={c.ctaLabel}>
       <span className={`status ${c.statusClass}`}>{c.statusText}</span>
       <h3>{c.title}</h3>
       <div>
@@ -47,14 +52,13 @@ function PostedCard({ c }: { c: ActivityPostedCard }) {
         </span>
         <span>{c.dueShort}</span>
       </div>
-      <CardButton href={c.href} label={c.ctaLabel} />
-    </div>
+    </ActivityNavCard>
   );
 }
 
 function OfferCard({ c }: { c: ActivityOfferCard }) {
   return (
-    <div className="activity-card">
+    <ActivityNavCard href={c.href} ctaLabel={c.ctaLabel}>
       <span className={`status ${c.statusClass}`}>{c.statusText}</span>
       <h3>{c.title}</h3>
       <div>
@@ -63,14 +67,13 @@ function OfferCard({ c }: { c: ActivityOfferCard }) {
         </span>
         <span>{c.dueShort}</span>
       </div>
-      <CardButton href={c.href} label={c.ctaLabel} />
-    </div>
+    </ActivityNavCard>
   );
 }
 
 function EngagementCard({ c }: { c: ActivityEngagementCard }) {
   return (
-    <div className="activity-card">
+    <ActivityNavCard href={c.href} ctaLabel={c.ctaLabel}>
       <span className={`status ${c.statusClass}`}>{c.statusText}</span>
       <h3>{c.title}</h3>
       <div>
@@ -79,8 +82,7 @@ function EngagementCard({ c }: { c: ActivityEngagementCard }) {
         </span>
         <span>{c.dueShort}</span>
       </div>
-      <CardButton href={c.href} label={c.ctaLabel} />
-    </div>
+    </ActivityNavCard>
   );
 }
 

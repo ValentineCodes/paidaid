@@ -33,6 +33,10 @@ export type PaymentActivitySummary = {
   lockedCount: number;
   receivedCount: number;
   refundCount: number;
+  primaryAssetSymbol: string;
+  primaryAssetDecimals: number;
+  /** When >1, headline totals mix assets and should not be shown as one currency. */
+  distinctAssetCount: number;
 };
 
 export type PaymentActivityFilter = {

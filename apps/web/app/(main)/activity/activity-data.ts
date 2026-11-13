@@ -379,6 +379,11 @@ export async function loadActivityPageData(
     lastError: row.last_error,
   }));
 
+  const summaryExtended = summaryRow as typeof summaryRow & {
+    primary_asset_symbol?: string;
+    primary_asset_decimals?: number;
+    distinct_asset_count?: number;
+  };
   const payments: PaymentActivityPageData = {
     summary: {
       totalFundedSmallestUnits: normalizeSummaryAmount(
@@ -397,6 +402,9 @@ export async function loadActivityPageData(
       lockedCount: Number(summaryRow?.locked_count ?? 0),
       receivedCount: Number(summaryRow?.received_count ?? 0),
       refundCount: Number(summaryRow?.refund_count ?? 0),
+      primaryAssetSymbol: summaryExtended?.primary_asset_symbol ?? "NEAR",
+      primaryAssetDecimals: Number(summaryExtended?.primary_asset_decimals ?? 24),
+      distinctAssetCount: Number(summaryExtended?.distinct_asset_count ?? 1),
     },
     items: paymentItems,
     hasMore: paymentHasMore,

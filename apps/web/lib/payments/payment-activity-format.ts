@@ -1,3 +1,5 @@
+import { normalizeDbNumericAmount } from "@paidaid/shared";
+
 import { formatBudgetSmallestUnits } from "../requests/format-budget";
 import type { PaymentEventKind, PaymentEventStatus } from "./payment-activity-types";
 
@@ -53,6 +55,7 @@ export function paymentActivityCompletedCopy(status: PaymentEventStatus): boolea
   return status === "success";
 }
 
+/** Postgres numeric totals as text — same rules as row amounts (no float truncation). */
 export function normalizeSummaryAmount(raw: string | number | null | undefined): string {
   if (raw == null) {
     return "0";
@@ -61,12 +64,10 @@ export function normalizeSummaryAmount(raw: string | number | null | undefined):
   if (!s || s === "0") {
     return "0";
   }
-  if (/e/i.test(s)) {
-    const n = Number(s);
-    if (!Number.isFinite(n)) {
-      return "0";
-    }
-    return BigInt(Math.trunc(n)).toString();
+  try {
+    return normalizeDbNumericAmount(raw);
+  } catch {
+    const intPart = s.replace(/\.0+$/, "").split(".")[0] ?? "";
+    return /^\d+$/.test(intPart) ? intPart : "0";
   }
-  return s.replace(/\.0+$/, "").split(".")[0] ?? "0";
 }

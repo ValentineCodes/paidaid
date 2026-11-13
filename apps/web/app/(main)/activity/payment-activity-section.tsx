@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, useTransition } from "react";
 
 import {
@@ -56,14 +57,16 @@ function SummaryCard({
   amountSmallestUnits,
   decimals,
   symbol,
+  formatTotals,
 }: {
   label: string;
   amountSmallestUnits: string;
   decimals: number;
   symbol: string;
+  formatTotals: boolean;
 }) {
   const display =
-    amountSmallestUnits === "0"
+    !formatTotals || amountSmallestUnits === "0"
       ? "—"
       : formatPaymentActivityAmount(amountSmallestUnits, decimals, symbol);
   return (
@@ -76,6 +79,21 @@ function SummaryCard({
   );
 }
 
+function navigateUnlessNestedLink(
+  event: React.MouseEvent | React.KeyboardEvent,
+  href: string,
+  router: ReturnType<typeof useRouter>,
+) {
+  const target = event.target as HTMLElement;
+  if (target.closest("a")) {
+    return;
+  }
+  if ("key" in event && event.key === " ") {
+    event.preventDefault();
+  }
+  router.push(href);
+}
+
 function ActivityLine({
   row,
   networkId,
@@ -83,6 +101,8 @@ function ActivityLine({
   row: PaymentActivityRow;
   networkId: string;
 }) {
+  const router = useRouter();
+  const engagementHref = `/engagements/${row.engagementId}`;
   const explorer =
     row.txHash && (networkId === "testnet" || networkId === "mainnet")
       ? explorerTransactionUrl(networkId as "testnet" | "mainnet", row.txHash)
@@ -100,7 +120,18 @@ function ActivityLine({
       : null;
 
   return (
-    <div className="activity-card">
+    <div
+      className="activity-card activity-card--clickable"
+      role="link"
+      tabIndex={0}
+      aria-label={`Open engagement: ${row.requestTitle}`}
+      onClick={(e) => navigateUnlessNestedLink(e, engagementHref, router)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          navigateUnlessNestedLink(e, engagementHref, router);
+        }
+      }}
+    >
       <span className={`status ${statusClass}`}>
         {paymentActivityStatusLabel(row.status).toUpperCase()} ·{" "}
         {paymentActivityKindLabel(row.kind).toUpperCase()}
@@ -151,8 +182,9 @@ export function PaymentActivitySection({ initial }: Props) {
   const [isPending, startTransition] = useTransition();
   const networkId = parseNearNetworkId(process.env.NEXT_PUBLIC_NEAR_NETWORK_ID);
 
-  const primaryDecimals = data.items[0]?.assetDecimals ?? 24;
-  const primarySymbol = data.items[0]?.assetSymbol ?? "NEAR";
+  const summaryCurrencyOk = data.summary.distinctAssetCount <= 1;
+  const summaryDecimals = data.summary.primaryAssetDecimals;
+  const summarySymbol = data.summary.primaryAssetSymbol;
 
   const refresh = useCallback(() => {
     startTransition(async () => {
@@ -218,28 +250,37 @@ export function PaymentActivitySection({ initial }: Props) {
         <SummaryCard
           label="Total funded"
           amountSmallestUnits={data.summary.totalFundedSmallestUnits}
-          decimals={primaryDecimals}
-          symbol={primarySymbol}
+          decimals={summaryDecimals}
+          symbol={summarySymbol}
+          formatTotals={summaryCurrencyOk}
         />
         <SummaryCard
           label="Locked in escrow"
           amountSmallestUnits={data.summary.lockedInEscrowSmallestUnits}
-          decimals={primaryDecimals}
-          symbol={primarySymbol}
+          decimals={summaryDecimals}
+          symbol={summarySymbol}
+          formatTotals={summaryCurrencyOk}
         />
         <SummaryCard
           label="Received"
           amountSmallestUnits={data.summary.totalReceivedSmallestUnits}
-          decimals={primaryDecimals}
-          symbol={primarySymbol}
+          decimals={summaryDecimals}
+          symbol={summarySymbol}
+          formatTotals={summaryCurrencyOk}
         />
         <SummaryCard
           label="Refunded"
           amountSmallestUnits={data.summary.totalRefundedSmallestUnits}
-          decimals={primaryDecimals}
-          symbol={primarySymbol}
+          decimals={summaryDecimals}
+          symbol={summarySymbol}
+          formatTotals={summaryCurrencyOk}
         />
       </div>
+      {!summaryCurrencyOk ? (
+        <p className="text-xs text-[var(--muted)]">
+          Totals mix more than one asset — see each line below for amounts.
+        </p>
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
         <Select

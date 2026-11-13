@@ -2173,9 +2173,12 @@ export type Database = {
       get_my_payment_summary: {
         Args: never
         Returns: {
+          distinct_asset_count: number
           funded_count: number
           locked_count: number
           locked_in_escrow_amount: string
+          primary_asset_decimals: number
+          primary_asset_symbol: string
           received_count: number
           refund_count: number
           total_funded_amount: string

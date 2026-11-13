@@ -1744,7 +1744,8 @@ body.app.dark .accept-funding-success-inline,
 }
 
 .activity-card>button,
-.activity-card>a {
+.activity-card>a,
+.activity-card__cta {
   grid-column: 2;
   grid-row: 1/4;
   display: flex;
@@ -1757,6 +1758,37 @@ body.app.dark .accept-funding-success-inline,
   font-weight: 700;
   text-decoration: none;
   color: inherit;
+}
+
+a.activity-card.activity-card--nav {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+a.activity-card.activity-card--nav:hover {
+  border-color: color-mix(in srgb, var(--ink) 22%, var(--line));
+  box-shadow: 0 2px 8px rgb(0 0 0 / 4%);
+}
+
+.activity-card--clickable {
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.activity-card--clickable:hover {
+  border-color: color-mix(in srgb, var(--ink) 22%, var(--line));
+  box-shadow: 0 2px 8px rgb(0 0 0 / 4%);
+}
+
+.activity-card--clickable:focus-visible {
+  outline: 2px solid var(--deep);
+  outline-offset: 2px;
 }
 
 .new-task-card {
@@ -2987,7 +3019,8 @@ body.app.dark .updates-error {
   }
 
   .activity-card>button,
-  .activity-card>a {
+  .activity-card>a,
+  .activity-card__cta {
     grid-column: 1;
     grid-row: auto;
     margin-top: 15px;
