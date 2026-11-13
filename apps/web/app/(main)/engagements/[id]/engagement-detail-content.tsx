@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { FigmaIcon } from "../../../../components/figma-icons";
+import { TruncatedText } from "../../../../components/truncated-text";
 import { formatPostedRelative } from "../../../../lib/datetime/relative-from-now";
 import type { Database } from "../../../../lib/database.types";
 import type { EngagementSettlementView } from "../../../../lib/engagement/settlement-types";
@@ -188,7 +189,10 @@ export function EngagementDetailContent(props: EngagementDetailContentProps) {
 
       <h1 className="engagement-flow__title">{title}</h1>
       {description?.trim() ? (
-        <p className="engagement-flow__description">{description.trim()}</p>
+        <TruncatedText
+          text={description}
+          className="engagement-flow__description"
+        />
       ) : null}
 
       <EngagementOfferCard

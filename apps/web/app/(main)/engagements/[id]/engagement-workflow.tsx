@@ -77,7 +77,7 @@ function ProofFileTile({
   }, [file, isImage]);
 
   return (
-    <li className="engagement-proof-tile" title={file.name}>
+    <div className="engagement-proof-tile" title={file.name}>
       <button
         type="button"
         className="engagement-proof-tile__remove"
@@ -94,7 +94,7 @@ function ProofFileTile({
           <FigmaIcon name="camera" size={22} />
         </span>
       )}
-    </li>
+    </div>
   );
 }
 
@@ -734,39 +734,44 @@ function EngagementWorkflowInner({
                     Photos or video — up to 10 files, 25 MB each. Shown in chat
                     under your caption.
                   </p>
-                  <label className="engagement-file-picker">
-                    <FigmaIcon name="attach" size={18} />
-                    {proofFiles.length > 0
-                      ? `${proofFiles.length} file${proofFiles.length === 1 ? "" : "s"} selected`
-                      : "Add files"}
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
-                      onChange={(e) => {
-                        const list = e.target.files ? [...e.target.files] : [];
-                        setProofFiles((prev) =>
-                          [...prev, ...list].slice(0, MAX_DELIVERY_ATTACHMENTS),
-                        );
-                        e.target.value = "";
-                      }}
-                    />
-                  </label>
-                  {proofFiles.length > 0 ? (
-                    <ul className="engagement-proof-grid">
-                      {proofFiles.map((f, index) => (
-                        <ProofFileTile
-                          key={`${f.name}-${f.size}-${f.lastModified}-${index}`}
-                          file={f}
-                          onRemove={() =>
-                            setProofFiles((prev) =>
-                              prev.filter((_, i) => i !== index),
-                            )
-                          }
-                        />
-                      ))}
-                    </ul>
-                  ) : null}
+                  <div className="engagement-delivery-proof__row">
+                    <label className="engagement-file-picker">
+                      <span className="engagement-file-picker__stack">
+                        <FigmaIcon name="attach" size={16} />
+                        <span className="engagement-file-picker__caption">
+                          Add files
+                        </span>
+                      </span>
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
+                        onChange={(e) => {
+                          const list = e.target.files
+                            ? [...e.target.files]
+                            : [];
+                          setProofFiles((prev) =>
+                            [...prev, ...list].slice(
+                              0,
+                              MAX_DELIVERY_ATTACHMENTS,
+                            ),
+                          );
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                    {proofFiles.map((f, index) => (
+                      <ProofFileTile
+                        key={`${f.name}-${f.size}-${f.lastModified}-${index}`}
+                        file={f}
+                        onRemove={() =>
+                          setProofFiles((prev) =>
+                            prev.filter((_, i) => i !== index),
+                          )
+                        }
+                      />
+                    ))}
+                  </div>
                 </div>
                 <button
                   type="button"

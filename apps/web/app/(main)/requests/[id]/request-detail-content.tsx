@@ -8,6 +8,7 @@ import type { RequestDetailPageData } from "./request-detail-data";
 import { categoryDotClassForLabel } from "../../../../lib/requests/category-dot";
 import { formatPostedRelative } from "../../../../lib/datetime/relative-from-now";
 import { FigmaIcon } from "../../../../components/figma-icons";
+import { TruncatedText } from "../../../../components/truncated-text";
 
 function formatDeadlineDrawerLabel(data: RequestDetailPageData): string {
   if (data.deadlineAt) {
@@ -136,7 +137,7 @@ export function RequestDetailContent({ data, variant }: Props) {
         {description.trim() !== "" ? (
           <div className="detail-section">
             <h4>About this task</h4>
-            <p className="whitespace-pre-wrap">{description}</p>
+            <TruncatedText text={description} />
           </div>
         ) : null}
         {photoUrls.length > 1 && (
@@ -291,9 +292,10 @@ export function RequestDetailContent({ data, variant }: Props) {
           <h2 className="text-lg font-medium text-stone-900 dark:text-stone-100">
             Description
           </h2>
-          <p className="whitespace-pre-wrap text-stone-700 dark:text-stone-300">
-            {description}
-          </p>
+          <TruncatedText
+            text={description}
+            className="text-stone-700 dark:text-stone-300"
+          />
         </section>
       ) : null}
 

@@ -858,6 +858,23 @@ a.task-card {
   line-height: 1.7;
 }
 
+.truncated-text__toggle {
+  display: inline-flex;
+  margin-top: 8px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--deep);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.truncated-text__toggle:hover {
+  opacity: 0.88;
+}
+
 .posted-by-block {
   padding-top: 24px;
   padding-bottom: 24px;
@@ -3904,7 +3921,7 @@ body.app.dark .app-toast--error .app-toast__icon,
   margin-bottom: 16px;
 }
 
-.engagement-delivery-card .form-fields label {
+.engagement-delivery-card .form-fields > label:not(.engagement-file-picker) {
   margin-bottom: 14px;
 }
 
@@ -3929,19 +3946,18 @@ body.app.dark .app-toast--error .app-toast__icon,
   color: var(--muted);
 }
 
+.engagement-delivery-proof__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
 .engagement-file-picker {
   position: relative;
-  display: inline-flex;
-  width: fit-content;
-  max-width: 100%;
-  align-items: center;
-  gap: 8px;
-  padding: 11px 14px;
-  border-radius: 10px;
+  margin: 0;
   border: 1px dashed var(--line);
   background: color-mix(in srgb, var(--line) 28%, transparent);
-  font-size: 13px;
-  font-weight: 600;
   color: var(--ink);
   cursor: pointer;
 }
@@ -3956,6 +3972,49 @@ body.app.dark .app-toast--error .app-toast__icon,
   inset: 0;
   opacity: 0;
   cursor: pointer;
+}
+
+.engagement-delivery-card
+  .engagement-delivery-proof__row
+  > .engagement-file-picker {
+  display: grid;
+  place-items: center;
+  flex: 0 0 84px;
+  box-sizing: border-box;
+  width: 84px;
+  height: 84px;
+  padding: 0;
+  border-radius: 12px;
+  font-size: inherit;
+  font-weight: inherit;
+  gap: 0;
+}
+
+.engagement-file-picker__stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 100%;
+  padding: 6px;
+  box-sizing: border-box;
+  text-align: center;
+  pointer-events: none;
+}
+
+.engagement-file-picker__stack svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.engagement-file-picker__caption {
+  display: block;
+  width: 100%;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
 }
 
 .engagement-proof-grid {
