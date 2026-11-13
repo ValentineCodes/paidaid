@@ -2155,6 +2155,47 @@ a.conversation {
   gap: 10px;
 }
 
+.engagement-approve-progress {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--muted) 7%, var(--surface));
+}
+
+.engagement-approve-progress__dot {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  margin-top: 0.45em;
+  border-radius: 50%;
+  background: var(--deep);
+  animation: engagement-approve-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes engagement-approve-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.92);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.engagement-approve-progress__label {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
 .chat-input {
   height: 65px;
   border-top: 1px solid var(--line);

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { defaultRpcUrlForNetwork, parseNearNetworkId } from "@paidaid/shared";
+import { AppToast } from "../../../../components/app-toast";
 import { FigmaIcon } from "../../../../components/figma-icons";
 import {
   Dialog,
@@ -247,7 +248,9 @@ function EngagementWorkflowInner({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [approveStep, setApproveStep] = useState<string | null>(null);
-  const [postReleaseLoading, setPostReleaseLoading] = useState(false);
+  const [approveFlowActive, setApproveFlowActive] = useState(false);
+  const [successToastOpen, setSuccessToastOpen] = useState(false);
+  const [successToastMessage, setSuccessToastMessage] = useState("");
 
   const walletMatchesLink =
     !linkedRequesterNearAccountId ||
@@ -285,10 +288,24 @@ function EngagementWorkflowInner({
   }, [router]);
 
   useEffect(() => {
-    if (postReleaseLoading && engagementStatus === "completed") {
-      setPostReleaseLoading(false);
+    if (approveFlowActive && engagementStatus === "completed") {
+      setApproveFlowActive(false);
+      setBusy(false);
+      setApproveStep(null);
+      setSuccessToastMessage(
+        "Payment released. You can rate your provider now.",
+      );
+      setSuccessToastOpen(true);
     }
-  }, [postReleaseLoading, engagementStatus]);
+  }, [approveFlowActive, engagementStatus]);
+
+  useEffect(() => {
+    if (!approveFlowActive || engagementStatus === "completed") {
+      return;
+    }
+    const id = window.setInterval(() => refresh(), 2500);
+    return () => window.clearInterval(id);
+  }, [approveFlowActive, engagementStatus, refresh]);
 
   useEffect(() => {
     const ch = supabase
@@ -535,9 +552,10 @@ function EngagementWorkflowInner({
       setError("Fund escrow before approving delivery.");
       return;
     }
+    setApproveFlowActive(true);
     setBusy(true);
     setError(null);
-    setApproveStep(null);
+    setApproveStep("Preparing approval…");
     try {
       let activeAccountId = signedAccountId;
 
@@ -567,7 +585,7 @@ function EngagementWorkflowInner({
       }
 
       setApproveStep(
-        "Releasing payment — confirm in your wallet, then we verify on-chain…",
+        "Releasing payment — confirm in your NEAR wallet…",
       );
       const signer = await getTransactionSigner();
       const loaded = await loadEngagementSettlementView(engagementId);
@@ -575,6 +593,7 @@ function EngagementWorkflowInner({
         throw new Error(loaded.error);
       }
       const settlement = loaded.settlement;
+      setApproveStep("Waiting for wallet approval (release escrow)…");
       const released = await releaseEscrowForEngagement(
         engagementId,
         signer,
@@ -585,15 +604,15 @@ function EngagementWorkflowInner({
         throw new Error(released.error);
       }
 
-      setApproveStep("Finishing up — your rating form will appear shortly…");
-      setPostReleaseLoading(true);
+      setApproveStep(
+        "Verifying payment release and preparing your review…",
+      );
       refresh();
     } catch (e) {
-      setPostReleaseLoading(false);
-      setError(e instanceof Error ? e.message : "Approval failed.");
-    } finally {
-      setBusy(false);
+      setApproveFlowActive(false);
       setApproveStep(null);
+      setBusy(false);
+      setError(e instanceof Error ? e.message : "Approval failed.");
     }
   }
 
@@ -611,6 +630,8 @@ function EngagementWorkflowInner({
       return;
     }
     setBusy(false);
+    setSuccessToastMessage("Thanks — your review was submitted.");
+    setSuccessToastOpen(true);
     refresh();
   }
 
@@ -623,6 +644,12 @@ function EngagementWorkflowInner({
 
   return (
     <div className="flex flex-col gap-4">
+      <AppToast
+        message={successToastMessage}
+        visible={successToastOpen}
+        onClose={() => setSuccessToastOpen(false)}
+        variant="success"
+      />
       <Dialog
         open={registerPrompt != null}
         onOpenChange={(open) => {
@@ -815,83 +842,68 @@ function EngagementWorkflowInner({
           </section>
         ) : null}
 
-      {isProvider &&
-        engagementStatus === "active" &&
-        deliveryStatus === "approved" &&
-        postReleaseLoading ? (
-          <p className="engagement-delivery-status flex items-center gap-2.5">
-            <span
-              className="inline-block h-2 w-2 shrink-0 animate-pulse rounded-full bg-[var(--deep)]"
-              aria-hidden
-            />
-            Verifying release and preparing your review…
-          </p>
-        ) : null}
-
-      {isRequester && postReleaseLoading && engagementStatus !== "completed" && (
-        <section className="engagement-approve-actions" aria-busy="true">
-          <p className="engagement-delivery-status flex items-center gap-2.5">
-            <span
-              className="inline-block h-2 w-2 shrink-0 animate-pulse rounded-full bg-[var(--deep)]"
-              aria-hidden
-            />
-            {approveStep ?? "Verifying release and preparing your review…"}
-          </p>
-        </section>
-      )}
-
       {isRequester &&
         paymentFunded &&
         engagementStatus === "active" &&
-        deliveryStatus === "pending_review" &&
-        !postReleaseLoading && (
-          <section className="engagement-approve-actions">
-            {approveStep ? (
-              <p className="engagement-delivery-status flex items-center gap-2.5">
-                {busy ? (
-                  <span
-                    className="inline-block h-2 w-2 shrink-0 animate-pulse rounded-full bg-[var(--deep)]"
-                    aria-hidden
-                  />
-                ) : null}
-                {approveStep}
-              </p>
-            ) : null}
-            {!signedAccountId ? (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() =>
-                  void connectWallet().catch((e) =>
-                    setError(formatWalletConnectionError(e)),
-                  )
-                }
-                className="secondary w-fit"
+        (deliveryStatus === "pending_review" || approveFlowActive) && (
+          <section
+            className="engagement-approve-actions"
+            aria-busy={approveFlowActive || busy}
+          >
+            {approveFlowActive && approveStep ? (
+              <div
+                className="engagement-approve-progress"
+                role="status"
+                aria-live="polite"
               >
-                Connect
-              </button>
+                <span
+                  className="engagement-approve-progress__dot"
+                  aria-hidden
+                />
+                <span className="engagement-approve-progress__label">
+                  {approveStep}
+                </span>
+              </div>
             ) : null}
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void runApproveAndRelease()}
-              className="primary-wide"
-            >
-              {busy ? (
-                <>
-                  <span
-                    className="mr-1 inline-block h-2 w-2 animate-pulse rounded-full bg-current"
-                    aria-hidden
-                  />
-                  Working…
-                </>
-              ) : (
-                <>
-                  Approve and release payment
-                  <FigmaIcon name="arrow" size={17} />
-                </>
-              )}
-            </button>
+            {deliveryStatus === "pending_review" && !approveFlowActive ? (
+              <>
+                {!signedAccountId ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      void connectWallet().catch((e) =>
+                        setError(formatWalletConnectionError(e)),
+                      )
+                    }
+                    className="secondary w-fit"
+                  >
+                    Connect
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void runApproveAndRelease()}
+                  className="primary-wide"
+                >
+                  {busy ? (
+                    <>
+                      <span
+                        className="mr-1 inline-block h-2 w-2 animate-pulse rounded-full bg-current"
+                        aria-hidden
+                      />
+                      Working…
+                    </>
+                  ) : (
+                    <>
+                      Approve and release payment
+                      <FigmaIcon name="arrow" size={17} />
+                    </>
+                  )}
+                </button>
+              </>
+            ) : null}
           </section>
         )}
 
