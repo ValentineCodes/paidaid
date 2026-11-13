@@ -6,6 +6,11 @@ import { resolveProfileDisplayUrl } from "../../../../lib/profiles/resolve-photo
 import { createClient } from "../../../../lib/supabase/server";
 import { REQUEST_PHOTOS_BUCKET } from "../../../../lib/constants/storage";
 import { formatBudgetSmallestUnits } from "../../../../lib/requests/format-budget";
+import {
+  loadRequestMilestoneDisplayRows,
+  loadResponseMilestoneProposals,
+} from "../../../../lib/milestones/load-request-milestones";
+import type { MilestoneDisplayRow } from "../../../../lib/milestones/milestone-schedule";
 import type { Json, Tables } from "../../../../lib/database.types";
 
 export type PublicTag = {
@@ -47,6 +52,9 @@ export type ProviderPendingResponse = {
   proposedAmountSmallest: string;
   createdAt: string;
   headline: string | null;
+  milestoneOfferStatus: string | null;
+  /** Milestones shown on your pending offer (your proposal or requester plan you accepted). */
+  milestoneRows: MilestoneDisplayRow[];
 };
 
 export type RequestDetailPageData = {
@@ -96,6 +104,8 @@ export type RequestDetailPageData = {
     verified: boolean;
     avatarUrl: string | null;
   } | null;
+  paymentMode: Tables<"requests">["payment_mode"];
+  requestMilestones: MilestoneDisplayRow[];
 };
 
 async function loadTagsForOwner(
@@ -218,6 +228,16 @@ export async function loadRequestDetailPageData(
         : String(budgetAmount)
       : "";
 
+  const paymentMode =
+    (row?.payment_mode ??
+      pub?.payment_mode ??
+      "single") as Tables<"requests">["payment_mode"];
+
+  const requestMilestones =
+    paymentMode === "milestones"
+      ? await loadRequestMilestoneDisplayRows(supabase, id)
+      : [];
+
   let photoUrls: string[] = [];
   if (isOwner && user && row) {
     const { data: photos } = await supabase
@@ -263,7 +283,7 @@ export async function loadRequestDetailPageData(
       const { data: pend } = await supabase
         .from("request_responses")
         .select(
-          "id, message, proposed_amount, created_at, provider_profiles ( headline )",
+          "id, message, proposed_amount, created_at, milestone_offer_status, provider_profiles ( headline )",
         )
         .eq("request_id", id)
         .eq("provider_profile_id", pp.id)
@@ -275,12 +295,27 @@ export async function loadRequestDetailPageData(
         const headline =
           (Array.isArray(ppJoin) ? ppJoin[0]?.headline : ppJoin?.headline) ??
           null;
+
+        let milestoneRows: MilestoneDisplayRow[] = [];
+        if (paymentMode === "milestones") {
+          if (pend.milestone_offer_status === "proposal_pending") {
+            milestoneRows = await loadResponseMilestoneProposals(
+              supabase,
+              pend.id,
+            );
+          } else if (pend.milestone_offer_status === "accepted_as_proposed") {
+            milestoneRows = requestMilestones;
+          }
+        }
+
         pendingResponse = {
           id: pend.id,
           message: pend.message?.trim() ? pend.message.trim() : null,
           proposedAmountSmallest: String(pend.proposed_amount),
           createdAt: pend.created_at,
           headline: headline?.trim() ? headline.trim() : null,
+          milestoneOfferStatus: pend.milestone_offer_status ?? null,
+          milestoneRows,
         };
       }
     }
@@ -424,6 +459,8 @@ export async function loadRequestDetailPageData(
     assignmentRow,
     engagementRow,
     requesterPreview,
+    paymentMode,
+    requestMilestones,
   };
 }
 

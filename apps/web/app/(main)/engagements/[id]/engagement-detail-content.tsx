@@ -8,6 +8,8 @@ import type { EngagementSettlementView } from "../../../../lib/engagement/settle
 import { EngagementCallout } from "./engagement-callout";
 import { EngagementSettlementSection } from "./engagement-settlement-section";
 import { EngagementWorkflow } from "./engagement-workflow";
+import { EngagementMilestoneWorkflow } from "./engagement-milestone-workflow";
+import { EngagementReviewSection } from "./engagement-review-section";
 
 type DeliveryAttachmentRow =
   Database["public"]["Tables"]["delivery_attachments"]["Row"];
@@ -48,6 +50,30 @@ export type EngagementDetailContentProps = {
   deliveryAttachments: DeliveryAttachmentRow[];
   existingReview: ReviewRow | null;
   tagLabels: string[];
+  paymentMode: Database["public"]["Enums"]["engagement_payment_mode"];
+  engagementMilestones: {
+    id: string;
+    position: number;
+    title: string;
+    description: string;
+    amountSmallest: string;
+    status: Database["public"]["Enums"]["milestone_workflow_status"];
+    latestDelivery: {
+      deliveryId: string;
+      description: string;
+      attachments: {
+        id: string;
+        storage_path: string;
+        mime_type: string;
+      }[];
+    } | null;
+  }[];
+  assetDecimals: number;
+  milestoneReleaseQueue: {
+    onChainMilestonesReleased: number;
+    nextReleasePosition: number;
+    releasableMilestoneId: string | null;
+  } | null;
 };
 
 function formatLocationLine(
@@ -163,7 +189,12 @@ export function EngagementDetailContent(props: EngagementDetailContentProps) {
     deliveryAttachments,
     existingReview,
     tagLabels,
+    paymentMode,
+    engagementMilestones,
+    milestoneReleaseQueue,
+    assetDecimals,
   } = props;
+  const isRequester = !isProvider;
 
   const screenTitle = isProvider ? "Request" : "Your request";
   const startedAt = new Date(createdAt);
@@ -289,7 +320,7 @@ export function EngagementDetailContent(props: EngagementDetailContentProps) {
           </EngagementCallout>
         )}
 
-        {paymentFunded ? (
+        {paymentFunded && paymentMode === "single" ? (
           <EngagementSettlementSection
             engagementId={engagementId}
             isRequester={!isProvider}
@@ -300,21 +331,43 @@ export function EngagementDetailContent(props: EngagementDetailContentProps) {
           />
         ) : null}
 
-        <div className="engagement-workflow-wrap">
-          <EngagementWorkflow
-            engagementId={engagementId}
-            conversationId={conversationId}
-            isProvider={isProvider}
-            isRequester={!isProvider}
-            engagementStatus={engagementStatus}
-            delivery={delivery}
-            deliveryAttachments={deliveryAttachments}
-            existingReview={existingReview}
-            paymentFunded={paymentFunded}
-            linkedRequesterNearAccountId={linkedRequesterNear}
-            linkedProviderNearAccountId={linkedProviderNear}
-          />
-        </div>
+        {paymentMode === "milestones" ? (
+          <div className="engagement-workflow-wrap flex flex-col gap-4">
+            <EngagementMilestoneWorkflow
+              engagementId={engagementId}
+              conversationId={conversationId}
+              assetSymbol={assetSymbol}
+              assetDecimals={assetDecimals}
+              milestones={engagementMilestones}
+              milestoneReleaseQueue={milestoneReleaseQueue}
+              isProvider={isProvider}
+              isRequester={isRequester}
+              paymentFunded={paymentFunded}
+            />
+            <EngagementReviewSection
+              engagementId={engagementId}
+              engagementStatus={engagementStatus}
+              isRequester={isRequester}
+              existingReview={existingReview}
+            />
+          </div>
+        ) : (
+          <div className="engagement-workflow-wrap">
+            <EngagementWorkflow
+              engagementId={engagementId}
+              conversationId={conversationId}
+              isProvider={isProvider}
+              isRequester={isRequester}
+              engagementStatus={engagementStatus}
+              delivery={delivery}
+              deliveryAttachments={deliveryAttachments}
+              existingReview={existingReview}
+              paymentFunded={paymentFunded}
+              linkedRequesterNearAccountId={linkedRequesterNear}
+              linkedProviderNearAccountId={linkedProviderNear}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

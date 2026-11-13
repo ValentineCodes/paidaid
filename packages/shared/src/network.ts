@@ -7,11 +7,15 @@ export const NEAR_NETWORK_IDS: readonly NearNetworkId[] = [
 ] as const;
 
 export const LOCALNET_RPC_URL = "http://127.0.0.1:3030";
-export const TESTNET_RPC_URL = "https://rpc.testnet.near.org";
-export const MAINNET_RPC_URL = "https://rpc.mainnet.near.org";
+/** Public defaults; override with `NEAR_RPC_URL` / `NEXT_PUBLIC_NEAR_RPC_URL`. */
+export const TESTNET_RPC_URL = "https://rpc.testnet.fastnear.com";
+export const MAINNET_RPC_URL = "https://rpc.mainnet.fastnear.com";
 
 export const DEFAULT_LOCALNET_CONTRACT_ID = "paidaid.sandbox";
 export const DEFAULT_LOCALNET_ESCROW_CONTRACT_ID = "paidaid-escrow.sandbox";
+/** Milestone-capable PaidAidEscrow (v2.5+ state layout); separate from legacy escrow account. */
+export const DEFAULT_LOCALNET_ESCROW_MILESTONES_CONTRACT_ID =
+  "paidaid-escrow-milestones.sandbox";
 
 const DEFAULT_RPC_BY_NETWORK: Record<NearNetworkId, string> = {
   localnet: LOCALNET_RPC_URL,

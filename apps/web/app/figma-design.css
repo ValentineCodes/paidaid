@@ -4220,6 +4220,107 @@ body.app.dark .app-toast--error .app-toast__icon,
   color: #f0b4b4;
 }
 
+.engagement-milestone-workflow__list {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.engagement-milestone-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+}
+
+.engagement-milestone-item__delivery-card {
+  margin-top: 12px;
+}
+
+.engagement-milestone-item__preview {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--line) 18%, var(--surface));
+}
+
+.engagement-milestone-item__form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.engagement-milestone-item__form-actions .primary-wide {
+  flex: 1 1 12rem;
+}
+
+.engagement-milestone-item__title {
+  margin: 4px 0 0;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.engagement-milestone-item__panel .engagement-delivery-card__lead {
+  margin-bottom: 12px;
+}
+
+.engagement-milestone-item__form {
+  margin-top: 2px;
+}
+
+.engagement-milestone-item__form label {
+  margin-bottom: 14px;
+}
+
+.engagement-milestone-item__form .engagement-workflow-error {
+  margin-bottom: 12px;
+}
+
+.engagement-milestone-item__form .primary-wide,
+.engagement-milestone-item__form .secondary.compact {
+  margin-top: 2px;
+}
+
+.engagement-milestone-item__approve {
+  margin: 0 0 16px;
+}
+
+.engagement-milestone-item__approve .primary-wide {
+  width: 100%;
+}
+
+.engagement-milestone-item__action {
+  margin-top: 12px;
+}
+
+.engagement-milestone-item__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.engagement-milestone-item__header strong {
+  font-size: 15px;
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.engagement-milestone-item__status {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .engagement-review-card__form {
   margin-top: 2px;
 }
@@ -4363,4 +4464,993 @@ body.app.dark .engagement-star-rating--readonly .engagement-star-rating__star:no
 body.app.dark .engagement-star-rating--readonly .engagement-star-rating__star--on,
 .dark .engagement-star-rating--readonly .engagement-star-rating__star--on {
   color: #f2d56b;
+}
+
+/* --- Milestone plan (request create, detail, responses) --- */
+
+.detail-section--milestone-plan {
+  margin-top: 4px;
+}
+
+.milestone-plan {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface) 92%, var(--line));
+  padding: 16px 16px 14px;
+}
+
+.milestone-plan--proposed {
+  border-style: dashed;
+  background: color-mix(in srgb, var(--surface) 88%, #e8f0ec);
+}
+
+.milestone-plan--compact {
+  padding: 12px 12px 10px;
+}
+
+.milestone-plan__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.milestone-plan__heading {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.milestone-plan__meta {
+  margin-bottom: 12px;
+}
+
+.milestone-plan__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.milestone-plan__badge--proposed {
+  color: #7a5c12;
+  border-color: color-mix(in srgb, #e4c04a 45%, var(--line));
+  background: color-mix(in srgb, #e4c04a 12%, var(--surface));
+}
+
+.milestone-plan__timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.milestone-plan__step {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 12px;
+  padding-bottom: 14px;
+}
+
+.milestone-plan__step--last {
+  padding-bottom: 4px;
+}
+
+.milestone-plan__rail {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100%;
+}
+
+.milestone-plan__dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  background: var(--ink);
+  color: var(--surface);
+  flex-shrink: 0;
+}
+
+.milestone-plan__dot--locked {
+  background: var(--surface);
+  color: var(--muted);
+  border: 1px solid var(--line);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line) 40%, transparent);
+}
+
+.milestone-plan__dot--active {
+  background: color-mix(in srgb, #e8c84a 88%, #f5e6a0);
+  color: #5c4510;
+  border: 1px solid color-mix(in srgb, #c9a227 55%, var(--line));
+}
+
+.milestone-plan__dot--pending {
+  background: color-mix(in srgb, #f5e6a8 70%, var(--surface));
+  color: #6a5412;
+  border: 1px solid color-mix(in srgb, #e4c04a 40%, var(--line));
+}
+
+.milestone-plan__dot--approved {
+  background: color-mix(in srgb, #48a372 85%, #2d6b4d);
+  color: #f4fdf8;
+  border: 1px solid color-mix(in srgb, #378c62 70%, var(--line));
+}
+
+.milestone-plan--engagement {
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
+/* Engagement timeline: higher-contrast step indicators */
+.milestone-plan--engagement .milestone-plan__dot {
+  width: 30px;
+  height: 30px;
+  font-size: 12px;
+  border-width: 2px;
+  border-style: solid;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.milestone-plan--engagement .milestone-plan__dot--active {
+  background: #c9970c;
+  color: #fffdf5;
+  border-color: #8a6800;
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 4px color-mix(in srgb, #e4b429 55%, transparent);
+}
+
+.milestone-plan--engagement .milestone-plan__dot--pending {
+  background: #e8a317;
+  color: #1f1605;
+  border-color: #b57a08;
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 4px color-mix(in srgb, #f0b429 50%, transparent);
+}
+
+.milestone-plan--engagement .milestone-plan__dot--approved {
+  background: #168a57;
+  color: #f8fffb;
+  border-color: #0d6b42;
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 4px color-mix(in srgb, #22a06b 48%, transparent);
+}
+
+.milestone-plan--engagement .milestone-plan__step--approved .milestone-plan__line {
+  background: color-mix(in srgb, #22a06b 62%, var(--line));
+}
+
+.dark .milestone-plan--engagement .milestone-plan__dot--active {
+  background: #e4b82a;
+  color: #1a1406;
+  border-color: #f5d96a;
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 4px color-mix(in srgb, #e4b82a 40%, transparent);
+}
+
+.dark .milestone-plan--engagement .milestone-plan__dot--pending {
+  background: #f0c14b;
+  color: #1a1406;
+  border-color: #f5d778;
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 4px color-mix(in srgb, #f0c14b 38%, transparent);
+}
+
+.dark .milestone-plan--engagement .milestone-plan__dot--approved {
+  background: #2fbf7f;
+  color: #061a10;
+  border-color: #5ad9a0;
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 4px color-mix(in srgb, #2fbf7f 42%, transparent);
+}
+
+.dark
+  .milestone-plan--engagement
+  .milestone-plan__step--approved
+  .milestone-plan__line {
+  background: color-mix(in srgb, #2fbf7f 55%, var(--line));
+}
+
+.milestone-plan__status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 8px 0 0;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.01em;
+}
+
+.milestone-plan__status-badge--pending {
+  color: #6a5412;
+  background: color-mix(in srgb, #f5e6a8 45%, var(--surface));
+  border: 1px solid color-mix(in srgb, #e4c04a 38%, var(--line));
+}
+
+.milestone-plan__status-badge--warning {
+  color: #7a4f0a;
+  background: color-mix(in srgb, #fde8c8 55%, var(--surface));
+  border: 1px solid color-mix(in srgb, #e4a04a 35%, var(--line));
+}
+
+.milestone-plan__status-badge--success {
+  color: #2d6b4d;
+  background: color-mix(in srgb, #dff5e9 70%, var(--surface));
+  border: 1px solid color-mix(in srgb, #48a372 35%, var(--line));
+}
+
+.milestone-plan__status-badge--progress {
+  color: #3d4f6a;
+  background: color-mix(in srgb, var(--line) 28%, var(--surface));
+  border: 1px solid var(--line);
+}
+
+.milestone-plan__status-badge--muted {
+  color: var(--muted);
+  background: color-mix(in srgb, var(--line) 22%, var(--surface));
+  border: 1px solid var(--line);
+}
+
+.dark .milestone-plan__status-badge--pending {
+  color: #f0dfa0;
+  background: color-mix(in srgb, #5c4810 55%, var(--surface));
+  border-color: color-mix(in srgb, #c9a227 40%, var(--line));
+}
+
+.dark .milestone-plan__status-badge--success {
+  color: #b8e8ce;
+  background: color-mix(in srgb, #1e4a34 55%, var(--surface));
+  border-color: color-mix(in srgb, #378c62 45%, var(--line));
+}
+
+.milestone-plan__step-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.milestone-plan__step-inline {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.milestone-plan__step-inline .milestone-plan__status-badge {
+  margin: 0;
+}
+
+.milestone-plan__step-inline .primary,
+.milestone-plan__step-inline .secondary {
+  border-radius: 999px;
+  min-height: 36px;
+  height: auto;
+  padding: 8px 16px;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.milestone-plan__step-actions {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.milestone-plan__step-actions .primary,
+.milestone-plan__step-actions .secondary {
+  border-radius: 999px;
+  min-height: 36px;
+  height: auto;
+  padding: 8px 16px;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.milestone-review-modal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.milestone-review-modal__form {
+  margin: 0;
+}
+
+.milestone-review-modal__actions .primary,
+.milestone-review-modal__actions .secondary {
+  border-radius: 999px;
+  min-height: 40px;
+  padding: 0 18px;
+}
+
+.milestone-submit-modal .primary-wide {
+  border-radius: 999px;
+  min-height: 48px;
+  height: auto;
+  padding: 12px 20px;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.milestone-plan--proposed .milestone-plan__dot {
+  background: color-mix(in srgb, #c9a227 75%, var(--ink));
+}
+
+.milestone-plan__line {
+  flex: 1;
+  width: 2px;
+  margin-top: 6px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--line) 80%, transparent);
+  min-height: 12px;
+}
+
+.milestone-plan__body {
+  min-width: 0;
+  padding-top: 2px;
+}
+
+.milestone-plan__row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.milestone-plan__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.milestone-plan__amount {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.milestone-plan__amount-symbol {
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.milestone-plan__description {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.milestone-plan__footer {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.milestone-plan__footer-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.milestone-plan__footer-label strong {
+  color: var(--ink);
+}
+
+.milestone-plan__progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.milestone-plan__progress-track {
+  display: block;
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--line) 55%, transparent);
+  overflow: hidden;
+}
+
+.milestone-plan__progress-fill {
+  display: block;
+  height: 100%;
+  width: var(--milestone-plan-fill, 0%);
+  border-radius: inherit;
+  transition: width 0.2s ease;
+}
+
+.milestone-plan__progress-fill--ok {
+  background: color-mix(in srgb, #2d8f4e 80%, var(--ink));
+}
+
+.milestone-plan__progress-fill--warn {
+  background: color-mix(in srgb, #c47b16 75%, var(--ink));
+}
+
+.milestone-plan__progress-caption {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.milestone-plan__progress-caption--ok {
+  color: #1f7a3f;
+}
+
+.milestone-plan__progress-caption--warn {
+  color: #9a5b0a;
+}
+
+.milestone-plan-editor {
+  margin-top: 12px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 90%, var(--line));
+}
+
+.milestone-plan-editor__intro {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--line) 35%, var(--surface));
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.milestone-plan-editor__intro p {
+  margin: 0;
+}
+
+.milestone-plan-editor__intro strong {
+  color: var(--ink);
+}
+
+.milestone-plan-editor__alert {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: #b42318;
+}
+
+.milestone-plan-editor__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.milestone-plan-editor__item {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 10px;
+  padding-bottom: 14px;
+}
+
+.milestone-plan-editor__item--last {
+  padding-bottom: 6px;
+}
+
+.milestone-plan-editor__rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100%;
+}
+
+.milestone-plan-editor__dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  border: 1px solid var(--ink);
+  background: var(--surface);
+}
+
+.milestone-plan-editor__line {
+  flex: 1;
+  width: 2px;
+  margin-top: 6px;
+  background: color-mix(in srgb, var(--line) 80%, transparent);
+  min-height: 16px;
+}
+
+.milestone-plan-editor__card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--surface);
+}
+
+.milestone-plan-editor__card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.milestone-plan-editor__step-label {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.milestone-plan-editor__remove {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  background: transparent;
+}
+
+.milestone-plan-editor__remove:hover {
+  background: color-mix(in srgb, var(--line) 50%, transparent);
+  color: var(--ink);
+}
+
+.milestone-plan-editor__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.milestone-plan-editor__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-fields label.milestone-plan-editor__label,
+.offer-form label.milestone-plan-editor__label {
+  display: block;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.3;
+  color: var(--ink);
+}
+
+.milestone-plan-editor__label {
+  display: block;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.3;
+  color: var(--ink);
+}
+
+.milestone-plan-editor__optional {
+  font-style: normal;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.milestone-plan-editor__field-error {
+  margin: -4px 0 0;
+  font-size: 11px;
+  color: #b42318;
+}
+
+.milestone-plan-editor__amount.amount-input {
+  max-width: 220px;
+}
+
+.milestone-plan-editor__add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 8px 12px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 650;
+  background: transparent;
+}
+
+.milestone-plan-editor__add-hint {
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.milestone-plan-editor__summary {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--line) 22%, var(--surface));
+}
+
+.milestone-plan-editor__summary--ok {
+  border-color: color-mix(in srgb, #2d8f4e 35%, var(--line));
+}
+
+.milestone-plan-editor__summary--warn {
+  border-color: color-mix(in srgb, #c47b16 40%, var(--line));
+}
+
+.milestone-plan-editor__summary-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 16px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.milestone-plan-editor__summary-row strong {
+  color: var(--ink);
+}
+
+.milestone-plan-editor__progress-track {
+  display: block;
+  margin-top: 10px;
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--line) 55%, transparent);
+  overflow: hidden;
+}
+
+.milestone-plan-editor__progress-fill {
+  display: block;
+  height: 100%;
+  width: var(--milestone-plan-fill, 0%);
+  border-radius: inherit;
+  transition: width 0.2s ease;
+}
+
+.milestone-plan-editor__progress-fill--ok {
+  background: color-mix(in srgb, #2d8f4e 80%, var(--ink));
+}
+
+.milestone-plan-editor__progress-fill--warn {
+  background: color-mix(in srgb, #c47b16 75%, var(--ink));
+}
+
+.milestone-plan-editor__summary-caption {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.milestone-plan-editor__summary--ok .milestone-plan-editor__summary-caption {
+  color: #1f7a3f;
+}
+
+.milestone-plan-editor__summary--warn .milestone-plan-editor__summary-caption {
+  color: #9a5b0a;
+}
+
+/* --- Offer form (respond / milestone offer) --- */
+
+.offer-form-shell {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 16px 16px 18px;
+  background: color-mix(in srgb, var(--surface) 94%, var(--line));
+  box-shadow: 0 8px 28px rgb(20 30 24 / 5%);
+}
+
+.offer-form-shell .offer-title h3 {
+  margin-bottom: 6px;
+}
+
+.offer-form-shell__subtitle {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted);
+  font-weight: 500;
+  max-width: 34ch;
+}
+
+.offer-form-card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.offer-form-card label {
+  margin-bottom: 0;
+}
+
+.offer-form-card__section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.offer-form-card__section-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.offer-form-card__section-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.offer-form-card__section-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.offer-form-card__section-hint strong {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.offer-form-card__amount-label {
+  margin: 0;
+}
+
+.offer-form-card__amount.amount-input {
+  max-width: 280px;
+}
+
+.offer-form-card__message-label {
+  margin: 0;
+}
+
+.offer-form-card__message-label textarea {
+  min-height: 110px;
+}
+
+.offer-form-card__error {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #b42318;
+}
+
+.offer-form-card__submit {
+  padding-top: 4px;
+}
+
+.offer-milestone-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--line) 18%, var(--surface));
+}
+
+.offer-milestone-section__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.offer-milestone-section__eyebrow {
+  margin: 0;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.offer-milestone-section__title {
+  margin: 4px 0 0;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.offer-milestone-section__mode {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.offer-milestone-section__mode-legend {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.offer-milestone-choice {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.offer-milestone-choice__btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  text-align: left;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.offer-milestone-choice__btn:hover {
+  border-color: color-mix(in srgb, var(--ink) 25%, var(--line));
+}
+
+.offer-milestone-choice__btn--selected {
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+
+.offer-milestone-choice__label {
+  font-size: 12px;
+  font-weight: 750;
+  color: var(--ink);
+}
+
+.offer-milestone-choice__hint {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.offer-milestone-section__editor .milestone-plan-editor {
+  margin-top: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.milestone-plan-editor__control {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 9px;
+  outline: 0;
+  padding: 13px;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.milestone-plan-editor__control--textarea,
+textarea.milestone-plan-editor__control {
+  min-height: 72px;
+  resize: vertical;
+}
+
+.milestone-plan-editor__amount.amount-input {
+  display: flex;
+  align-items: center;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+}
+
+.milestone-plan-editor__amount.amount-input .milestone-plan-editor__control {
+  border: 0;
+  background: transparent;
+  flex: 1;
+  min-width: 0;
+}
+
+.milestone-plan-editor__amount.amount-input > span[aria-hidden] {
+  padding-right: 12px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.offer-milestone-section__accept {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, #2d8f4e 30%, var(--line));
+  background: color-mix(in srgb, #2d8f4e 8%, var(--surface));
+  color: #1f5a36;
+}
+
+.offer-milestone-section__accept p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  font-weight: 500;
+}
+
+.offer-milestone-section__accept svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.my-pending-offer__pill--milestones {
+  background: color-mix(in srgb, var(--ink) 8%, var(--surface));
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+
+.my-pending-offer__milestones {
+  margin-top: -2px;
+}
+
+@media (max-width: 520px) {
+  .offer-milestone-choice {
+    grid-template-columns: 1fr;
+  }
 }

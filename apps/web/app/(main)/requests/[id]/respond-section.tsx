@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { DismissDrawerLink } from "../../../../components/dismiss-drawer-link";
 import { FigmaIcon } from "../../../../components/figma-icons";
+import { MilestoneScheduleDisplay } from "../../../../components/milestones/milestone-schedule-display";
 import { PreAcceptChatLink } from "../../../../components/pre-accept-chat-link";
 import { formatPostedRelative } from "../../../../lib/datetime/relative-from-now";
 import { formatBudgetSmallestUnits } from "../../../../lib/requests/format-budget";
@@ -11,6 +12,7 @@ import type {
   PreAcceptChatLinkState,
   ProviderPendingResponse,
 } from "./request-detail-data";
+import type { MilestoneDisplayRow } from "../../../../lib/milestones/milestone-schedule";
 import { ResponseOfferForm } from "./response-offer-form";
 import { WithdrawResponseForm } from "./withdraw-response-form";
 
@@ -23,6 +25,8 @@ type Props = {
   nowMs: number;
   pendingResponse: ProviderPendingResponse | null;
   preAcceptChat: PreAcceptChatLinkState | null;
+  paymentMode: "single" | "milestones";
+  requestMilestones: MilestoneDisplayRow[];
 };
 
 export function RespondSection({
@@ -33,8 +37,16 @@ export function RespondSection({
   nowMs,
   pendingResponse,
   preAcceptChat,
+  paymentMode,
+  requestMilestones,
 }: Props) {
   const [offering, setOffering] = useState(false);
+  const pendingMilestoneRows = pendingResponse?.milestoneRows ?? [];
+  const milestoneTask =
+    paymentMode === "milestones" &&
+    (pendingResponse
+      ? pendingMilestoneRows.length > 0
+      : requestMilestones.length > 0);
 
   return (
     <section className="offer-form" aria-labelledby="respond-heading">
@@ -49,6 +61,11 @@ export function RespondSection({
               <p className="my-pending-offer__eyebrow">Your pending offer</p>
               <p className="my-pending-offer__status">
                 <span className="my-pending-offer__pill">Awaiting requester</span>
+                {milestoneTask ? (
+                  <span className="my-pending-offer__pill my-pending-offer__pill--milestones">
+                    Milestones
+                  </span>
+                ) : null}
                 <time
                   dateTime={pendingResponse.createdAt}
                   className="my-pending-offer__time"
@@ -86,6 +103,18 @@ export function RespondSection({
             </p>
           </div>
 
+          {milestoneTask && pendingMilestoneRows.length > 0 ? (
+            <div className="my-pending-offer__milestones">
+              <MilestoneScheduleDisplay
+                rows={pendingMilestoneRows}
+                assetSymbol={assetSymbol}
+                assetDecimals={assetDecimals}
+                budgetSmallest={pendingResponse.proposedAmountSmallest}
+                compact
+              />
+            </div>
+          ) : null}
+
           {pendingResponse.headline ? (
             <p className="my-pending-offer__headline">{pendingResponse.headline}</p>
           ) : null}
@@ -115,8 +144,8 @@ export function RespondSection({
               Make an offer <FigmaIcon name="arrow" size={18} />
             </button>
           ) : (
-            <>
-              <div className="offer-title">
+            <div className="offer-form-shell">
+              <header className="offer-title">
                 <div>
                   <span>YOUR OFFER</span>
                   <h3>How can you help?</h3>
@@ -129,14 +158,16 @@ export function RespondSection({
                 >
                   <FigmaIcon name="close" size={18} />
                 </button>
-              </div>
+              </header>
               <ResponseOfferForm
                 requestId={requestId}
                 budgetAmountSmallest={budgetAmountSmallest}
                 assetSymbol={assetSymbol}
                 assetDecimals={assetDecimals}
+                paymentMode={paymentMode}
+                requestMilestones={requestMilestones}
               />
-            </>
+            </div>
           )}
         </>
       )}

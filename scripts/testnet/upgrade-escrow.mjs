@@ -3,6 +3,10 @@
  *
  *   pnpm contract:build
  *   pnpm testnet:upgrade-escrow
+ *
+ * WARNING: v2.5-milestone wasm breaks Borsh state on accounts with v2.4 escrows.
+ * Do not upgrade NEAR_ESCROW_CONTRACT_ID when legacy escrows are active.
+ * Use pnpm testnet:deploy-escrow-milestones for the milestone-capable account instead.
  */
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";

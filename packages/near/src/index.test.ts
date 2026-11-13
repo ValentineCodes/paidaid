@@ -34,7 +34,7 @@ test("readNearConfig defaults RPC for localnet", () => {
 test("readNearConfig reads testnet with default RPC", () => {
   const config = readNearConfig({ NEAR_NETWORK_ID: "testnet" });
   assert.equal(config.networkId, "testnet");
-  assert.equal(config.rpcUrl, "https://rpc.testnet.near.org");
+  assert.equal(config.rpcUrl, "https://rpc.testnet.fastnear.com");
 });
 
 test("readNearConfig reads mainnet with custom RPC", () => {

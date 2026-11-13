@@ -8,6 +8,7 @@ import type { RequestDetailPageData } from "./request-detail-data";
 import { categoryDotClassForLabel } from "../../../../lib/requests/category-dot";
 import { formatPostedRelative } from "../../../../lib/datetime/relative-from-now";
 import { FigmaIcon } from "../../../../components/figma-icons";
+import { MilestoneScheduleDisplay } from "../../../../components/milestones/milestone-schedule-display";
 import { TruncatedText } from "../../../../components/truncated-text";
 
 function formatDeadlineDrawerLabel(data: RequestDetailPageData): string {
@@ -79,6 +80,8 @@ export function RequestDetailContent({ data, variant }: Props) {
     engagementRow,
     listingExpired,
     requesterPreview,
+    paymentMode,
+    requestMilestones,
   } = data;
 
   const primaryTag = tags[0];
@@ -140,6 +143,17 @@ export function RequestDetailContent({ data, variant }: Props) {
             <TruncatedText text={description} />
           </div>
         ) : null}
+        {paymentMode === "milestones" && requestMilestones.length > 0 ? (
+          <div className="detail-section detail-section--milestone-plan">
+            <MilestoneScheduleDisplay
+              rows={requestMilestones}
+              assetSymbol={displaySymbol}
+              assetDecimals={displayDecimals}
+              heading="Milestone plan"
+              budgetSmallest={budgetAmountStr}
+            />
+          </div>
+        ) : null}
         {photoUrls.length > 1 && (
           <div className="detail-section">
             <h4>Photos</h4>
@@ -197,6 +211,9 @@ export function RequestDetailContent({ data, variant }: Props) {
                 assetSymbol={displaySymbol}
                 nowMs={nowMs}
                 canAcceptOffers={canAcceptOffers}
+                paymentMode={paymentMode}
+                requestMilestones={requestMilestones}
+                requestBudgetSmallest={budgetAmountStr}
                 variant="drawer"
               />
             </section>
@@ -211,6 +228,8 @@ export function RequestDetailContent({ data, variant }: Props) {
               nowMs={nowMs}
               pendingResponse={pendingResponse}
               preAcceptChat={preAcceptChat}
+              paymentMode={paymentMode}
+              requestMilestones={requestMilestones}
             />
         )}
         {!user && (
@@ -295,6 +314,18 @@ export function RequestDetailContent({ data, variant }: Props) {
           <TruncatedText
             text={description}
             className="text-stone-700 dark:text-stone-300"
+          />
+        </section>
+      ) : null}
+
+      {paymentMode === "milestones" && requestMilestones.length > 0 ? (
+        <section className="detail-section--milestone-plan">
+          <MilestoneScheduleDisplay
+            rows={requestMilestones}
+            assetSymbol={displaySymbol}
+            assetDecimals={displayDecimals}
+            heading="Milestone plan"
+            budgetSmallest={budgetAmountStr}
           />
         </section>
       ) : null}
@@ -398,6 +429,9 @@ export function RequestDetailContent({ data, variant }: Props) {
               assetSymbol={displaySymbol}
               nowMs={nowMs}
               canAcceptOffers={canAcceptOffers}
+              paymentMode={paymentMode}
+              requestMilestones={requestMilestones}
+              requestBudgetSmallest={budgetAmountStr}
             />
           </section>
         </>
@@ -412,6 +446,8 @@ export function RequestDetailContent({ data, variant }: Props) {
           nowMs={nowMs}
           pendingResponse={pendingResponse}
           preAcceptChat={preAcceptChat}
+          paymentMode={paymentMode}
+          requestMilestones={requestMilestones}
         />
       )}
     </main>

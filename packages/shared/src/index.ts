@@ -6,6 +6,7 @@ export type { NearNetworkId } from "./network";
 export {
   DEFAULT_LOCALNET_CONTRACT_ID,
   DEFAULT_LOCALNET_ESCROW_CONTRACT_ID,
+  DEFAULT_LOCALNET_ESCROW_MILESTONES_CONTRACT_ID,
   LOCALNET_RPC_URL,
   MAINNET_RPC_URL,
   NEAR_NETWORK_IDS,
@@ -63,9 +64,11 @@ export const ESCROW_FUND_FT_MSG_VERSION = "v2";
 
 export const ESCROW_METHODS = {
   fundEscrow: "fund_escrow",
+  fundEscrowMilestones: "fund_escrow_milestones",
   getEscrow: "get_escrow",
   getActiveEscrowIdForEngagement: "get_active_escrow_id_for_engagement",
   release: "release",
+  releaseMilestone: "release_milestone",
 } as const;
 
 export type EscrowNearConfig = NearConfig & {

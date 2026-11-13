@@ -6,7 +6,7 @@ import { readNearPublicEnv } from "./near-public-env";
 test("readNearPublicEnv prefers NEXT_PUBLIC and falls back to server NEAR_NETWORK_ID", () => {
   const env = readNearPublicEnv({
     NEAR_NETWORK_ID: "testnet",
-    NEAR_RPC_URL: "https://rpc.testnet.near.org",
+    NEAR_RPC_URL: "https://rpc.testnet.fastnear.com",
     NEAR_ESCROW_CONTRACT_ID: "escrow.parent.testnet",
   });
   assert.equal(env.networkId, "testnet");

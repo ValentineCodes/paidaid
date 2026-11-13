@@ -5,7 +5,8 @@
  *   pnpm testnet:escrow-allowlist-circle-usdc:check
  *   pnpm testnet:escrow-allowlist-circle-usdc
  *
- * Required env (testnet submit): NEAR_RPC_URL, NEAR_ESCROW_CONTRACT_ID,
+ * Required env (testnet submit): NEAR_RPC_URL, escrow contract id
+ *   (NEAR_ESCROW_CONTRACT_ID or NEAR_ESCROW_MILESTONES_CONTRACT_ID or ALLOWLIST_ESCROW_CONTRACT_ID),
  *   NEAR_ESCROW_OWNER_ACCOUNT_ID, NEAR_ESCROW_OWNER_PRIVATE_KEY
  *
  * Mainnet: check-only unless PAIDAID_ALLOW_MAINNET_FT_ALLOWLIST=1 and --submit (manual).
@@ -32,11 +33,16 @@ type FtMetadata = {
 function parseArgs(argv: string[]) {
   let network: NearNetworkId = "testnet";
   let submit = false;
+  let target: "legacy" | "milestones" = "legacy";
   for (const arg of argv) {
     if (arg === "--submit") {
       submit = true;
     } else if (arg === "--check" || arg === "--check-only") {
       submit = false;
+    } else if (arg === "--target=milestones") {
+      target = "milestones";
+    } else if (arg === "--target=legacy") {
+      target = "legacy";
     } else if (arg.startsWith("--network=")) {
       const value = arg.slice("--network=".length).trim();
       if (value === "testnet" || value === "mainnet") {
@@ -46,7 +52,7 @@ function parseArgs(argv: string[]) {
       }
     }
   }
-  return { network, submit };
+  return { network, submit, target };
 }
 
 function requireEnv(name: string): string {
@@ -75,8 +81,31 @@ async function readIsFtAllowed(
   return result === true;
 }
 
+function resolveEscrowContractId(target: "legacy" | "milestones"): string {
+  const override = process.env.ALLOWLIST_ESCROW_CONTRACT_ID?.trim();
+  if (override) {
+    return override;
+  }
+  if (target === "milestones") {
+    const id =
+      process.env.NEAR_ESCROW_MILESTONES_CONTRACT_ID?.trim() ||
+      process.env.NEXT_PUBLIC_NEAR_ESCROW_MILESTONES_CONTRACT_ID?.trim();
+    if (!id) {
+      throw new Error("Set NEAR_ESCROW_MILESTONES_CONTRACT_ID for milestone allowlist");
+    }
+    return id;
+  }
+  const id =
+    process.env.NEAR_ESCROW_CONTRACT_ID?.trim() ||
+    process.env.NEXT_PUBLIC_NEAR_ESCROW_CONTRACT_ID?.trim();
+  if (!id) {
+    throw new Error("Set NEAR_ESCROW_CONTRACT_ID for legacy allowlist");
+  }
+  return id;
+}
+
 async function main() {
-  const { network, submit } = parseArgs(process.argv.slice(2));
+  const { network, submit, target } = parseArgs(process.argv.slice(2));
   if (network === "localnet") {
     throw new Error("Circle USDC allowlist is not used on localnet in this phase.");
   }
@@ -84,13 +113,7 @@ async function main() {
   const tokenContractId = circleNativeUsdcTokenContractId(network);
   const rpcUrl =
     process.env.NEAR_RPC_URL?.trim() || defaultRpcUrlForNetwork(network);
-  const escrowContractId =
-    process.env.NEAR_ESCROW_CONTRACT_ID?.trim() ||
-    process.env.NEXT_PUBLIC_NEAR_ESCROW_CONTRACT_ID?.trim();
-
-  if (!escrowContractId) {
-    throw new Error("Set NEAR_ESCROW_CONTRACT_ID or NEXT_PUBLIC_NEAR_ESCROW_CONTRACT_ID");
-  }
+  const escrowContractId = resolveEscrowContractId(target);
 
   const provider = new JsonRpcProvider({ url: rpcUrl });
 

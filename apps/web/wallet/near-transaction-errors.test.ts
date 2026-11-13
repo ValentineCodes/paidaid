@@ -15,6 +15,13 @@ test("classifyNearTransactionError detects cancellation", () => {
   assert.equal(isUserRejectedTransaction(new Error("closed popup")), true);
 });
 
+test("formatNearTransactionError maps wallet cancellation", () => {
+  assert.equal(
+    formatNearTransactionError(new Error("User rejected the request")),
+    "Transaction cancelled",
+  );
+});
+
 test("formatNearTransactionError maps network mismatch", () => {
   const formatted = formatNearTransactionError(
     new Error("Escrow funding: network mismatch (expected localnet, got testnet)."),

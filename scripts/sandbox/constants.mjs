@@ -16,6 +16,10 @@ export const WASM_PATH = path.join(
 );
 
 export const ESCROW_CONTRACT_ACCOUNT_ID = "paidaid-escrow.sandbox";
+export const ESCROW_MILESTONES_CONTRACT_ACCOUNT_ID =
+  "paidaid-escrow-milestones.sandbox";
+export const ESCROW_LEGACY_SCHEMA = "v2.4-direct";
+export const ESCROW_MILESTONES_SCHEMA = "v2.5-milestones";
 export const ESCROW_WASM_PATH = path.join(
   repoRoot,
   "contracts/target/wasm32-unknown-unknown/release/paidaid_escrow.wasm",

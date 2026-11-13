@@ -9,6 +9,8 @@ import { NEAR } from "@near-js/tokens";
 import { DEFAULT_ACCOUNT_ID, DEFAULT_PRIVATE_KEY } from "near-sandbox";
 import {
   ESCROW_CONTRACT_ACCOUNT_ID,
+  ESCROW_LEGACY_SCHEMA,
+  ESCROW_MILESTONES_CONTRACT_ACCOUNT_ID,
   ESCROW_WASM_PATH,
   SANDBOX_DIR,
   STATE_FILE,
@@ -19,7 +21,7 @@ const ESCROW_KEY_FILE = path.join(
   "paidaid-escrow.sandbox.key.json",
 );
 const INIT_GAS = 80_000_000_000_000n;
-const DIRECT_FUND_SCHEMA = "v2.4-direct";
+const DIRECT_FUND_SCHEMA = ESCROW_LEGACY_SCHEMA;
 
 async function loadOrCreateContractKey() {
   try {
@@ -114,18 +116,25 @@ if (accountExisted) {
     await recreateEscrowAccount(
       `Recreating ${ESCROW_CONTRACT_ACCOUNT_ID} for direct fund_escrow schema…`,
     );
-  } else {
-    const healthy = await contractHealthy();
-    if (!healthy) {
-      await recreateEscrowAccount(
-        `Recreating ${ESCROW_CONTRACT_ACCOUNT_ID} (broken contract state)…`,
-      );
     } else {
-      console.log(
-        `Account ${ESCROW_CONTRACT_ACCOUNT_ID} already exists; redeploying wasm…`,
-      );
+      const healthy = await contractHealthy();
+      if (!healthy) {
+        await recreateEscrowAccount(
+          `Recreating ${ESCROW_CONTRACT_ACCOUNT_ID} (broken contract state)…`,
+        );
+      } else {
+        console.log(
+          `Account ${ESCROW_CONTRACT_ACCOUNT_ID} already exists (${state.escrowAuthSchema ?? DIRECT_FUND_SCHEMA}).`,
+        );
+        console.log(
+          "Skipping wasm upgrade on legacy escrow to preserve in-flight escrows (v2.5 milestone layout is incompatible).",
+        );
+        console.log(
+          `Deploy milestone-capable wasm: pnpm sandbox:deploy-escrow-milestones → ${ESCROW_MILESTONES_CONTRACT_ACCOUNT_ID}`,
+        );
+        process.exit(0);
+      }
     }
-  }
 } else {
   console.log(`Creating ${ESCROW_CONTRACT_ACCOUNT_ID}…`);
   await root.createAccount(

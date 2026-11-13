@@ -10,6 +10,7 @@ import {
   formatBudgetSmallestUnits,
   normalizeAssetDecimals,
 } from "../../../../lib/requests/format-budget";
+import { loadMilestoneReleaseQueue } from "../milestone-settlement-actions";
 import { EngagementDetailContent } from "./engagement-detail-content";
 import type { EngagementSettlementView } from "../../../../lib/engagement/settlement-types";
 import { loadActiveLinkedNearWallet } from "../../../../lib/near/load-linked-wallet";
@@ -56,6 +57,7 @@ export default async function EngagementPage({ params }: PageProps) {
       auto_complete_deadline_at,
       auto_completed_at,
       completed_at,
+      payment_mode,
       assignments (
         request_id,
         accepted_response_id,
@@ -262,6 +264,113 @@ export default async function EngagementPage({ params }: PageProps) {
     };
   }
 
+  const paymentMode =
+    (engagement.payment_mode ?? "single") as Database["public"]["Enums"]["engagement_payment_mode"];
+
+  let engagementMilestones: {
+    id: string;
+    position: number;
+    title: string;
+    description: string;
+    amountSmallest: string;
+    status: Database["public"]["Enums"]["milestone_workflow_status"];
+    latestDelivery: {
+      deliveryId: string;
+      description: string;
+      attachments: {
+        id: string;
+        storage_path: string;
+        mime_type: string;
+      }[];
+    } | null;
+  }[] = [];
+
+  let milestoneReleaseQueue: Awaited<
+    ReturnType<typeof loadMilestoneReleaseQueue>
+  > = null;
+
+  if (paymentMode === "milestones" && paymentFunded) {
+    milestoneReleaseQueue = await loadMilestoneReleaseQueue(id);
+  }
+
+  if (paymentMode === "milestones") {
+    const { data: msRows } = await supabase
+      .from("engagement_milestones")
+      .select("id, position, title, description, amount, status")
+      .eq("engagement_id", id)
+      .order("position");
+
+    const milestoneIds = msRows?.map((row) => row.id) ?? [];
+    const latestDeliveryByMilestone = new Map<
+      string,
+      { deliveryId: string; description: string }
+    >();
+
+    if (milestoneIds.length > 0) {
+      const { data: deliveryRows } = await supabase
+        .from("milestone_deliveries")
+        .select("id, milestone_id, description, revision_sequence")
+        .in("milestone_id", milestoneIds)
+        .order("revision_sequence", { ascending: false });
+
+      for (const row of deliveryRows ?? []) {
+        if (!latestDeliveryByMilestone.has(row.milestone_id)) {
+          latestDeliveryByMilestone.set(row.milestone_id, {
+            deliveryId: row.id,
+            description: row.description ?? "",
+          });
+        }
+      }
+    }
+
+    const deliveryIds = [...latestDeliveryByMilestone.values()].map(
+      (d) => d.deliveryId,
+    );
+    const attachmentsByDelivery = new Map<
+      string,
+      { id: string; storage_path: string; mime_type: string }[]
+    >();
+
+    if (deliveryIds.length > 0) {
+      const { data: attRows } = await supabase
+        .from("milestone_delivery_attachments")
+        .select("id, milestone_delivery_id, storage_path, mime_type, sort_order")
+        .in("milestone_delivery_id", deliveryIds)
+        .order("sort_order");
+
+      for (const att of attRows ?? []) {
+        const list = attachmentsByDelivery.get(att.milestone_delivery_id) ?? [];
+        list.push({
+          id: att.id,
+          storage_path: att.storage_path,
+          mime_type: att.mime_type,
+        });
+        attachmentsByDelivery.set(att.milestone_delivery_id, list);
+      }
+    }
+
+    engagementMilestones =
+      msRows?.map((row) => {
+        const latest = latestDeliveryByMilestone.get(row.id);
+        return {
+          id: row.id,
+          position: row.position,
+          title: row.title,
+          description: row.description ?? "",
+          amountSmallest: normalizeDbNumericAmount(row.amount),
+          status: row.status,
+          latestDelivery: latest
+            ? {
+                deliveryId: latest.deliveryId,
+                description: latest.description,
+                attachments:
+                  attachmentsByDelivery.get(latest.deliveryId) ?? [],
+              }
+            : null,
+        };
+      }) ?? [];
+  }
+
   if (isProvider) {
     linkedProviderNear =
       (await loadActiveLinkedNearWallet(supabase, user.id))?.nearAccountId ??
@@ -313,6 +422,10 @@ export default async function EngagementPage({ params }: PageProps) {
       deliveryAttachments={deliveryAttachments}
       existingReview={reviewRow}
       tagLabels={tagLabels}
+      paymentMode={paymentMode}
+      engagementMilestones={engagementMilestones}
+      milestoneReleaseQueue={milestoneReleaseQueue}
+      assetDecimals={asset?.decimals ?? 24}
     />
   );
 }

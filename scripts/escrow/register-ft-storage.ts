@@ -3,6 +3,8 @@
  *
  *   pnpm testnet:escrow-storage-circle-usdc:check
  *   pnpm testnet:escrow-storage-circle-usdc
+ *   pnpm testnet:escrow-milestones-storage-circle-usdc:check
+ *   pnpm testnet:escrow-milestones-storage-circle-usdc
  *
  * Pays min bound from storage_balance_bounds; registers escrow contract account on the token.
  */
@@ -26,14 +28,40 @@ const GAS = 80_000_000_000_000n;
 function parseArgs(argv: string[]) {
   let network: NearNetworkId = "testnet";
   let submit = false;
+  let target: "legacy" | "milestones" = "legacy";
   for (const arg of argv) {
     if (arg === "--submit") submit = true;
+    if (arg === "--target=milestones") target = "milestones";
+    if (arg === "--target=legacy") target = "legacy";
     if (arg.startsWith("--network=")) {
       const v = arg.slice(12).trim();
       if (v === "testnet" || v === "mainnet") network = v;
     }
   }
-  return { network, submit };
+  return { network, submit, target };
+}
+
+function resolveEscrowContractId(target: "legacy" | "milestones"): string {
+  const override = process.env.ESCROW_STORAGE_CONTRACT_ID?.trim();
+  if (override) {
+    return override;
+  }
+  if (target === "milestones") {
+    const id =
+      process.env.NEAR_ESCROW_MILESTONES_CONTRACT_ID?.trim() ||
+      process.env.NEXT_PUBLIC_NEAR_ESCROW_MILESTONES_CONTRACT_ID?.trim();
+    if (!id) {
+      throw new Error("Set NEAR_ESCROW_MILESTONES_CONTRACT_ID for milestone storage registration");
+    }
+    return id;
+  }
+  const id =
+    process.env.NEAR_ESCROW_CONTRACT_ID?.trim() ||
+    process.env.NEXT_PUBLIC_NEAR_ESCROW_CONTRACT_ID?.trim();
+  if (!id) {
+    throw new Error("Set NEAR_ESCROW_CONTRACT_ID");
+  }
+  return id;
 }
 
 function requireEnv(name: string): string {
@@ -43,18 +71,13 @@ function requireEnv(name: string): string {
 }
 
 async function main() {
-  const { network, submit } = parseArgs(process.argv.slice(2));
+  const { network, submit, target } = parseArgs(process.argv.slice(2));
   if (network === "localnet") {
     throw new Error("Use Circle USDC operator scripts on testnet/mainnet only.");
   }
 
   const tokenContractId = circleNativeUsdcTokenContractId(network);
-  const escrowContractId =
-    process.env.NEAR_ESCROW_CONTRACT_ID?.trim() ||
-    process.env.NEXT_PUBLIC_NEAR_ESCROW_CONTRACT_ID?.trim();
-  if (!escrowContractId) {
-    throw new Error("Set NEAR_ESCROW_CONTRACT_ID");
-  }
+  const escrowContractId = resolveEscrowContractId(target);
 
   const rpcUrl =
     process.env.NEAR_RPC_URL?.trim() || defaultRpcUrlForNetwork(network);

@@ -162,6 +162,18 @@ export async function checkEngagementReleasePreflight(
     return { ok: false, error: loadErr?.message ?? "Escrow payment not found." };
   }
 
+  const { data: engagementMeta } = await supabase
+    .from("engagements")
+    .select("payment_mode")
+    .eq("id", engagementId)
+    .maybeSingle();
+  if (engagementMeta?.payment_mode === "milestones") {
+    return {
+      ok: false,
+      error: "This engagement uses milestone releases. Release each approved milestone instead.",
+    };
+  }
+
   const asset = await loadPaymentAsset(supabase, payment);
   if (!asset) {
     return { ok: false, error: "Asset metadata missing." };
@@ -275,6 +287,18 @@ export async function reportEngagementReleaseTx(
   }
   if (payment.status !== "funded" || payment.on_chain_escrow_id == null) {
     return { ok: false, error: "Escrow is not funded." };
+  }
+
+  const { data: engagementMeta } = await supabase
+    .from("engagements")
+    .select("payment_mode")
+    .eq("id", engagementId)
+    .maybeSingle();
+  if (engagementMeta?.payment_mode === "milestones") {
+    return {
+      ok: false,
+      error: "Use milestone release for this engagement.",
+    };
   }
 
   if (payment.settlement_status === "released") {

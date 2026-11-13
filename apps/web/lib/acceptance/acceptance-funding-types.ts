@@ -23,4 +23,6 @@ export type AcceptanceFundingPrepareResult = {
   createTxHash: string | null;
   fundTxHash: string | null;
   onChainEscrowId: string | null;
+  paymentMode: Database["public"]["Enums"]["engagement_payment_mode"];
+  milestoneAmountsSmallest: string[] | null;
 };

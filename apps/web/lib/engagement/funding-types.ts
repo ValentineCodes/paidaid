@@ -20,4 +20,7 @@ export type EngagementFundingPrepareResult = {
   status: EngagementPaymentStatus;
   createTxHash: string | null;
   fundTxHash: string | null;
+  paymentMode?: "single" | "milestones";
+  /** Integer smallest-unit strings in ascending milestone order. */
+  milestoneAmountsSmallest?: string[] | null;
 };

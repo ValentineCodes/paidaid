@@ -16,10 +16,10 @@ test("paidAidNetworkToConnectorNetwork maps localnet to testnet slot", () => {
 test("buildNearConnectorOptions wires RPC providers per network", () => {
   const mainnet = buildNearConnectorOptions({
     NEXT_PUBLIC_NEAR_NETWORK_ID: "mainnet",
-    NEXT_PUBLIC_NEAR_RPC_URL: "https://rpc.mainnet.near.org",
+    NEXT_PUBLIC_NEAR_RPC_URL: "https://rpc.mainnet.fastnear.com",
   });
   assert.equal(mainnet.network, "mainnet");
-  assert.deepEqual(mainnet.providers?.mainnet, ["https://rpc.mainnet.near.org"]);
+  assert.deepEqual(mainnet.providers?.mainnet, ["https://rpc.mainnet.fastnear.com"]);
   assert.equal(mainnet.features?.signMessage, true);
 
   const local = buildNearConnectorOptions({

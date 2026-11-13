@@ -25,5 +25,7 @@ export function acceptanceIntentToWalletTerms(
           : "prepared",
     createTxHash: intent.createTxHash,
     fundTxHash: intent.fundTxHash,
+    paymentMode: intent.paymentMode,
+    milestoneAmountsSmallest: intent.milestoneAmountsSmallest,
   };
 }

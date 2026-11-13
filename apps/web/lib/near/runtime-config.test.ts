@@ -20,5 +20,5 @@ test("readAlignedNearRuntimeConfig aligns public and server", () => {
     NEAR_NETWORK_ID: "testnet",
   });
   assert.equal(config.networkId, "testnet");
-  assert.equal(config.rpcUrl, "https://rpc.testnet.near.org");
+  assert.equal(config.rpcUrl, "https://rpc.testnet.fastnear.com");
 });

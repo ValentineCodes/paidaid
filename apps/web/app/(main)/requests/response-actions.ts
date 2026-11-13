@@ -9,14 +9,23 @@ import {
   MESSAGE_MAX,
   proposedHumanToSmallestUnitsOrThrow,
 } from "../../../lib/validation/response";
+import {
+  parseMilestoneDraftsJson,
+  validateMilestoneDrafts,
+} from "../../../lib/milestones/milestone-schedule";
 
 export type SubmitResponseState = {
   error: string | null;
   fieldErrors?: Partial<
-    Record<"message" | "headline" | "proposedHuman", string>
+    Record<"message" | "headline" | "proposedHuman" | "milestones", string>
   >;
   success?: boolean;
   responseId?: string;
+};
+
+export type ReviewMilestoneProposalState = {
+  error: string | null;
+  success?: boolean;
 };
 
 export type WithdrawResponseState = {
@@ -37,6 +46,8 @@ export async function submitRequestResponse(
   const message = String(formData.get("message") ?? "");
   const headline = String(formData.get("headline") ?? "");
   const proposedHuman = String(formData.get("proposed_human") ?? "");
+  const milestoneMode = String(formData.get("milestone_response_mode") ?? "");
+  const milestonesJson = String(formData.get("milestones_json") ?? "");
 
   if (!requestId) {
     return { error: "Missing request" };
@@ -62,7 +73,7 @@ export async function submitRequestResponse(
   // providers), so responders must not query that table for preflight.
   const { data: openRequest, error: openErr } = await supabase
     .from("requests_public")
-    .select("id, budget_asset_id")
+    .select("id, budget_asset_id, payment_mode")
     .eq("id", requestId)
     .maybeSingle();
 
@@ -103,6 +114,37 @@ export async function submitRequestResponse(
       e instanceof Error ? e.message : "Invalid proposed amount";
   }
 
+  let milestoneProposal: { position: number; title: string; description: string; amount: string }[] | null =
+    null;
+  let acceptRequestMilestones = false;
+  const paymentMode = openRequest.payment_mode ?? "single";
+  if (paymentMode === "milestones") {
+    if (milestoneMode === "accept") {
+      acceptRequestMilestones = true;
+    } else if (milestoneMode === "propose") {
+      const drafts = parseMilestoneDraftsJson(milestonesJson);
+      if (!drafts) {
+        fieldErrors.milestones = "Invalid milestone proposal";
+      } else {
+        const validated = validateMilestoneDrafts(
+          drafts,
+          smallestUnits,
+          asset.decimals,
+        );
+        if (!validated.ok) {
+          const first =
+            validated.fieldErrors.milestones ??
+            Object.values(validated.fieldErrors)[0];
+          fieldErrors.milestones = first ?? "Invalid milestone proposal";
+        } else {
+          milestoneProposal = validated.rows;
+        }
+      }
+    } else {
+      fieldErrors.milestones = "Choose whether to accept or propose milestone terms";
+    }
+  }
+
   if (Object.keys(fieldErrors).length > 0) {
     return { error: null, fieldErrors };
   }
@@ -114,7 +156,9 @@ export async function submitRequestResponse(
       p_message: message.trim(),
       p_proposed_amount: smallestUnits,
       p_headline: headline.trim(),
-    },
+      p_accept_request_milestones: acceptRequestMilestones,
+      p_milestone_proposal: milestoneProposal,
+    } as never,
   );
 
   if (rpcError || !responseId) {
@@ -133,6 +177,47 @@ export async function submitRequestResponse(
     success: true,
     responseId: responseId as string,
   };
+}
+
+export async function reviewResponseMilestoneProposal(
+  _prev: ReviewMilestoneProposalState,
+  formData: FormData,
+): Promise<ReviewMilestoneProposalState> {
+  const responseId = String(formData.get("response_id") ?? "");
+  const requestId = String(formData.get("request_id") ?? "");
+  const action = String(formData.get("review_action") ?? "");
+
+  if (!responseId || !requestId) {
+    return { error: "Missing response" };
+  }
+  if (action !== "approve" && action !== "reject") {
+    return { error: "Invalid action" };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: "You must be signed in." };
+  }
+
+  const { error: rpcError } = await supabase.rpc(
+    "review_response_milestone_proposal",
+    {
+      p_response_id: responseId,
+      p_action: action,
+    },
+  );
+
+  if (rpcError) {
+    return { error: rpcError.message };
+  }
+
+  revalidatePath(`/requests/${requestId}`);
+  revalidatePath("/activity");
+  revalidatePath("/notifications");
+  return { error: null, success: true };
 }
 
 export async function withdrawRequestResponse(

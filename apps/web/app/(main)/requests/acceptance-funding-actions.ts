@@ -26,7 +26,7 @@ import { createServiceClient } from "../../../lib/supabase/service";
 import {
   chainIdForCurrentNearNetwork,
   escrowNearConfigForPayment,
-  readEscrowNearRuntimeConfig,
+  readEscrowContractIdForNewFunding,
 } from "../../../lib/near/escrow-config";
 import type { Database } from "../../../lib/database.types";
 import type {
@@ -67,10 +67,72 @@ function nearConfigForIntent(intent: IntentRow) {
   });
 }
 
+async function loadMilestoneAmountsForIntent(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  intent: IntentRow,
+): Promise<string[] | null> {
+  if (intent.payment_mode !== "milestones") {
+    return null;
+  }
+  const { data, error } = await supabase
+    .from("engagement_milestones")
+    .select("amount, position")
+    .eq("acceptance_intent_id", intent.id)
+    .order("position");
+  if (error || !data?.length) {
+    return null;
+  }
+  return data.map((row) => normalizeDbNumericAmount(row.amount));
+}
+
+async function persistAgreedMilestoneSchedule(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  intentId: string,
+  responseId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { data: rows, error } = await supabase.rpc(
+    "get_agreed_milestone_schedule_for_response",
+    { p_response_id: responseId },
+  );
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  const list = Array.isArray(rows) ? rows : rows ? [rows] : [];
+  if (list.length < 2) {
+    return { ok: false, error: "Agreed milestone schedule is missing." };
+  }
+  const milestones = list.map((row) => {
+    const r = row as {
+      milestone_position: number;
+      milestone_title: string;
+      milestone_description: string;
+      milestone_amount: string | number;
+    };
+    return {
+      position: r.milestone_position,
+      title: r.milestone_title,
+      description: r.milestone_description ?? "",
+      amount: normalizeDbNumericAmount(r.milestone_amount),
+    };
+  });
+  const { error: saveErr } = await supabase.rpc(
+    "save_acceptance_milestone_schedule",
+    {
+      p_intent_id: intentId,
+      p_milestones: milestones,
+    } as never,
+  );
+  if (saveErr) {
+    return { ok: false, error: saveErr.message };
+  }
+  return { ok: true };
+}
+
 function mapIntent(
   intent: IntentRow,
   asset: AssetRow,
   payment: PaymentRow,
+  milestoneAmounts: string[] | null,
 ): AcceptanceFundingPrepareResult {
   return {
     intentId: intent.id,
@@ -94,6 +156,8 @@ function mapIntent(
       intent.on_chain_escrow_id == null
         ? null
         : String(intent.on_chain_escrow_id),
+    paymentMode: intent.payment_mode,
+    milestoneAmountsSmallest: milestoneAmounts,
   };
 }
 
@@ -126,6 +190,7 @@ async function loadIntentPaymentAsset(
 function buildExpectation(
   intent: IntentRow,
   asset: AssetRow,
+  milestoneAmounts: string[] | null,
 ): FundingVerificationExpectation {
   return {
     engagementId: intent.planned_engagement_id,
@@ -133,6 +198,10 @@ function buildExpectation(
     providerNearAccountId: intent.provider_near_account_id,
     amountSmallestUnits: normalizeDbNumericAmount(intent.amount),
     assetStandard: asset.asset_standard,
+    milestoneAmountsSmallest:
+      milestoneAmounts && milestoneAmounts.length > 0
+        ? milestoneAmounts
+        : undefined,
     ftContractId: resolveAssetContractId({
       id: asset.id,
       chain_id: asset.chain_id,
@@ -232,7 +301,7 @@ export async function checkAcceptOfferEligibility(
   const { data: request, error: requestErr } = await supabase
     .from("requests")
     .select(
-      "id, requester_id, status, timing_type, scheduled_at, expires_at",
+      "id, requester_id, status, timing_type, scheduled_at, expires_at, payment_mode",
     )
     .eq("id", requestId)
     .maybeSingle();
@@ -256,7 +325,7 @@ export async function checkAcceptOfferEligibility(
 
   const { data: response, error: responseErr } = await supabase
     .from("request_responses")
-    .select("id, status, provider_profile_id, request_id")
+    .select("id, status, provider_profile_id, request_id, milestone_offer_status")
     .eq("id", responseId)
     .maybeSingle();
 
@@ -269,6 +338,20 @@ export async function checkAcceptOfferEligibility(
   }
   if (response.status !== "pending") {
     return { ok: false, code: "other", error: "This offer is no longer pending." };
+  }
+
+  if (request.payment_mode === "milestones") {
+    const status = response.milestone_offer_status;
+    if (status !== "accepted_as_proposed" && status !== "agreed") {
+      return {
+        ok: false,
+        code: "other",
+        error:
+          status === "proposal_pending"
+            ? "Approve or decline the provider’s milestone proposal before funding."
+            : "Milestone terms must be agreed before funding.",
+      };
+    }
   }
 
   const { data: providerProfile, error: providerErr } = await supabase
@@ -325,7 +408,18 @@ export async function prepareAcceptanceFunding(
     return { ok: false, error: "Sign in to accept this offer." };
   }
 
-  const escrowConfig = readEscrowNearRuntimeConfig();
+  const { data: requestMeta, error: requestErr } = await supabase
+    .from("requests")
+    .select("payment_mode")
+    .eq("id", requestId)
+    .maybeSingle();
+  if (requestErr || !requestMeta) {
+    return { ok: false, error: requestErr?.message ?? "Request not found." };
+  }
+
+  const fundingKind =
+    requestMeta.payment_mode === "milestones" ? "milestones" : "single";
+  const escrowContractId = readEscrowContractIdForNewFunding(fundingKind);
   const chainId = chainIdForCurrentNearNetwork();
   const nonce =
     randomBytes(16).toString("hex") + randomBytes(16).toString("hex");
@@ -334,7 +428,7 @@ export async function prepareAcceptanceFunding(
   const { data: intent, error } = await supabase.rpc("prepare_acceptance_funding", {
     p_request_id: requestId,
     p_response_id: responseId,
-    p_escrow_contract_id: escrowConfig.escrowContractId,
+    p_escrow_contract_id: escrowContractId,
     p_chain_id: chainId,
     p_auth_nonce: nonce,
     p_auth_expires_at: authExpiresAt.toISOString(),
@@ -347,14 +441,27 @@ export async function prepareAcceptanceFunding(
     return { ok: false, error: "Could not prepare acceptance funding." };
   }
 
+  if (requestMeta.payment_mode === "milestones") {
+    const saved = await persistAgreedMilestoneSchedule(
+      supabase,
+      intent.id,
+      responseId,
+    );
+    if (!saved.ok) {
+      return { ok: false, error: saved.error };
+    }
+  }
+
   const loaded = await loadIntentPaymentAsset(supabase, intent);
   if (!loaded) {
     return { ok: false, error: "Funding record missing." };
   }
 
+  const milestoneAmounts = await loadMilestoneAmountsForIntent(supabase, intent);
+
   return {
     ok: true,
-    intent: mapIntent(intent, loaded.asset, loaded.payment),
+    intent: mapIntent(intent, loaded.asset, loaded.payment, milestoneAmounts),
   };
 }
 
@@ -392,7 +499,11 @@ export async function loadActiveAcceptanceFundingForResponse(
     return { ok: false, error: "Funding record missing." };
   }
 
-  return { ok: true, intent: mapIntent(row, loaded.asset, loaded.payment) };
+  const milestoneAmounts = await loadMilestoneAmountsForIntent(supabase, row);
+  return {
+    ok: true,
+    intent: mapIntent(row, loaded.asset, loaded.payment, milestoneAmounts),
+  };
 }
 
 export async function loadInFlightAcceptanceResponseId(
@@ -548,7 +659,11 @@ export async function loadAcceptanceFundingIntent(
     return { ok: false, error: "Funding record missing." };
   }
 
-  return { ok: true, intent: mapIntent(intent, loaded.asset, loaded.payment) };
+  const milestoneAmounts = await loadMilestoneAmountsForIntent(supabase, intent);
+  return {
+    ok: true,
+    intent: mapIntent(intent, loaded.asset, loaded.payment, milestoneAmounts),
+  };
 }
 
 /** Sync chain state, retry fund-tx verification, or finalize — never submits a new wallet transaction. */
@@ -682,9 +797,18 @@ export async function syncAcceptanceEscrowFromChain(
     intent.status === "finalized" ||
     (loaded.payment.status === "funded" && intent.on_chain_escrow_id != null)
   ) {
+    const milestoneAmounts = await loadMilestoneAmountsForIntent(
+      supabase,
+      intent,
+    );
     return {
       ok: true,
-      intent: mapIntent(intent, loaded.asset, loaded.payment),
+      intent: mapIntent(
+        intent,
+        loaded.asset,
+        loaded.payment,
+        milestoneAmounts,
+      ),
     };
   }
 
@@ -710,7 +834,11 @@ export async function syncAcceptanceEscrowFromChain(
     if (!record) {
       throw new Error("Escrow record not found on-chain");
     }
-    const expectation = buildExpectation(intent, loaded.asset);
+    const milestoneAmounts = await loadMilestoneAmountsForIntent(
+      supabase,
+      intent,
+    );
+    const expectation = buildExpectation(intent, loaded.asset, milestoneAmounts);
     assertEscrowRecordMatchesFunding(record, expectation);
 
     if (record.status !== "Funded") {
@@ -776,7 +904,12 @@ export async function reportAcceptanceFundTx(
       return {
         ok: true,
         engagementId,
-        intent: mapIntent(intent, loaded.asset, loaded.payment),
+        intent: mapIntent(
+          intent,
+          loaded.asset,
+          loaded.payment,
+          await loadMilestoneAmountsForIntent(supabase, intent),
+        ),
       };
     }
     return { ok: false, error: "Acceptance already finalized." };
@@ -844,7 +977,11 @@ export async function reportAcceptanceFundTx(
     if (!record) {
       throw new Error("Escrow record not found");
     }
-    const expectation = buildExpectation(intent, loaded.asset);
+    const milestoneAmounts = await loadMilestoneAmountsForIntent(
+      supabase,
+      intent,
+    );
+    const expectation = buildExpectation(intent, loaded.asset, milestoneAmounts);
     assertFundingCompleteOnChain(record, expectation);
 
     await applyIntentProgress(intentId, "funding_verified", "funded", {
@@ -903,7 +1040,12 @@ export async function reconcileAcceptanceFinalization(
       ? {
           ok: true,
           engagementId: intent.planned_engagement_id,
-          intent: mapIntent(intent, loaded.asset, loaded.payment),
+          intent: mapIntent(
+            intent,
+            loaded.asset,
+            loaded.payment,
+            await loadMilestoneAmountsForIntent(supabase, intent),
+          ),
         }
       : { ok: false, error: "Funding record missing." };
   }
@@ -980,7 +1122,16 @@ export async function checkAcceptanceFundingPreflight(
     return { ok: false, error: "Funding record missing." };
   }
 
-  const intent = mapIntent(intentRow, bundle.asset, bundle.payment);
+  const milestoneAmounts = await loadMilestoneAmountsForIntent(
+    supabase,
+    intentRow,
+  );
+  const intent = mapIntent(
+    intentRow,
+    bundle.asset,
+    bundle.payment,
+    milestoneAmounts,
+  );
   const asset = bundle.asset;
 
   if (intent.status === "finalized") {

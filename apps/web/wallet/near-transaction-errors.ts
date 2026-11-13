@@ -74,7 +74,7 @@ export function formatNearTransactionError(error: unknown): string {
 
   switch (kind) {
     case "user_rejected":
-      return "Transaction cancelled in your wallet.";
+      return "Transaction cancelled";
     case "wallet_disconnected":
       return "Connect your NEAR wallet and try again.";
     case "wallet_unavailable":

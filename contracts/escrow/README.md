@@ -15,6 +15,10 @@ Funding is **requester-direct** (wallet signs; no backend attestation).
 | `refund(escrow_id)` | call | Requester voluntary refund while `Funded` only. |
 | `get_escrow(escrow_id)` | view | Escrow record. |
 | `get_active_escrow_id_for_engagement(engagement_id)` | view | Active escrow id for engagement. |
+| `fund_escrow_milestones(engagement_id, provider, milestones)` | payable | Native upfront fund with 2–5 milestone amounts. |
+| `release_milestone(escrow_id, milestone_index)` | call | Sequential partial release (milestone escrows only). |
+
+**Accounts:** legacy single-payment escrows use `NEAR_ESCROW_CONTRACT_ID`; milestone escrows use `NEAR_ESCROW_MILESTONES_CONTRACT_ID` (separate deploy — see `MIGRATION.md`).
 
 See `docs/escrow-direct-funding.md` for trust boundaries and app reconciliation.
 

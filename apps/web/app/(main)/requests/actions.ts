@@ -16,6 +16,10 @@ import { validateBudgetAssetForCreate } from "../../../lib/requests/request-budg
 import { validateCreateRequestFormForTests } from "../../../lib/requests/validate-create-input";
 import { formatWalletSnapshotRpcError } from "../../../lib/requests/wallet-snapshot-errors";
 import { chainIdForCurrentNearNetwork } from "../../../lib/near/escrow-config";
+import {
+  parseMilestoneDraftsJson,
+  validateMilestoneDrafts,
+} from "../../../lib/milestones/milestone-schedule";
 export type CreateRequestState = {
   error: string | null;
   fieldErrors?: Record<string, string>;
@@ -55,6 +59,10 @@ export async function createRequest(
   const publish = publishRaw === "true";
   const stayInModalRaw = String(formData.get("stay_in_modal") ?? "");
   const stayInModal = stayInModalRaw === "true";
+  const paymentModeRaw = String(formData.get("payment_mode") ?? "single");
+  const paymentMode =
+    paymentModeRaw === "milestones" ? ("milestones" as const) : ("single" as const);
+  const milestonesJson = String(formData.get("milestones_json") ?? "");
 
   const tagIds = formData
     .getAll("tag_id")
@@ -127,6 +135,27 @@ export async function createRequest(
     return { error: null, fieldErrors: { budgetHuman: converted.error } };
   }
 
+  let milestonesRpc: { position: number; title: string; description: string; amount: string }[] | null =
+    null;
+  if (paymentMode === "milestones") {
+    const drafts = parseMilestoneDraftsJson(milestonesJson);
+    if (!drafts) {
+      return {
+        error: null,
+        fieldErrors: { milestones: "Invalid milestone schedule" },
+      };
+    }
+    const validated = validateMilestoneDrafts(
+      drafts,
+      converted.smallestUnits,
+      asset.decimals,
+    );
+    if (!validated.ok) {
+      return { error: null, fieldErrors: validated.fieldErrors as Record<string, string> };
+    }
+    milestonesRpc = validated.rows;
+  }
+
   const scheduledIso =
     timingType === "scheduled" ? parseIsoOrNull(scheduledAt) : null;
   if (timingType === "scheduled" && !scheduledIso) {
@@ -154,6 +183,8 @@ export async function createRequest(
     p_location_structured: null,
     p_tag_ids: [...new Set(tagIds)].length > 0 ? [...new Set(tagIds)] : null,
     p_publish: publish,
+    p_payment_mode: paymentMode,
+    p_milestones: milestonesRpc,
   };
 
   const { data: requestId, error: rpcError } = await supabase.rpc(

@@ -17,6 +17,39 @@ const PAGE_SIZE = 20;
 
 type PaymentRow = Database["public"]["Tables"]["engagement_escrow_payments"]["Row"];
 type AssetRow = Database["public"]["Tables"]["assets"]["Row"];
+type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
+
+async function loadMilestoneAmountsForPayment(
+  supabase: SupabaseClient,
+  payment: PaymentRow,
+): Promise<string[] | undefined> {
+  const intentId = payment.acceptance_intent_id;
+  if (!intentId) {
+    return undefined;
+  }
+
+  const { data: intent } = await supabase
+    .from("acceptance_funding_intents")
+    .select("payment_mode")
+    .eq("id", intentId)
+    .maybeSingle();
+
+  if (intent?.payment_mode !== "milestones") {
+    return undefined;
+  }
+
+  const { data: rows } = await supabase
+    .from("engagement_milestones")
+    .select("amount, position")
+    .eq("acceptance_intent_id", intentId)
+    .order("position");
+
+  if (!rows?.length) {
+    return undefined;
+  }
+
+  return rows.map((row) => normalizeDbNumericAmount(row.amount));
+}
 
 function mapActivityRow(
   row: Database["public"]["Functions"]["list_my_payment_activity"]["Returns"][number],
@@ -210,11 +243,16 @@ export async function reconcileMyPaymentActivity(): Promise<
     if (!asset) {
       continue;
     }
+    const milestoneAmountsSmallest = await loadMilestoneAmountsForPayment(
+      supabase,
+      payment,
+    );
     const outcome = await reconcileEngagementPaymentFromChain(
       payment,
       asset,
       user.id,
       { applyFundingProgress, applySettlementProgress },
+      { milestoneAmountsSmallest },
     );
     if (outcome.changed) {
       updated += 1;

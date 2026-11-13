@@ -3,7 +3,9 @@ import { ESCROW_METHODS, smallestUnitsStringToBigInt } from "@paidaid/shared";
 import type { EngagementFundingPrepareResult } from "../lib/engagement/funding-types";
 import {
   buildEscrowFundCallArgs,
+  buildEscrowFundMilestonesCallArgs,
   buildNep141FundEscrowTransferMessage,
+  fundingUsesMilestones,
 } from "../lib/near/escrow-fund-call";
 import { validateEscrowFundTerms } from "./escrow-transaction-validation";
 import type { PaidAidNearTransactionSigner } from "./paidaid-near-transaction-signer";
@@ -30,6 +32,32 @@ export async function sendNativeFundEscrowTransaction(
     actions: [
       actionCreators.functionCall(
         ESCROW_METHODS.fundEscrow,
+        args,
+        ESCROW_GAS,
+        deposit,
+      ),
+    ],
+  });
+
+  return {
+    outcome: submission.outcome,
+    txHash: submission.txHash,
+  };
+}
+
+export async function sendNativeFundEscrowMilestonesTransaction(
+  signer: PaidAidNearTransactionSigner,
+  terms: EngagementFundingPrepareResult,
+): Promise<EscrowTxResult> {
+  validateEscrowFundTerms(signer, terms);
+  const deposit = smallestUnitsStringToBigInt(terms.amountSmallestUnits);
+  const args = buildEscrowFundMilestonesCallArgs(terms);
+
+  const submission = await signer.signAndSendTransaction({
+    receiverId: terms.escrowContractId,
+    actions: [
+      actionCreators.functionCall(
+        ESCROW_METHODS.fundEscrowMilestones,
         args,
         ESCROW_GAS,
         deposit,
@@ -82,8 +110,11 @@ export async function sendFundEscrowTransaction(
   signer: PaidAidNearTransactionSigner,
   terms: EngagementFundingPrepareResult,
 ): Promise<EscrowTxResult> {
+  const milestone = fundingUsesMilestones(terms);
   if (terms.assetStandard === "native") {
-    return sendNativeFundEscrowTransaction(signer, terms);
+    return milestone
+      ? sendNativeFundEscrowMilestonesTransaction(signer, terms)
+      : sendNativeFundEscrowTransaction(signer, terms);
   }
   return sendNep141FundEscrowTransaction(signer, terms);
 }

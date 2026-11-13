@@ -36,6 +36,14 @@ import {
   fetchLinkedWalletBalanceForAsset,
   type LinkedAssetBalanceResult,
 } from "../../account/wallet-balances-action";
+import { MilestoneScheduleDisplay } from "../../../../components/milestones/milestone-schedule-display";
+import { MilestoneScheduleEditor } from "../../../../components/milestones/milestone-schedule-editor";
+import {
+  defaultMilestoneDrafts,
+  validateMilestoneDrafts,
+  type MilestoneDisplayRow,
+  type MilestoneDraft,
+} from "../../../../lib/milestones/milestone-schedule";
 import { createRequest, type CreateRequestState } from "../actions";
 
 type RequestCreateModalProps = {
@@ -184,6 +192,12 @@ export function RequestCreateModal({
   const [locationLabel, setLocationLabel] = useState("");
   const [categoryKey, setCategoryKey] = useState(CATEGORY_NONE_KEY);
   const [budgetAssetId, setBudgetAssetId] = useState(defaultAssetId);
+  const [paymentMode, setPaymentMode] = useState<"single" | "milestones">(
+    "single",
+  );
+  const [milestoneDrafts, setMilestoneDrafts] = useState<MilestoneDraft[]>(() =>
+    defaultMilestoneDrafts(2),
+  );
 
   const budgetAssetOptions = useMemo(
     () => filterTaskBudgetAssetOptions(assets),
@@ -282,7 +296,9 @@ export function RequestCreateModal({
       fe.locationLabel ||
       fe.tags ||
       fe.timingType ||
-      fe.scheduledAt
+      fe.scheduledAt ||
+      fe.milestones ||
+      Object.keys(fe).some((k) => k.startsWith("milestone_"))
     ) {
       return 2;
     }
@@ -314,6 +330,35 @@ export function RequestCreateModal({
     setPhotoFiles([list[0]!]);
   };
 
+  const budgetSmallestForMilestones = useMemo(() => {
+    if (!budgetAsset) {
+      return null;
+    }
+    const converted = humanAmountToSmallestUnits(
+      budgetHuman.trim(),
+      budgetAsset.decimals,
+    );
+    return converted.ok ? converted.smallestUnits : null;
+  }, [budgetAsset, budgetHuman]);
+
+  const reviewMilestoneRows = useMemo((): MilestoneDisplayRow[] => {
+    if (!budgetAsset || paymentMode !== "milestones") {
+      return [];
+    }
+    return milestoneDrafts.map((d) => {
+      const converted = humanAmountToSmallestUnits(
+        d.amountHuman.trim(),
+        budgetAsset.decimals,
+      );
+      return {
+        position: d.position,
+        title: d.title.trim() || `Milestone ${d.position}`,
+        description: d.description.trim(),
+        amountSmallest: converted.ok ? converted.smallestUnits : "0",
+      };
+    });
+  }, [budgetAsset, milestoneDrafts, paymentMode]);
+
   const handlePrimary = () => {
     if (effectiveStep < 3) {
       const stepErrors =
@@ -329,6 +374,21 @@ export function RequestCreateModal({
               },
               budgetAssetOptions,
             );
+      if (
+        effectiveStep === 2 &&
+        paymentMode === "milestones" &&
+        budgetAsset &&
+        budgetSmallestForMilestones
+      ) {
+        const ms = validateMilestoneDrafts(
+          milestoneDrafts,
+          budgetSmallestForMilestones,
+          budgetAsset.decimals,
+        );
+        if (!ms.ok) {
+          Object.assign(stepErrors, ms.fieldErrors);
+        }
+      }
       if (Object.keys(stepErrors).length > 0) {
         setClientFieldErrors(stepErrors);
         return;
@@ -354,6 +414,8 @@ export function RequestCreateModal({
     );
     formData.set("budget_human", budgetHuman.trim());
     formData.set("budget_asset_id", budgetAssetId);
+    formData.set("payment_mode", paymentMode);
+    formData.set("milestones_json", JSON.stringify(milestoneDrafts));
     formData.set("publish", "true");
     formData.set("stay_in_modal", "true");
     formData.delete("tag_id");
@@ -698,6 +760,38 @@ export function RequestCreateModal({
                     {fieldErrors.tags}
                   </p>
                 )}
+                <label>
+                  Payment arrangement
+                  <div className="choice-row">
+                    <button
+                      type="button"
+                      className={paymentMode === "single" ? "selected" : ""}
+                      onClick={() => setPaymentMode("single")}
+                      aria-pressed={paymentMode === "single"}
+                    >
+                      Single payment
+                    </button>
+                    <button
+                      type="button"
+                      className={paymentMode === "milestones" ? "selected" : ""}
+                      onClick={() => setPaymentMode("milestones")}
+                      aria-pressed={paymentMode === "milestones"}
+                    >
+                      Milestone payments
+                    </button>
+                  </div>
+                </label>
+                {paymentMode === "milestones" && budgetAsset ? (
+                  <MilestoneScheduleEditor
+                    idPrefix="create_ms"
+                    drafts={milestoneDrafts}
+                    onChange={setMilestoneDrafts}
+                    assetSymbol={budgetAsset.symbol}
+                    assetDecimals={budgetAsset.decimals}
+                    budgetSmallest={budgetSmallestForMilestones}
+                    fieldErrors={fieldErrors}
+                  />
+                ) : null}
               </div>
             )}
 
@@ -766,6 +860,20 @@ export function RequestCreateModal({
                   </strong>
                   <span>{dueLabel}</span>
                 </div>
+                {paymentMode === "milestones" && budgetAsset && reviewMilestoneRows.length > 0 ? (
+                  <div className="mt-4">
+                    <MilestoneScheduleDisplay
+                      rows={reviewMilestoneRows}
+                      assetSymbol={budgetAsset.symbol}
+                      assetDecimals={budgetAsset.decimals}
+                      heading="Milestone plan"
+                      budgetSmallest={budgetSmallestForMilestones}
+                      compact
+                    />
+                  </div>
+                ) : (
+                  <p className="mt-2 text-[12px] text-[var(--muted)]">Single payment</p>
+                )}
               </div>
             )}
 

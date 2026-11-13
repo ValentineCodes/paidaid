@@ -23,6 +23,8 @@ const base: AcceptanceFundingPrepareResult = {
   createTxHash: null,
   fundTxHash: null,
   onChainEscrowId: null,
+  paymentMode: "single",
+  milestoneAmountsSmallest: null,
 };
 
 describe("acceptanceIntentToWalletTerms", () => {

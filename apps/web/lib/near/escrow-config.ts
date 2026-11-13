@@ -1,5 +1,6 @@
 import {
   DEFAULT_LOCALNET_ESCROW_CONTRACT_ID,
+  DEFAULT_LOCALNET_ESCROW_MILESTONES_CONTRACT_ID,
   assertSameNearNetwork,
   chainIdFromNetwork,
   defaultRpcUrlForNetwork,
@@ -14,16 +15,27 @@ export type PaymentEscrowBinding = {
   chain_id: string;
 };
 
+/** Which on-chain escrow contract to use for a *new* funding flow (not historical payments). */
+export type EscrowFundingKind = "single" | "milestones";
+
+function readEnvEscrowId(
+  env: Record<string, string | undefined>,
+  serverKey: string,
+  publicKey: string,
+): string | undefined {
+  return env[serverKey]?.trim() || env[publicKey]?.trim() || undefined;
+}
+
 export function readEscrowContractId(
   env: Record<string, string | undefined> = process.env,
 ): string {
-  const fromServer = env.NEAR_ESCROW_CONTRACT_ID?.trim();
-  if (fromServer) {
-    return fromServer;
-  }
-  const fromPublic = env.NEXT_PUBLIC_NEAR_ESCROW_CONTRACT_ID?.trim();
-  if (fromPublic) {
-    return fromPublic;
+  const explicit = readEnvEscrowId(
+    env,
+    "NEAR_ESCROW_CONTRACT_ID",
+    "NEXT_PUBLIC_NEAR_ESCROW_CONTRACT_ID",
+  );
+  if (explicit) {
+    return explicit;
   }
   const network = (env.NEAR_NETWORK_ID ??
     env.NEXT_PUBLIC_NEAR_NETWORK_ID ??
@@ -34,6 +46,40 @@ export function readEscrowContractId(
   throw new Error(
     "NEAR_ESCROW_CONTRACT_ID is required for testnet/mainnet funding.",
   );
+}
+
+/** Milestone-capable escrow account (v2.5+). Never falls back to the legacy escrow id. */
+export function readEscrowMilestonesContractId(
+  env: Record<string, string | undefined> = process.env,
+): string {
+  const explicit = readEnvEscrowId(
+    env,
+    "NEAR_ESCROW_MILESTONES_CONTRACT_ID",
+    "NEXT_PUBLIC_NEAR_ESCROW_MILESTONES_CONTRACT_ID",
+  );
+  if (explicit) {
+    return explicit;
+  }
+  const network = (env.NEAR_NETWORK_ID ??
+    env.NEXT_PUBLIC_NEAR_NETWORK_ID ??
+    "localnet") as NearNetworkId;
+  if (network === "localnet") {
+    return DEFAULT_LOCALNET_ESCROW_MILESTONES_CONTRACT_ID;
+  }
+  throw new Error(
+    "NEAR_ESCROW_MILESTONES_CONTRACT_ID is required for testnet/mainnet milestone funding.",
+  );
+}
+
+/** Resolve escrow contract id for a new acceptance/funding flow (defaults single → legacy account). */
+export function readEscrowContractIdForNewFunding(
+  kind: EscrowFundingKind,
+  env: Record<string, string | undefined> = process.env,
+): string {
+  if (kind === "milestones") {
+    return readEscrowMilestonesContractId(env);
+  }
+  return readEscrowContractId(env);
 }
 
 export function readEscrowNearRuntimeConfig(

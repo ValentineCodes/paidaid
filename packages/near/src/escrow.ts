@@ -28,6 +28,8 @@ export type OnChainEscrowRecord = {
   amount: string | number;
   deposited: string | number;
   status: OnChainEscrowStatus;
+  milestone_amounts?: (string | number)[];
+  milestones_released?: number;
 };
 
 function smallestUnitsFromChainValue(value: unknown): bigint {
@@ -41,6 +43,16 @@ export type FundingVerificationExpectation = {
   amountSmallestUnits: string;
   assetStandard: "native" | "nep141";
   ftContractId: string | null;
+  /** When set, escrow must be a milestone schedule matching these smallest-unit strings. */
+  milestoneAmountsSmallest?: string[];
+};
+
+export type MilestoneReleaseVerificationExpectation = {
+  milestoneIndex: number;
+  milestoneAmountSmallest: string;
+  priorMilestonesReleased: number;
+  priorDepositedSmallest: string;
+  isFinalMilestone: boolean;
 };
 
 export function requireEscrowContractId(config: EscrowNearConfig): string {
@@ -512,6 +524,30 @@ export async function waitForEscrowReleaseSettlement(
   throw new Error("Timed out waiting for escrow release");
 }
 
+function onChainMilestoneAmounts(record: OnChainEscrowRecord): bigint[] {
+  const raw = record.milestone_amounts ?? [];
+  return raw.map((v) => smallestUnitsFromChainValue(v));
+}
+
+export function assertMilestoneScheduleOnChain(
+  record: OnChainEscrowRecord,
+  expectedMilestones: string[],
+): void {
+  const onChain = onChainMilestoneAmounts(record);
+  if (onChain.length !== expectedMilestones.length) {
+    throw new Error("On-chain milestone count does not match");
+  }
+  for (let i = 0; i < expectedMilestones.length; i += 1) {
+    const expected = smallestUnitsFromChainValue(expectedMilestones[i]!);
+    if (onChain[i] !== expected) {
+      throw new Error(`On-chain milestone ${i + 1} amount does not match`);
+    }
+  }
+  if ((record.milestones_released ?? 0) !== 0) {
+    throw new Error("Milestone escrow must start with no releases");
+  }
+}
+
 export function assertFundingCompleteOnChain(
   record: OnChainEscrowRecord,
   expected: FundingVerificationExpectation,
@@ -525,6 +561,78 @@ export function assertFundingCompleteOnChain(
   if (deposited !== amount) {
     throw new Error("Escrow deposited amount does not match");
   }
+
+  const onChainMilestones = onChainMilestoneAmounts(record);
+  if (expected.milestoneAmountsSmallest?.length) {
+    if (onChainMilestones.length === 0) {
+      throw new Error("Expected milestone escrow on-chain");
+    }
+    assertMilestoneScheduleOnChain(record, expected.milestoneAmountsSmallest);
+  } else if (onChainMilestones.length > 0) {
+    throw new Error("Expected single-payment escrow on-chain");
+  }
+}
+
+export function assertMilestoneReleaseOnChain(
+  record: OnChainEscrowRecord,
+  expected: MilestoneReleaseVerificationExpectation,
+): void {
+  const released = record.milestones_released ?? 0;
+  if (released !== expected.priorMilestonesReleased + 1) {
+    throw new Error("On-chain milestones_released did not advance");
+  }
+  if (released !== expected.milestoneIndex + 1) {
+    throw new Error("Milestone index mismatch after release");
+  }
+
+  const deposited = smallestUnitsFromChainValue(record.deposited);
+  const prior = smallestUnitsFromChainValue(expected.priorDepositedSmallest);
+  const payout = smallestUnitsFromChainValue(expected.milestoneAmountSmallest);
+  if (deposited + payout !== prior) {
+    throw new Error("Deposited balance did not decrease by milestone amount");
+  }
+
+  if (expected.isFinalMilestone) {
+    assertEscrowReleasedOnChain(record);
+    if (deposited !== 0n) {
+      throw new Error("Final milestone release must empty deposited balance");
+    }
+  } else {
+    if (record.status !== "Funded") {
+      throw new Error(
+        `Milestone escrow should remain funded (status ${record.status})`,
+      );
+    }
+  }
+}
+
+export async function waitForMilestoneReleaseSettlement(
+  config: EscrowNearConfig,
+  escrowId: string,
+  priorMilestonesReleased: number,
+): Promise<OnChainEscrowRecord> {
+  for (let attempt = 0; attempt < SETTLEMENT_MAX_POLL_ATTEMPTS; attempt += 1) {
+    const record = await viewEscrowRecord(config, escrowId);
+    if (!record) {
+      throw new Error("Escrow record not found");
+    }
+    const released = record.milestones_released ?? 0;
+    if (released > priorMilestonesReleased) {
+      return record;
+    }
+    if (record.status === "Releasing") {
+      await delay(SETTLEMENT_POLL_MS);
+      continue;
+    }
+    if (record.status === "Funded" || record.status === "Released") {
+      await delay(SETTLEMENT_POLL_MS);
+      continue;
+    }
+    throw new Error(
+      `Milestone release did not complete (escrow status ${record.status})`,
+    );
+  }
+  throw new Error("Timed out waiting for milestone release");
 }
 
 export function explorerTransactionUrl(

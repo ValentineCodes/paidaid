@@ -20,6 +20,7 @@ export type ReconcileOutcome =
 function buildExpectation(
   payment: PaymentRow & { engagement_id: string },
   asset: AssetRow,
+  milestoneAmountsSmallest?: string[] | null,
 ): FundingVerificationExpectation {
   return {
     engagementId: payment.engagement_id,
@@ -28,6 +29,8 @@ function buildExpectation(
     amountSmallestUnits: normalizeDbNumericAmount(payment.amount),
     assetStandard: asset.asset_standard,
     ftContractId: asset.token_contract_id,
+    milestoneAmountsSmallest:
+      milestoneAmountsSmallest?.length ? milestoneAmountsSmallest : undefined,
   };
 }
 
@@ -48,6 +51,10 @@ type SettlementFn = (
   fields: { releaseTxHash?: string | null; lastError?: string | null },
 ) => Promise<void>;
 
+export type ReconcileEngagementPaymentOptions = {
+  milestoneAmountsSmallest?: string[] | null;
+};
+
 export async function reconcileEngagementPaymentFromChain(
   payment: PaymentRow,
   asset: AssetRow,
@@ -56,6 +63,7 @@ export async function reconcileEngagementPaymentFromChain(
     applyFundingProgress: ProgressFn;
     applySettlementProgress: SettlementFn;
   },
+  options?: ReconcileEngagementPaymentOptions,
 ): Promise<ReconcileOutcome> {
   if (!payment.engagement_id) {
     return { changed: false };
@@ -69,6 +77,7 @@ export async function reconcileEngagementPaymentFromChain(
   const expectation = buildExpectation(
     { ...payment, engagement_id: engagementId },
     asset,
+    options?.milestoneAmountsSmallest,
   );
   const isRequester = payment.requester_user_id === userId;
   if (payment.requester_user_id !== userId && payment.provider_user_id !== userId) {

@@ -4,6 +4,8 @@ import {
   assertEscrowRecordMatchesFunding,
   assertEscrowReleasedOnChain,
   assertFundingCompleteOnChain,
+  assertMilestoneReleaseOnChain,
+  assertMilestoneScheduleOnChain,
   normalizeTransactionOutcome,
   parseEscrowIdFromCreateOutcome,
   parseNearU64ReturnValue,
@@ -138,5 +140,104 @@ test("assertEscrowRecordMatchesFunding accepts RPC scientific amount", () => {
   };
   assert.doesNotThrow(() =>
     assertEscrowRecordMatchesFunding(record, expected),
+  );
+});
+
+test("assertMilestoneScheduleOnChain validates milestone amounts", () => {
+  assert.doesNotThrow(() =>
+    assertMilestoneScheduleOnChain(
+      {
+        engagement_id: "e",
+        requester: "a",
+        provider: "b",
+        asset: "Native",
+        ft_contract: null,
+        amount: "300",
+        deposited: "300",
+        status: "Funded",
+        milestone_amounts: ["100", "200"],
+        milestones_released: 0,
+      },
+      ["100", "200"],
+    ),
+  );
+});
+
+test("assertFundingCompleteOnChain accepts milestone schedule expectation", () => {
+  const record = {
+    engagement_id: "e",
+    requester: "a",
+    provider: "b",
+    asset: "Native",
+    ft_contract: null,
+    amount: "300",
+    deposited: "300",
+    status: "Funded",
+    milestone_amounts: ["100", "200"],
+    milestones_released: 0,
+  } as const;
+  assert.doesNotThrow(() =>
+    assertFundingCompleteOnChain(record, {
+      engagementId: "e",
+      requesterNearAccountId: "a",
+      providerNearAccountId: "b",
+      amountSmallestUnits: "300",
+      assetStandard: "native",
+      ftContractId: null,
+      milestoneAmountsSmallest: ["100", "200"],
+    }),
+  );
+});
+
+test("assertFundingCompleteOnChain rejects single expectation on milestone escrow", () => {
+  assert.throws(() =>
+    assertFundingCompleteOnChain(
+      {
+        engagement_id: "e",
+        requester: "a",
+        provider: "b",
+        asset: "Native",
+        ft_contract: null,
+        amount: "300",
+        deposited: "300",
+        status: "Funded",
+        milestone_amounts: ["100", "200"],
+        milestones_released: 0,
+      },
+      {
+        engagementId: "e",
+        requesterNearAccountId: "a",
+        providerNearAccountId: "b",
+        amountSmallestUnits: "300",
+        assetStandard: "native",
+        ftContractId: null,
+      },
+    ),
+  );
+});
+
+test("assertMilestoneReleaseOnChain after first partial release", () => {
+  assert.doesNotThrow(() =>
+    assertMilestoneReleaseOnChain(
+      {
+        engagement_id: "e",
+        requester: "a",
+        provider: "b",
+        asset: "Native",
+        ft_contract: null,
+        amount: "300",
+        deposited: "200",
+        status: "Funded",
+        milestone_amounts: ["100", "200"],
+        milestones_released: 1,
+      },
+      {
+        milestoneIndex: 0,
+        milestoneAmountSmallest: "100",
+        priorMilestonesReleased: 0,
+        priorDepositedSmallest: "300",
+        isFinalMilestone: false,
+      },
+    ),
   );
 });

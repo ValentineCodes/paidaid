@@ -15,8 +15,13 @@ import {
   formatBudgetSmallestUnits,
   normalizeAssetDecimals,
 } from "../../../../lib/requests/format-budget";
+import { MilestoneScheduleDisplay } from "../../../../components/milestones/milestone-schedule-display";
+import { loadResponseMilestoneProposals } from "../../../../lib/milestones/load-request-milestones";
+import { milestoneOfferTermsReady } from "../../../../lib/milestones/milestone-schedule";
+import type { MilestoneDisplayRow } from "../../../../lib/milestones/milestone-schedule";
 import { loadInFlightAcceptanceResponseId } from "../acceptance-funding-actions";
 import { AcceptResponseForm } from "./accept-response-form";
+import { MilestoneReviewForm } from "./milestone-review-form";
 
 type Row = {
   id: string;
@@ -24,6 +29,7 @@ type Row = {
   proposed_amount: string;
   status: string;
   created_at: string;
+  milestone_offer_status: string | null;
   conversations?: { id: string; kind: string }[] | null;
   provider_profiles: {
     user_id: string;
@@ -43,6 +49,9 @@ type Props = {
   nowMs: number;
   /** Owner may accept pending offers when true */
   canAcceptOffers: boolean;
+  paymentMode: "single" | "milestones";
+  requestMilestones: MilestoneDisplayRow[];
+  requestBudgetSmallest: string | null;
   variant?: "drawer" | "page";
 };
 
@@ -60,6 +69,9 @@ export async function RequestResponsesOwnerList({
   assetSymbol,
   nowMs,
   canAcceptOffers,
+  paymentMode,
+  requestMilestones,
+  requestBudgetSmallest,
   variant = "page",
 }: Props) {
   const ChatLink = variant === "drawer" ? DismissDrawerLink : Link;
@@ -113,6 +125,7 @@ export async function RequestResponsesOwnerList({
       message,
       proposed_amount,
       status,
+      milestone_offer_status,
       created_at,
       conversations (
         id,
@@ -182,7 +195,12 @@ export async function RequestResponsesOwnerList({
       const photoUrl = hasPhoto
         ? await resolveProfileDisplayUrl(supabase, prof)
         : null;
-      return { ...r, photoUrl };
+      const proposalRows =
+        r.milestone_offer_status === "proposal_pending" ||
+        r.milestone_offer_status === "agreed"
+          ? await loadResponseMilestoneProposals(supabase, r.id)
+          : [];
+      return { ...r, photoUrl, proposalRows };
     }),
   );
 
@@ -194,7 +212,16 @@ export async function RequestResponsesOwnerList({
           normalizeAssetDecimals(assetDecimals),
         );
         const name = r.provider_profiles?.profiles?.display_name ?? "Provider";
-        const showAccept = canAcceptOffers && r.status === "pending";
+        const termsReady = milestoneOfferTermsReady(
+          paymentMode,
+          r.milestone_offer_status,
+        );
+        const showAccept =
+          canAcceptOffers && r.status === "pending" && termsReady;
+        const showMilestoneReview =
+          paymentMode === "milestones" &&
+          r.milestone_offer_status === "proposal_pending" &&
+          r.proposalRows.length > 0;
         const createdAt = new Date(r.created_at);
         const postedLabel = Number.isNaN(createdAt.getTime())
           ? "—"
@@ -267,8 +294,33 @@ export async function RequestResponsesOwnerList({
               </strong>
             </div>
 
+            {paymentMode === "milestones" ? (() => {
+              const workerMilestoneRows =
+                r.proposalRows.length > 0
+                  ? r.proposalRows
+                  : requestMilestones;
+              if (workerMilestoneRows.length === 0) {
+                return null;
+              }
+              return (
+                <div className="mt-3 flex flex-col gap-3">
+                  <MilestoneScheduleDisplay
+                    rows={workerMilestoneRows}
+                    assetSymbol={assetSymbol}
+                    assetDecimals={normalizeAssetDecimals(assetDecimals)}
+                    budgetSmallest={String(r.proposed_amount)}
+                    compact
+                  />
+                </div>
+              );
+            })() : null}
+
             {r.message ? (
               <p className="request-response-card__message">{r.message}</p>
+            ) : null}
+
+            {showMilestoneReview ? (
+              <MilestoneReviewForm requestId={requestId} responseId={r.id} />
             ) : null}
 
             {showAccept ? (
