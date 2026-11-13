@@ -4,7 +4,7 @@ import type { createClient } from "../supabase/server";
 import type { Database } from "../database.types";
 import type { ChatMessagePayload } from "./chat-types";
 import { mapListConversationMessagesRpc } from "./map-list-messages-rpc";
-import { requesterHasMessagedInPreAccept } from "./pre-accept-chat-access";
+import { conversationInitializedByRequester } from "./pre-accept-chat-access";
 
 type Client = Awaited<ReturnType<typeof createClient>>;
 
@@ -213,7 +213,7 @@ export async function loadConversationThreadData(
 
   let providerAwaitingRequester = false;
   if (conv.kind === "pre_accept" && peerId === reqRow.requester_id) {
-    const messaged = await requesterHasMessagedInPreAccept(
+    const messaged = await conversationInitializedByRequester(
       supabase,
       conversationId,
       reqRow.requester_id,

@@ -2,7 +2,8 @@ import type { createClient } from "../supabase/server";
 
 type Client = Awaited<ReturnType<typeof createClient>>;
 
-export async function requesterHasMessagedInPreAccept(
+/** True once the requester has sent any message in this conversation (pre-accept or engagement). */
+export async function conversationInitializedByRequester(
   supabase: Client,
   conversationId: string,
   requesterId: string,
@@ -57,7 +58,7 @@ export async function resolvePreAcceptChatForViewer(
     return { showChatLink: false, hasUnread: false };
   }
 
-  const requesterMessaged = await requesterHasMessagedInPreAccept(
+  const requesterMessaged = await conversationInitializedByRequester(
     supabase,
     conversationId,
     requesterId,

@@ -1,6 +1,6 @@
 import type { createClient } from "../supabase/server";
 import type { Database } from "../database.types";
-import { requesterHasMessagedInPreAccept } from "./pre-accept-chat-access";
+import { conversationInitializedByRequester } from "./pre-accept-chat-access";
 
 type Client = Awaited<ReturnType<typeof createClient>>;
 type ConvKind = Database["public"]["Enums"]["conversation_kind"];
@@ -178,20 +178,16 @@ export async function loadMessagesSidebarData(
     return [];
   }
 
-  const providerPreAcceptVisible = await Promise.all(
-    validRows.map(async (r) => {
-      if (r.kind !== "pre_accept") {
-        return true;
-      }
-      const requesterId = r.requests.requester_id;
-      const providerUid = peerByConv.get(r.id);
-      if (providerUid !== userId) {
-        return true;
-      }
-      return requesterHasMessagedInPreAccept(supabase, r.id, requesterId);
-    }),
+  const requesterInitiated = await Promise.all(
+    validRows.map((r) =>
+      conversationInitializedByRequester(
+        supabase,
+        r.id,
+        r.requests.requester_id,
+      ),
+    ),
   );
-  validRows = validRows.filter((_, i) => providerPreAcceptVisible[i]);
+  validRows = validRows.filter((_, i) => requesterInitiated[i]);
   if (validRows.length === 0) {
     return [];
   }
