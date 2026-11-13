@@ -3259,6 +3259,161 @@ body.app.dark .engagement-delivery-card,
   object-fit: cover;
 }
 
+.my-pending-offer {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 92%, var(--accent) 8%);
+  box-shadow:
+    0 1px 0 rgb(20 30 24 / 4%),
+    0 8px 28px rgb(20 30 24 / 6%);
+}
+
+.my-pending-offer__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.my-pending-offer__eyebrow {
+  margin: 0;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.15px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.my-pending-offer__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 0;
+}
+
+.my-pending-offer__pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #e6f6ed;
+  color: #378c62;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+body.app.dark .my-pending-offer__pill {
+  background: color-mix(in srgb, #378c62 22%, transparent);
+  color: #8fd4ad;
+}
+
+.my-pending-offer__time {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.my-pending-offer__amount {
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.my-pending-offer__amount-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.my-pending-offer__amount-value {
+  margin: 6px 0 0;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+
+.my-pending-offer__amount-value span {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-left: 4px;
+}
+
+.my-pending-offer__headline {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.my-pending-offer__message {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
+  background: color-mix(in srgb, var(--muted) 8%, var(--surface));
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink);
+  white-space: pre-wrap;
+}
+
+.my-pending-offer__footer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+.my-pending-offer__withdraw {
+  width: 100%;
+  min-height: 44px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, #dc2626 35%, var(--line));
+  background: transparent;
+  font-size: 13px;
+  font-weight: 700;
+  color: #b91c1c;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease;
+}
+
+.my-pending-offer__withdraw:hover:not(:disabled) {
+  background: color-mix(in srgb, #dc2626 8%, transparent);
+  border-color: color-mix(in srgb, #dc2626 50%, var(--line));
+}
+
+.my-pending-offer__withdraw:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+body.app.dark .my-pending-offer__withdraw {
+  color: #fca5a5;
+  border-color: color-mix(in srgb, #fca5a5 35%, var(--line));
+}
+
+body.app.dark .my-pending-offer__withdraw:hover:not(:disabled) {
+  background: color-mix(in srgb, #7f1d1d 35%, transparent);
+}
+
 .request-response-list {
   display: flex;
   flex-direction: column;

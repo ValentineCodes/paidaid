@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "../../../../lib/supabase/server";
 import { isSupabaseConfigured } from "../../../../lib/supabase/env";
-import { profileHasPhotoForGating } from "../../../../lib/profiles/resolve-photo";
 import { getRequestWallTimeMs } from "../../../../lib/datetime/request-wall-time";
 import { loadConversationThreadData } from "../../../../lib/messages/load-conversation-thread";
 import { loadMessagesSidebarData } from "../../../../lib/messages/load-messages-sidebar";
@@ -38,14 +37,6 @@ export default async function MessageThreadPage({ params }: PageProps) {
 
   const thread = await loadConversationThreadData(supabase, user.id, id);
 
-  const { data: meProfile } = await supabase
-    .from("profiles")
-    .select("avatar_url, live_profile_photo_path")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  const hasProfilePhoto = profileHasPhotoForGating(meProfile);
-
   const sidebarRows = await loadMessagesSidebarData(supabase, user.id, nowMs);
 
   return (
@@ -72,7 +63,6 @@ export default async function MessageThreadPage({ params }: PageProps) {
           peerAvatarClass={thread.peerAvatarClass}
           chatSubtitle={thread.chatSubtitle}
           peerPhone={thread.peerPhone}
-          hasProfilePhoto={hasProfilePhoto}
           hideChatHead={false}
         />
       </MessagesShell>

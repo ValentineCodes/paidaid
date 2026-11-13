@@ -1,6 +1,6 @@
 import type { Tables } from "../database.types";
 
-/** True if the profile can be shown with a photo in listings and satisfies server gates. */
+/** True if the profile has an avatar for display in listings and cards. */
 export function profileHasUsablePhoto(
   row: Pick<
     Tables<"profiles">,

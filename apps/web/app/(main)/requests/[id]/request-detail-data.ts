@@ -35,6 +35,14 @@ function parsePhotoPaths(raw: Json | undefined): string[] {
   return raw.filter((p): p is string => typeof p === "string");
 }
 
+export type ProviderPendingResponse = {
+  id: string;
+  message: string | null;
+  proposedAmountSmallest: string;
+  createdAt: string;
+  headline: string | null;
+};
+
 export type RequestDetailPageData = {
   /** Wall time (ms) for relative labels — from the route after `connection()`. */
   nowMs: number;
@@ -58,8 +66,7 @@ export type RequestDetailPageData = {
   displaySymbol: string;
   displayDecimals: number;
   photoUrls: string[];
-  hasProfilePhoto: boolean;
-  pendingResponseId: string | null;
+  pendingResponse: ProviderPendingResponse | null;
   preConversationId: string | null;
   showRespond: boolean;
   canAcceptOffers: boolean;
@@ -240,9 +247,7 @@ export async function loadRequestDetailPageData(
           ? `In person — ${locationLabel}`
           : "In person";
 
-  const hasProfilePhoto = profileHasUsablePhoto(profileRow);
-
-  let pendingResponseId: string | null = null;
+  let pendingResponse: ProviderPendingResponse | null = null;
   if (user && !isOwner && status === "open" && pub) {
     const { data: pp } = await supabase
       .from("provider_profiles")
@@ -252,12 +257,29 @@ export async function loadRequestDetailPageData(
     if (pp) {
       const { data: pend } = await supabase
         .from("request_responses")
-        .select("id")
+        .select(
+          "id, message, proposed_amount, created_at, provider_profiles ( headline )",
+        )
         .eq("request_id", id)
         .eq("provider_profile_id", pp.id)
         .eq("status", "pending")
         .maybeSingle();
-      pendingResponseId = pend?.id ?? null;
+      if (pend) {
+        const ppJoin = pend.provider_profiles as
+          | { headline: string | null }
+          | { headline: string | null }[]
+          | null;
+        const headline =
+          (Array.isArray(ppJoin) ? ppJoin[0]?.headline : ppJoin?.headline) ??
+          null;
+        pendingResponse = {
+          id: pend.id,
+          message: pend.message?.trim() ? pend.message.trim() : null,
+          proposedAmountSmallest: String(pend.proposed_amount),
+          createdAt: pend.created_at,
+          headline: headline?.trim() ? headline.trim() : null,
+        };
+      }
     }
   }
 
@@ -269,13 +291,13 @@ export async function loadRequestDetailPageData(
   );
 
   let preConversationId: string | null = null;
-  if (user && !isOwner && status === "open" && pub && pendingResponseId) {
+  if (user && !isOwner && status === "open" && pub && pendingResponse) {
     const { data: preConv } = await supabase
       .from("conversations")
       .select("id")
       .eq("request_id", id)
       .eq("kind", "pre_accept")
-      .eq("response_id", pendingResponseId)
+      .eq("response_id", pendingResponse.id)
       .maybeSingle();
     preConversationId = preConv?.id ?? null;
   }
@@ -371,8 +393,7 @@ export async function loadRequestDetailPageData(
     displaySymbol,
     displayDecimals,
     photoUrls,
-    hasProfilePhoto,
-    pendingResponseId,
+    pendingResponse,
     preConversationId,
     showRespond,
     canAcceptOffers,

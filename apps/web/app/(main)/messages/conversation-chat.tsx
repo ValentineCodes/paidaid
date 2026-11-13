@@ -34,7 +34,6 @@ type Props = {
   chatSubtitle: string;
   /** Co-participant phone when visible */
   peerPhone: string | null;
-  hasProfilePhoto: boolean;
   /** When nested in `messages-shell`, header is optional (detail route shows it). */
   hideChatHead?: boolean;
   /** Mobile back control to inbox (left of peer avatar in header). */
@@ -118,7 +117,6 @@ export function ConversationChat({
   peerAvatarClass,
   chatSubtitle,
   peerPhone,
-  hasProfilePhoto,
   hideChatHead = false,
   backHref,
 }: Props) {
@@ -132,7 +130,6 @@ export function ConversationChat({
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
-  const [canSendMessages, setCanSendMessages] = useState(hasProfilePhoto);
   const [readByPeer, setReadByPeer] = useState<Set<string>>(new Set());
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -140,30 +137,6 @@ export function ConversationChat({
   useEffect(() => {
     void supabase.auth.getUser().then(({ data }) => setUser(data.user));
   }, [supabase]);
-
-  useEffect(() => {
-    setCanSendMessages(hasProfilePhoto);
-  }, [hasProfilePhoto]);
-
-  useEffect(() => {
-    let cancelled = false;
-    void supabase
-      .from("profiles")
-      .select("avatar_url, live_profile_photo_path")
-      .eq("id", currentUserId)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (cancelled || !data) {
-          return;
-        }
-        const live = data.live_profile_photo_path?.trim() ?? "";
-        const ext = data.avatar_url?.trim() ?? "";
-        setCanSendMessages(live.length > 0 || ext.length > 0);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [supabase, currentUserId]);
 
   const syncMessagesFromServer = useCallback(async () => {
     const rows = await fetchConversationMessages(supabase, conversationId);
@@ -326,10 +299,6 @@ export function ConversationChat({
     if (sending || (!t && pendingFiles.length === 0)) {
       return;
     }
-    if (!canSendMessages) {
-      setError("Add a profile photo in Account before messaging.");
-      return;
-    }
     if (pendingFiles.length > 0) {
       const val = validateChatFiles(pendingFiles);
       if (!val.ok) {
@@ -413,10 +382,6 @@ export function ConversationChat({
   }
 
   async function shareLocation() {
-    if (!canSendMessages) {
-      setError("Add a profile photo in Account before messaging.");
-      return;
-    }
     if (!navigator.geolocation) {
       setError("Location is not available in this browser.");
       return;
@@ -481,7 +446,7 @@ export function ConversationChat({
           <button
             type="button"
             onClick={() => void shareLocation()}
-            disabled={sending || !user || !canSendMessages}
+            disabled={sending || !user}
           >
             <FigmaIcon name="pin" size={17} /> Share location
           </button>
@@ -584,7 +549,7 @@ export function ConversationChat({
           type="button"
           className="attach-trigger icon-button shrink-0"
           aria-label="Attach files"
-          disabled={!canSendMessages}
+          disabled={!user}
           onClick={() => fileInputRef.current?.click()}
         >
           <FigmaIcon name="attach" size={18} />
@@ -608,7 +573,7 @@ export function ConversationChat({
         <button
           type="button"
           className="send"
-          disabled={sending || !user || !canSendMessages}
+          disabled={sending || !user}
           aria-label="Send message"
           onClick={() => void sendText()}
         >
@@ -616,11 +581,6 @@ export function ConversationChat({
         </button>
       </div>
 
-      {!canSendMessages ? (
-        <p className="border-t border-[var(--line)] px-4 py-2 text-[11px] text-amber-800 dark:text-amber-200">
-          Add a profile photo in Account settings to send messages.
-        </p>
-      ) : null}
       {error ? (
         <p className="border-t border-[var(--line)] px-4 py-2 text-[11px] text-red-700 dark:text-red-300">
           {error}

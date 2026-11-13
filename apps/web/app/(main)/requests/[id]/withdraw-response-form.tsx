@@ -11,11 +11,15 @@ import {
 
 const initial: WithdrawResponseState = { error: null };
 
-function WithdrawButton() {
+function WithdrawButton({ variant }: { variant: "primary" | "subtle" }) {
   const { pending } = useFormStatus();
+  const className =
+    variant === "subtle"
+      ? "my-pending-offer__withdraw"
+      : "primary-wide";
   return (
-    <button type="submit" disabled={pending} className="primary-wide">
-      {pending ? "Withdrawing…" : "Withdraw response"}
+    <button type="submit" disabled={pending} className={className}>
+      {pending ? "Withdrawing…" : "Withdraw offer"}
     </button>
   );
 }
@@ -23,9 +27,14 @@ function WithdrawButton() {
 type Props = {
   responseId: string;
   requestId: string;
+  variant?: "primary" | "subtle";
 };
 
-export function WithdrawResponseForm({ responseId, requestId }: Props) {
+export function WithdrawResponseForm({
+  responseId,
+  requestId,
+  variant = "primary",
+}: Props) {
   const [state, formAction] = useActionState(withdrawRequestResponse, initial);
   const router = useRouter();
 
@@ -47,7 +56,7 @@ export function WithdrawResponseForm({ responseId, requestId }: Props) {
           Response withdrawn.
         </p>
       )}
-      <WithdrawButton />
+      <WithdrawButton variant={variant} />
     </form>
   );
 }

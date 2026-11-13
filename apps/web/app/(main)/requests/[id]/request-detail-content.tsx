@@ -70,8 +70,7 @@ export function RequestDetailContent({ data, variant }: Props) {
     displaySymbol,
     displayDecimals,
     photoUrls,
-    hasProfilePhoto,
-    pendingResponseId,
+    pendingResponse,
     preConversationId,
     showRespond,
     canAcceptOffers,
@@ -208,8 +207,8 @@ export function RequestDetailContent({ data, variant }: Props) {
               budgetAmountSmallest={budgetAmountStr}
               assetSymbol={displaySymbol}
               assetDecimals={displayDecimals}
-              hasProfilePhoto={hasProfilePhoto}
-              pendingResponseId={pendingResponseId}
+              nowMs={nowMs}
+              pendingResponse={pendingResponse}
               preConversationId={preConversationId}
             />
         )}
@@ -408,8 +407,8 @@ export function RequestDetailContent({ data, variant }: Props) {
           budgetAmountSmallest={budgetAmountStr}
           assetSymbol={displaySymbol}
           assetDecimals={displayDecimals}
-          hasProfilePhoto={hasProfilePhoto}
-          pendingResponseId={pendingResponseId}
+          nowMs={nowMs}
+          pendingResponse={pendingResponse}
           preConversationId={preConversationId}
         />
       )}

@@ -1,10 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 
 import { DismissDrawerLink } from "../../../../components/dismiss-drawer-link";
 import { FigmaIcon } from "../../../../components/figma-icons";
+import { formatPostedRelative } from "../../../../lib/datetime/relative-from-now";
+import { formatBudgetSmallestUnits } from "../../../../lib/requests/format-budget";
+import type { ProviderPendingResponse } from "./request-detail-data";
 import { ResponseOfferForm } from "./response-offer-form";
 import { WithdrawResponseForm } from "./withdraw-response-form";
 
@@ -14,8 +16,8 @@ type Props = {
   budgetAmountSmallest: string;
   assetSymbol: string;
   assetDecimals: number;
-  hasProfilePhoto: boolean;
-  pendingResponseId: string | null;
+  nowMs: number;
+  pendingResponse: ProviderPendingResponse | null;
   preConversationId: string | null;
 };
 
@@ -24,8 +26,8 @@ export function RespondSection({
   budgetAmountSmallest,
   assetSymbol,
   assetDecimals,
-  hasProfilePhoto,
-  pendingResponseId,
+  nowMs,
+  pendingResponse,
   preConversationId,
 }: Props) {
   const [offering, setOffering] = useState(false);
@@ -36,41 +38,67 @@ export function RespondSection({
         Respond to this request
       </h2>
 
-      {!hasProfilePhoto && (
-        <div className="detail-section border-0 p-0">
-          <h4>Add a profile photo first</h4>
-          <p>
-            Upload a photo on your account so people know who they’re talking
-            to. Any image file works — JPEG, PNG, WebP, or GIF.
-          </p>
-          <DismissDrawerLink href="/account/edit" className="primary-wide">
-            Open account settings
-          </DismissDrawerLink>
-        </div>
-      )}
+      {pendingResponse ? (
+        <div className="my-pending-offer">
+          <header className="my-pending-offer__head">
+            <div className="min-w-0 flex-1">
+              <p className="my-pending-offer__eyebrow">Your pending offer</p>
+              <p className="my-pending-offer__status">
+                <span className="my-pending-offer__pill">Awaiting requester</span>
+                <time
+                  dateTime={pendingResponse.createdAt}
+                  className="my-pending-offer__time"
+                >
+                  {formatPostedRelative(
+                    new Date(pendingResponse.createdAt),
+                    nowMs,
+                  )}
+                </time>
+              </p>
+            </div>
+            {preConversationId ? (
+              <DismissDrawerLink
+                href={`/messages/${preConversationId}`}
+                className="engagement-person-card__chat shrink-0"
+                aria-label="Chat with requester"
+              >
+                <span className="engagement-connect-icon" aria-hidden>
+                  <FigmaIcon name="message" size={20} />
+                </span>
+              </DismissDrawerLink>
+            ) : null}
+          </header>
 
-      {hasProfilePhoto && pendingResponseId && (
-        <div className="flex flex-col gap-3">
-          <p className="text-[13px] text-[var(--muted)]">
-            You have a pending response on this request. Withdraw it if you
-            change your mind.
-          </p>
-          {preConversationId && (
-            <DismissDrawerLink
-              href={`/messages/${preConversationId}`}
-              className="text-[13px] font-bold text-[var(--ink)] underline"
-            >
-              Open chat with requester
-            </DismissDrawerLink>
-          )}
-          <WithdrawResponseForm
-            responseId={pendingResponseId}
-            requestId={requestId}
-          />
-        </div>
-      )}
+          <div className="my-pending-offer__amount">
+            <span className="my-pending-offer__amount-label">Proposed amount</span>
+            <p className="my-pending-offer__amount-value">
+              {formatBudgetSmallestUnits(
+                pendingResponse.proposedAmountSmallest,
+                assetDecimals,
+              )}{" "}
+              <span>{assetSymbol}</span>
+            </p>
+          </div>
 
-      {hasProfilePhoto && !pendingResponseId && (
+          {pendingResponse.headline ? (
+            <p className="my-pending-offer__headline">{pendingResponse.headline}</p>
+          ) : null}
+
+          {pendingResponse.message ? (
+            <blockquote className="my-pending-offer__message">
+              {pendingResponse.message}
+            </blockquote>
+          ) : null}
+
+          <div className="my-pending-offer__footer">
+            <WithdrawResponseForm
+              responseId={pendingResponse.id}
+              requestId={requestId}
+              variant="subtle"
+            />
+          </div>
+        </div>
+      ) : (
         <>
           {!offering ? (
             <button
