@@ -1444,6 +1444,10 @@ body.app.dark .accept-funding-success-inline,
   margin: 24px 0 30px;
 }
 
+.step-line--4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
 .step-line span {
   height: 3px;
   background: var(--line);

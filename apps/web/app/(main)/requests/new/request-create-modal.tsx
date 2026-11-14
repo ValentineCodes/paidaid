@@ -55,7 +55,7 @@ type RequestCreateModalProps = {
 
 const initialState: CreateRequestState = { error: null };
 
-type Step = 1 | 2 | 3;
+type Step = 1 | 2 | 3 | 4;
 
 /** Figma labels map to our DB categories; we pick one representative tag per category. */
 const CATEGORY_OPTIONS: {
@@ -136,13 +136,28 @@ function validateCreateStep1(title: string, description: string) {
   return fieldErrors;
 }
 
-function validateCreateStep2(
+function validateCreateStep2(input: {
+  deadlineDate: string;
+  locationKind: "online" | "in_person";
+  locationLabel: string;
+}) {
+  const fieldErrors: Record<string, string> = {};
+  if (input.deadlineDate.trim() === "") {
+    fieldErrors.deadlineAt = "Pick a deadline";
+  }
+  if (
+    input.locationKind === "in_person" &&
+    input.locationLabel.trim().length < 1
+  ) {
+    fieldErrors.locationLabel = "Add a short location for in-person tasks";
+  }
+  return fieldErrors;
+}
+
+function validateCreateStep3(
   input: {
     budgetHuman: string;
     budgetAssetId: string;
-    deadlineDate: string;
-    locationKind: "online" | "in_person";
-    locationLabel: string;
   },
   budgetOptions: readonly BudgetAssetOption[],
 ) {
@@ -158,15 +173,6 @@ function validateCreateStep2(
   );
   if (!converted.ok) {
     fieldErrors.budgetHuman = converted.error;
-  }
-  if (input.deadlineDate.trim() === "") {
-    fieldErrors.deadlineAt = "Pick a deadline";
-  }
-  if (
-    input.locationKind === "in_person" &&
-    input.locationLabel.trim().length < 1
-  ) {
-    fieldErrors.locationLabel = "Add a short location for in-person tasks";
   }
   return fieldErrors;
 }
@@ -286,19 +292,23 @@ export function RequestCreateModal({
       return 1;
     }
     if (fe.photos) {
-      return 3;
+      return 4;
     }
     if (
       fe.budgetHuman ||
       fe.budgetAssetId ||
+      fe.milestones ||
+      Object.keys(fe).some((k) => k.startsWith("milestone_"))
+    ) {
+      return 3;
+    }
+    if (
       fe.deadlineAt ||
       fe.locationKind ||
       fe.locationLabel ||
       fe.tags ||
       fe.timingType ||
-      fe.scheduledAt ||
-      fe.milestones ||
-      Object.keys(fe).some((k) => k.startsWith("milestone_"))
+      fe.scheduledAt
     ) {
       return 2;
     }
@@ -306,7 +316,7 @@ export function RequestCreateModal({
   }, [step, state.fieldErrors]);
 
   useEffect(() => {
-    if (effectiveStep !== 2 || !budgetAssetId) {
+    if (effectiveStep !== 3 || !budgetAssetId) {
       return;
     }
     let cancelled = false;
@@ -360,22 +370,22 @@ export function RequestCreateModal({
   }, [budgetAsset, milestoneDrafts, paymentMode]);
 
   const handlePrimary = () => {
-    if (effectiveStep < 3) {
+    if (effectiveStep < 4) {
       const stepErrors =
         effectiveStep === 1
           ? validateCreateStep1(title, description)
-          : validateCreateStep2(
-              {
-                budgetHuman,
-                budgetAssetId,
+          : effectiveStep === 2
+            ? validateCreateStep2({
                 deadlineDate,
                 locationKind,
                 locationLabel,
-              },
-              budgetAssetOptions,
-            );
+              })
+            : validateCreateStep3(
+                { budgetHuman, budgetAssetId },
+                budgetAssetOptions,
+              );
       if (
-        effectiveStep === 2 &&
+        effectiveStep === 3 &&
         paymentMode === "milestones" &&
         budgetAsset &&
         budgetSmallestForMilestones
@@ -394,7 +404,7 @@ export function RequestCreateModal({
         return;
       }
       setClientFieldErrors({});
-      setStep(Math.min(3, effectiveStep + 1) as Step);
+      setStep(Math.min(4, effectiveStep + 1) as Step);
       return;
     }
     const deadlineAt =
@@ -475,26 +485,31 @@ export function RequestCreateModal({
 
         {!isPublished ? (
           <>
-            <div className="step-line">
+            <div className="step-line step-line--4">
               <span className={effectiveStep >= 1 ? "on" : ""} />
               <span className={effectiveStep >= 2 ? "on" : ""} />
               <span className={effectiveStep >= 3 ? "on" : ""} />
+              <span className={effectiveStep >= 4 ? "on" : ""} />
             </div>
             <div className="form-intro">
-              <span>STEP {effectiveStep} OF 3</span>
+              <span>STEP {effectiveStep} OF 4</span>
               <h2>
                 {effectiveStep === 1
                   ? "What do you need done?"
                   : effectiveStep === 2
                     ? "Set the details"
-                    : "Review your task"}
+                    : effectiveStep === 3
+                      ? "Budget and payment"
+                      : "Review your task"}
               </h2>
               <p>
                 {effectiveStep === 1
                   ? "A clear brief helps the right people find you."
                   : effectiveStep === 2
-                    ? "Help people understand the scope and timing."
-                    : "Make sure everything looks right before publishing."}
+                    ? "Help people understand timing and where work happens."
+                    : effectiveStep === 3
+                      ? "Choose how much to offer and how you’ll pay."
+                      : "Make sure everything looks right before publishing."}
               </p>
             </div>
 
@@ -553,133 +568,22 @@ export function RequestCreateModal({
 
             {effectiveStep === 2 && (
               <div className="form-fields">
-                {budgetAssetOptions.length > 1 ? (
-                  <label>
-                    Payment asset
-                    <Select
-                      modal={false}
-                      items={Object.fromEntries(
-                        budgetAssetOptions.map((a) => [a.id, a.symbol]),
-                      )}
-                      value={budgetAssetId}
-                      onValueChange={(value) => {
-                        if (value == null) {
-                          return;
-                        }
-                        const nextId = String(value);
-                        setBudgetAssetId(nextId);
-                        clearClientFieldError("budgetAssetId");
-                        clearClientFieldError("budgetHuman");
-                        const nextAsset = budgetAssetOptions.find(
-                          (a) => a.id === nextId,
-                        );
-                        if (nextAsset && budgetHuman.trim()) {
-                          const converted = humanAmountToSmallestUnits(
-                            budgetHuman,
-                            nextAsset.decimals,
-                          );
-                          if (!converted.ok) {
-                            setClientFieldErrors((prev) => ({
-                              ...prev,
-                              budgetHuman: converted.error,
-                            }));
-                          }
-                        }
-                      }}
-                    >
-                      <SelectTrigger aria-label="Payment asset">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {budgetAssetOptions.map((a) => (
-                          <SelectItem key={a.id} value={a.id}>
-                            {a.symbol}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {fieldErrors.budgetAssetId ? (
-                      <p className="mb-0 mt-1 text-[11px] text-red-600 dark:text-red-400">
-                        {fieldErrors.budgetAssetId}
-                      </p>
-                    ) : null}
-                  </label>
-                ) : null}
-                <div className="two-col">
-                  <label>
-                    Budget
-                    <div className="amount-input">
-                      <input
-                        placeholder="0"
-                        inputMode="decimal"
-                        autoComplete="off"
-                        value={budgetHuman}
-                        onChange={(e) => {
-                          setBudgetHuman(sanitizeHumanAmountInput(e.target.value));
-                          clearClientFieldError("budgetHuman");
-                        }}
-                        aria-describedby="create-budget-asset-hint"
-                      />
-                      <span aria-hidden>{budgetAsset?.symbol ?? "—"}</span>
-                    </div>
-                    <p
-                      id="create-budget-asset-hint"
-                      className="mb-0 mt-1 text-[11px] text-[var(--muted)] sr-only"
-                    >
-                      Amount in {budgetAsset?.symbol ?? "—"}
+                <label>
+                  Deadline
+                  <input
+                    type="date"
+                    value={deadlineDate}
+                    onChange={(e) => {
+                      setDeadlineDate(e.target.value);
+                      clearClientFieldError("deadlineAt");
+                    }}
+                  />
+                  {fieldErrors.deadlineAt ? (
+                    <p className="mb-0 mt-1 text-[11px] text-red-600 dark:text-red-400">
+                      {fieldErrors.deadlineAt}
                     </p>
-                    {linkedBalanceLoading ? (
-                      <div
-                        className="mb-0 mt-1 h-3.5 w-24 animate-pulse rounded bg-stone-300/60 dark:bg-stone-600/40"
-                        aria-hidden
-                      />
-                    ) : linkedBalance?.ok ? (
-                      <p className="mb-0 mt-1 text-[11px] text-[var(--muted)]">
-                        Balance:{" "}
-                        <span className="font-mono text-[var(--ink)]">
-                          {linkedBalance.line.displayAmount}{" "}
-                          {linkedBalance.line.symbol}
-                        </span>
-                      </p>
-                    ) : linkedBalance && !linkedBalance.ok ? (
-                      <p
-                        className="mb-0 mt-1 text-[11px] text-[var(--muted)]"
-                        title={
-                          linkedBalance.code === "rpc"
-                            ? linkedBalance.error
-                            : undefined
-                        }
-                      >
-                        {linkedBalance.code === "not_linked"
-                          ? "Link a NEAR wallet on Account to see your balance."
-                          : linkedBalance.code === "rpc"
-                            ? "Could not load balance right now."
-                            : linkedBalance.error}
-                      </p>
-                    ) : null}
-                    {fieldErrors.budgetHuman ? (
-                      <p className="mb-0 mt-1 text-[11px] text-red-600 dark:text-red-400">
-                        {fieldErrors.budgetHuman}
-                      </p>
-                    ) : null}
-                  </label>
-                  <label>
-                    Deadline
-                    <input
-                      type="date"
-                      value={deadlineDate}
-                      onChange={(e) => {
-                        setDeadlineDate(e.target.value);
-                        clearClientFieldError("deadlineAt");
-                      }}
-                    />
-                    {fieldErrors.deadlineAt ? (
-                      <p className="mb-0 mt-1 text-[11px] text-red-600 dark:text-red-400">
-                        {fieldErrors.deadlineAt}
-                      </p>
-                    ) : null}
-                  </label>
-                </div>
+                  ) : null}
+                </label>
                 <label>
                   How will this happen?
                   <div className="choice-row">
@@ -760,6 +664,120 @@ export function RequestCreateModal({
                     {fieldErrors.tags}
                   </p>
                 )}
+              </div>
+            )}
+
+            {effectiveStep === 3 && (
+              <div className="form-fields">
+                {budgetAssetOptions.length > 1 ? (
+                  <label>
+                    Payment asset
+                    <Select
+                      modal={false}
+                      items={Object.fromEntries(
+                        budgetAssetOptions.map((a) => [a.id, a.symbol]),
+                      )}
+                      value={budgetAssetId}
+                      onValueChange={(value) => {
+                        if (value == null) {
+                          return;
+                        }
+                        const nextId = String(value);
+                        setBudgetAssetId(nextId);
+                        clearClientFieldError("budgetAssetId");
+                        clearClientFieldError("budgetHuman");
+                        const nextAsset = budgetAssetOptions.find(
+                          (a) => a.id === nextId,
+                        );
+                        if (nextAsset && budgetHuman.trim()) {
+                          const converted = humanAmountToSmallestUnits(
+                            budgetHuman,
+                            nextAsset.decimals,
+                          );
+                          if (!converted.ok) {
+                            setClientFieldErrors((prev) => ({
+                              ...prev,
+                              budgetHuman: converted.error,
+                            }));
+                          }
+                        }
+                      }}
+                    >
+                      <SelectTrigger aria-label="Payment asset">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {budgetAssetOptions.map((a) => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {a.symbol}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {fieldErrors.budgetAssetId ? (
+                      <p className="mb-0 mt-1 text-[11px] text-red-600 dark:text-red-400">
+                        {fieldErrors.budgetAssetId}
+                      </p>
+                    ) : null}
+                  </label>
+                ) : null}
+                <label>
+                  Budget
+                  <div className="amount-input">
+                    <input
+                      placeholder="0"
+                      inputMode="decimal"
+                      autoComplete="off"
+                      value={budgetHuman}
+                      onChange={(e) => {
+                        setBudgetHuman(sanitizeHumanAmountInput(e.target.value));
+                        clearClientFieldError("budgetHuman");
+                      }}
+                      aria-describedby="create-budget-asset-hint"
+                    />
+                    <span aria-hidden>{budgetAsset?.symbol ?? "—"}</span>
+                  </div>
+                  <p
+                    id="create-budget-asset-hint"
+                    className="mb-0 mt-1 text-[11px] text-[var(--muted)] sr-only"
+                  >
+                    Amount in {budgetAsset?.symbol ?? "—"}
+                  </p>
+                  {linkedBalanceLoading ? (
+                    <div
+                      className="mb-0 mt-1 h-3.5 w-24 animate-pulse rounded bg-stone-300/60 dark:bg-stone-600/40"
+                      aria-hidden
+                    />
+                  ) : linkedBalance?.ok ? (
+                    <p className="mb-0 mt-1 text-[11px] text-[var(--muted)]">
+                      Balance:{" "}
+                      <span className="font-mono text-[var(--ink)]">
+                        {linkedBalance.line.displayAmount}{" "}
+                        {linkedBalance.line.symbol}
+                      </span>
+                    </p>
+                  ) : linkedBalance && !linkedBalance.ok ? (
+                    <p
+                      className="mb-0 mt-1 text-[11px] text-[var(--muted)]"
+                      title={
+                        linkedBalance.code === "rpc"
+                          ? linkedBalance.error
+                          : undefined
+                      }
+                    >
+                      {linkedBalance.code === "not_linked"
+                        ? "Link a NEAR wallet on Account to see your balance."
+                        : linkedBalance.code === "rpc"
+                          ? "Could not load balance right now."
+                          : linkedBalance.error}
+                    </p>
+                  ) : null}
+                  {fieldErrors.budgetHuman ? (
+                    <p className="mb-0 mt-1 text-[11px] text-red-600 dark:text-red-400">
+                      {fieldErrors.budgetHuman}
+                    </p>
+                  ) : null}
+                </label>
                 <label>
                   Payment arrangement
                   <div className="choice-row">
@@ -806,7 +824,7 @@ export function RequestCreateModal({
               }}
             />
 
-            {effectiveStep === 3 && (
+            {effectiveStep === 4 && (
               <div className="review-card">
                 <div className="review-image-wrap">
                   <button
@@ -903,7 +921,7 @@ export function RequestCreateModal({
                 onClick={handlePrimary}
                 disabled={isPending}
               >
-                {isPending && effectiveStep === 3 ? (
+                {isPending && effectiveStep === 4 ? (
                   <>
                     <span
                       className="mr-1 inline-block h-2 w-2 animate-pulse rounded-full bg-current"
@@ -913,7 +931,7 @@ export function RequestCreateModal({
                   </>
                 ) : (
                   <>
-                    {effectiveStep === 3 ? "Publish" : "Continue"}
+                    {effectiveStep === 4 ? "Publish" : "Continue"}
                     <FigmaIcon name="arrow" size={17} />
                   </>
                 )}

@@ -86,7 +86,7 @@ export default async function MarketplaceHomePage({ searchParams }: PageProps) {
           <h1>
             Get help
             <br />
-            <em className="whitespace-nowrap">in minutes</em>
+            <em className="whitespace-nowrap">Get paid</em>
           </h1>
           <p>If you can pay for it, someone can do it.</p>
           <p>Configure Supabase to load live requests.</p>
@@ -163,7 +163,7 @@ export default async function MarketplaceHomePage({ searchParams }: PageProps) {
         <h1>
           Get help
           <br />
-          <em className="whitespace-nowrap">in minutes</em>
+          <em className="whitespace-nowrap">Get paid</em>
         </h1>
         <p>If you can pay for it, someone can do it.</p>
         <form method="get" action="/" className="search-wrap">
