@@ -212,13 +212,8 @@ body.app:not(.dark) {
   align-items: center;
 }
 
-.desktop-nav button.active,
-.desktop-nav a.active {
-  color: var(--ink);
-}
-
-.desktop-nav button.active:after,
-.desktop-nav a.active:after {
+.desktop-nav button::after,
+.desktop-nav a::after {
   content: "";
   position: absolute;
   height: 2px;
@@ -227,6 +222,21 @@ body.app:not(.dark) {
   left: 0;
   right: 0;
   bottom: 0;
+  transform: scaleX(0);
+  transform-origin: center bottom;
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.desktop-nav button.active,
+.desktop-nav a.active {
+  color: var(--ink);
+}
+
+.desktop-nav button.active::after,
+.desktop-nav a.active::after,
+.desktop-nav button:hover::after,
+.desktop-nav a:hover::after {
+  transform: scaleX(1);
 }
 
 .desktop-nav i,
